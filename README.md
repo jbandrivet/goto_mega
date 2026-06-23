@@ -1,7 +1,7 @@
 # GotoUniversal — Contrôleur Multi-Montures OnStep
 
 Ce projet supporte de manière universelle trois types de montures astronomiques :
-1. **Alt-Azimutale (AltAz)** : Pour montures Dobson standard (ex. Dobson Serrurier 800mm).
+1. **Alt-Azimutale (AltAz)** : Pour montures Dobson et Alt-Azimutales standards.
 2. **Fourche Équatoriale (ForkEq)** : Pour montures équatoriales à fourche ou tables équatoriales (aucun retournement de méridien requis, suivi sidéral direct sur l'angle horaire).
 3. **Monture Équatoriale Allemande (GermanEq / GEM)** : Pour montures équatoriales allemandes (gestion automatique du **retournement de méridien** et de la position de pilier *Pier Side* Est/Ouest).
 

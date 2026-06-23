@@ -1,7 +1,7 @@
 # FICHE TECHNIQUE : SYSTÈME DE COMMANDE GOTOUNIVERSAL
 *Version 5.2 (Alignée Mega v9.1 + Teensy v6.2) — Juin 2026*
 
-Ce document regroupe les spécifications électriques, le schéma de câblage des drivers **M542**, les paramètres mécaniques et les protocoles de communication pour le télescope Dobson 800mm motorisé GoTo (Observatoire Saint-Jacques).
+Ce document regroupe les spécifications électriques, le schéma de câblage des drivers **M542**, les paramètres mécaniques et les protocoles de communication pour le système de commande motorisé GoTo universel (GotoUniversal).
 
 ---
 
@@ -57,7 +57,7 @@ La résolution de déplacement (PPD - Pas par Degré) de la monture est calculé
 
 $$PPD = \frac{\text{Pas Moteur} \times \text{Microstepping} \times \text{Rapport Réduction}}{360}$$
 
-### Valeurs par Défaut (Dobson Serrurier) :
+### Valeurs de Référence (Configurables) :
 *   **Pas moteur par tour :** 200 pas.
 *   **Microstepping :** 80 (configuré sur les drivers pour donner 16 000 pas/tour).
 *   **Rapport de réduction (AZ/ALT) :** 750.0.

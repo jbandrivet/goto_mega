@@ -2,7 +2,7 @@
 """
 ╔══════════════════════════════════════════════════════════════╗
 ║      GotoUniversal — Contrôleur Universel Linux              ║
-║      Dobson 800mm Serrurier · M542 · LX200/OnStep            ║
+║      Contrôleur Multi-Montures · M542 · LX200/OnStep         ║
 ║      v5.1 — Aligné Mega v9.1 + Teensy v6.2                   ║
 ╚══════════════════════════════════════════════════════════════╝
 
@@ -2538,11 +2538,11 @@ class App(tk.Tk):
         mh=tk.Menu(mb,tearoff=0,bg=BG2,fg=TXT)
         mh.add_command(label=TRANSLATIONS[lang]["about"],command=lambda:
             messagebox.showinfo("GoTo Arduino Mega",
-                "GoTo Arduino Mega — Contrôleur Alt-Az\nv5.0 · Lyon 2026\n"
-                "Dobson 800mm Serrurier · TMC2209\n"
+                "GoTo Arduino Mega — Contrôleur Universel\nv5.0 · Lyon 2026\n"
+                "Monture Universelle GoTo\n"
                 "Arduino Mega 2560 · Teensy 4.1\nProtocole LX200" if lang == "fr" else
-                "GoTo Arduino Mega — Alt-Az Controller\nv5.0 · Lyon 2026\n"
-                "Dobson 800mm Serrurier · TMC2209\n"
+                "GoTo Arduino Mega — Universal Controller\nv5.0 · Lyon 2026\n"
+                "Universal GoTo Mount\n"
                 "Arduino Mega 2560 · Teensy 4.1\nLX200 Protocol"))
         mb.add_cascade(label=TRANSLATIONS[lang]["help"],menu=mh)
         self.config(menu=mb)
