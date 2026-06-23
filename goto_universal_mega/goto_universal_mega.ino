@@ -89,10 +89,10 @@ static double         maxSlewRate   = DEFAULT_SLEW_RATE;
 #define ALT_MIN  -1.0
 #define ALT_MAX  89.5
 
-// === SAINT-JACQUES 04330 ===
-static double siteLat = 43.9694;
-static double siteLon = 6.37528;
-static double utcOff  = 2.0;
+// === COORDONNEES PAR DEFAUT ===
+static double siteLat = 0.0;
+static double siteLon = 0.0;
+static double utcOff  = 0.0;
 
 // Date/Heure
 static int dt_y=2026, dt_m=4, dt_d=26;
@@ -213,8 +213,8 @@ static void loadStateFromEEPROM() {
     
     if (isnan(siteLat) || siteLat < -90.0 || siteLat > 90.0 ||
         isnan(siteLon) || siteLon < -180.0 || siteLon > 180.0) {
-      siteLat = 43.9694;
-      siteLon = 6.37528;
+      siteLat = 0.0;
+      siteLon = 0.0;
     }
     
     if (motorStepsPerRev < 100 || motorStepsPerRev > 100000UL ||
@@ -1318,7 +1318,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     else if (mountType == 2) out.print(F("GermanEq#"));
     return;
   }
-  if(c1=='G'&&c2=='N'){ out.print(F("Saint-Jacques#")); return; }
+  if(c1=='G'&&c2=='N'){ out.print(F("Observatory#")); return; }
   if(c1=='G'&&c2=='O'){ out.print(F("Site2#")); return; }
   if(c1=='G'&&c2=='P'){ out.print(F("Site3#")); return; }
   if(c1=='G'&&c2=='V'&&c3=='P'){ out.print(F("OnStep#")); return; }
@@ -1913,7 +1913,7 @@ void setup() {
   lastClkMs=millis(); lastTrkMs=millis();
   updatePos();
   Serial.println(F("GotoUniversal v1.0 - OnStep ready"));
-  Serial.println(F("Site: Saint-Jacques 04330 (43.9694N / 6.37528E)"));
+  Serial.println(F("Site: Default (0.0000N / 0.0000E)"));
   Serial.println(F("USB:38400 + RJ11(Serial3):38400"));
   Serial3.println(F("GotoUniversal Mega ready"));
   
