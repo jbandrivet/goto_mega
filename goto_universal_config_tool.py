@@ -64,7 +64,14 @@ TRANSLATIONS = {
         "unpark_mount": "Unpark Mount ☉",
         "motor_inversion": "Motor Inversion:",
         "rev_az": "Reverse AZ/RA",
-        "rev_alt": "Reverse ALT/DEC"
+        "rev_alt": "Reverse ALT/DEC",
+        "flash_lf": "Firmware Flashing (arduino-cli)",
+        "flash_mega": "Compile & Flash Arduino Mega 2560 🚀",
+        "flash_teensy": "Compile & Flash Teensy 4.1 Raquette 🎮",
+        "flashing_title": "Firmware Flashing",
+        "flashing_success": "Successfully compiled and flashed the firmware!",
+        "flashing_error": "Compilation or Flashing failed:\n",
+        "cli_not_found": "arduino-cli was not found. Please install it (or copy to ~/.local/bin/arduino-cli) to use this feature."
     },
     "fr": {
         "title": " Utilitaire de Configuration GotoUniversal",
@@ -102,7 +109,14 @@ TRANSLATIONS = {
         "unpark_mount": "Déparquer Monture ☉",
         "motor_inversion": "Inversion moteurs :",
         "rev_az": "Inverser AZ/RA",
-        "rev_alt": "Inverser ALT/DEC"
+        "rev_alt": "Inverser ALT/DEC",
+        "flash_lf": "Téléversement du Firmware (arduino-cli)",
+        "flash_mega": "Compiler & Flasher Arduino Mega 2560 🚀",
+        "flash_teensy": "Compiler & Flasher Raquette Teensy 4.1 🎮",
+        "flashing_title": "Téléversement du Firmware",
+        "flashing_success": "Le firmware a été compilé et téléversé avec succès !",
+        "flashing_error": "Échec de compilation ou téléversement :\n",
+        "cli_not_found": "arduino-cli n'a pas été trouvé. Veuillez l'installer (ou le copier dans ~/.local/bin/arduino-cli) pour utiliser cette fonction."
     }
 }
 
@@ -120,7 +134,7 @@ class ConfigToolApp(tk.Tk):
         lang = self.settings.get("language", "fr")
         t = TRANSLATIONS[lang]
         self.title(t["title"].strip())
-        self.geometry("620x840")
+        self.geometry("620x920")
         self.configure(bg="#c0c0c0") # Classic Windows 95 grey
         self.resizable(False, False)
 
@@ -367,6 +381,19 @@ class ConfigToolApp(tk.Tk):
         self.unpark_btn = tk.Button(mount_ctrl_inner, text="Unpark Mount ☉", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.unpark_mount, state="disabled", width=18)
         self.unpark_btn.pack(side="left", padx=5, fill="x", expand=True)
 
+        # 4.7 Flash Firmware Panel
+        self.flash_lf = tk.LabelFrame(main_container, text="Firmware Flashing (arduino-cli)", bg="#c0c0c0", fg="black", font=f_title, relief="groove", bd=2)
+        self.flash_lf.pack(fill="x", pady=5)
+        
+        flash_inner = tk.Frame(self.flash_lf, bg="#c0c0c0")
+        flash_inner.pack(padx=15, pady=10, fill="x")
+        
+        self.flash_mega_btn = tk.Button(flash_inner, text="Compile & Flash Arduino Mega 2560 🚀", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("mega"), width=25)
+        self.flash_mega_btn.pack(side="left", padx=5, fill="x", expand=True)
+        
+        self.flash_teensy_btn = tk.Button(flash_inner, text="Compile & Flash Teensy 4.1 Raquette 🎮", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("teensy"), width=25)
+        self.flash_teensy_btn.pack(side="left", padx=5, fill="x", expand=True)
+
         # 5. Buttons Actions Panel
         actions_frame = tk.Frame(main_container, bg="#c0c0c0")
         actions_frame.pack(fill="x", side="bottom", pady=10)
@@ -449,6 +476,10 @@ class ConfigToolApp(tk.Tk):
         self.mount_ctrl_lf.config(text=t["mount_control"])
         self.park_btn.config(text=t["park_mount"])
         self.unpark_btn.config(text=t["unpark_mount"])
+        
+        self.flash_lf.config(text=t["flash_lf"])
+        self.flash_mega_btn.config(text=t["flash_mega"])
+        self.flash_teensy_btn.config(text=t["flash_teensy"])
 
     def auto_detect_gps(self):
         self.gps_btn.config(state="disabled")
@@ -816,6 +847,74 @@ class ConfigToolApp(tk.Tk):
                 pass
             self.ser = None
         self.update_connection_status()
+
+    def find_arduino_cli(self):
+        import shutil
+        cli = shutil.which("arduino-cli")
+        if cli:
+            return cli
+        local_path = Path.home() / ".local" / "bin" / "arduino-cli"
+        if local_path.exists():
+            return str(local_path)
+        return None
+
+    def flash_firmware(self, target):
+        cli = self.find_arduino_cli()
+        lang = self.settings.get("language", "fr")
+        t = TRANSLATIONS[lang]
+        
+        if not cli:
+            messagebox.showerror(t["flashing_title"], t["cli_not_found"])
+            return
+
+        port = self.port_var.get()
+        if not port:
+            messagebox.showerror("Error", "Please select a serial port first.")
+            return
+
+        # If connected, disconnect first
+        if self.is_connected:
+            self.toggle_connection()
+
+        import subprocess
+        script_dir = Path(__file__).parent
+        
+        if target == "mega":
+            sketch_path = script_dir / "goto_universal_mega"
+            fqbn = "arduino:avr:mega"
+            additional_args = []
+        else:
+            sketch_path = script_dir / "goto_universal_raquette" / "teensy_raquette_v62"
+            fqbn = "teensy:avr:teensy41"
+            additional_args = ["--additional-urls", "https://www.pjrc.com/teensy/package_teensy_index.json"]
+
+        # Disable buttons temporarily during flash
+        self.flash_mega_btn.config(state="disabled")
+        self.flash_teensy_btn.config(state="disabled")
+        self.update()
+
+        try:
+            # 1. Compile
+            compile_cmd = [cli, "compile", "--fqbn", fqbn] + additional_args + [str(sketch_path)]
+            res_comp = subprocess.run(compile_cmd, capture_output=True, text=True, timeout=90)
+            if res_comp.returncode != 0:
+                messagebox.showerror(t["flashing_title"], t["flashing_error"] + res_comp.stderr)
+                return
+
+            # 2. Upload
+            upload_cmd = [cli, "upload", "-p", port, "--fqbn", fqbn] + additional_args + [str(sketch_path)]
+            res_upl = subprocess.run(upload_cmd, capture_output=True, text=True, timeout=90)
+            if res_upl.returncode != 0:
+                messagebox.showerror(t["flashing_title"], t["flashing_error"] + res_upl.stderr)
+                return
+
+            messagebox.showinfo(t["flashing_title"], t["flashing_success"])
+        except Exception as e:
+            messagebox.showerror(t["flashing_title"], t["flashing_error"] + str(e))
+        finally:
+            self.flash_mega_btn.config(state="normal")
+            self.flash_teensy_btn.config(state="normal")
+            self.update()
 
 if __name__ == "__main__":
     app = ConfigToolApp()

@@ -35,6 +35,11 @@
 #include <EEPROM.h>
 #include "mini_ephem.h"
 
+enum CatID { CAT_MESSIER=0, CAT_NGC, CAT_IC, CAT_PK, CAT_CALDWELL, CAT_BSC, CAT_SYSSOL, CAT_COUNT };
+bool isEnglish = false;
+#define CHAR_LEFT  0x7F
+#define CHAR_RIGHT 0x7E
+
 int dt_y=2026, dt_m=1, dt_d=1;
 int dt_hr=12, dt_min=0, dt_sec=0;
 float obs_lat=45.0, obs_lon=0.0;
@@ -1120,7 +1125,6 @@ uint8_t mountType = 0;
 float   gearRatioAZ = 750.0;
 float   gearRatioALT = 750.0;
 bool    buzzerOn = true;
-bool    isEnglish = false;
 bool    temp_isEnglish = false;
 bool    motorPowerOn = true;
 bool    temp_motorPowerOn = true;
@@ -1176,8 +1180,6 @@ enum UIState {
     UI_MOTOR_POWER, UI_LANGUAGE
 };
 UIState uiState = UI_MAIN;
-
-enum CatID { CAT_MESSIER=0, CAT_NGC, CAT_IC, CAT_PK, CAT_CALDWELL, CAT_BSC, CAT_SYSSOL, CAT_COUNT };
 
 const char* const CAT_NAMES[] = { "Messier","NGC","IC","PK","Caldwell","Etoiles","SysSol  " };
 
