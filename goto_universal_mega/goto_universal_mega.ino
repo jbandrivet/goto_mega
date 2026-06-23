@@ -1,48 +1,13 @@
 /*
-   ============================================================
-   GotoUniversalMega - Mega 2560 + M542 - Protocole OnStep v9.1
-   ============================================================
-  
-
-   Compatible KStars/Ekos, Stellarium, Cartes du Ciel, SkySafari
-   via le driver INDI "LX200 OnStep". Compatible aussi avec la
-   raquette Teensy 4.1 GotoUniversal via Serial3 (RJ11) en parallele.
-
-   ============================================================
-   CABLAGE :
-     Moteur AZ  : Pin 2 (STEP) -> PUL+
-                  Pin 3 (DIR)  -> DIR+
-     Moteur ALT : Pin 5 (STEP) -> PUL+
-                  Pin 6 (DIR)  -> DIR+
-     ENA non utilise (moteurs toujours actifs)
-     GND commun obligatoire
-     Buzzer    : Pin 11 -> 100Ohm -> +Buzzer | GND -> -Buzzer
-     RJ11 raquette Teensy : Serial3 (Pin 14 TX3 / Pin 15 RX3) @ 38400
-     GPS Adafruit ADA746  : Serial2 (Pin 17 RX2 <- TX GPS) @ 9600
-
-   ============================================================
-   NOUVEAU EN v9.2 (GPS Integration)
-   ============================================================
-   [27] Ajout module Adafruit Ultimate GPS via Serial2.
-        Mise a jour automatique et non-bloquante de l'heure locale
-        (calcul via utcOff) et des coordonnees du site d'observation.
-        Deverrouillage automatique du flag 'F' a la premiere trame valide.
-
-   NOUVEAU EN v9.1 (refactor)
-   ============================================================
-   [22] processCmd() prend desormais un Print& out en argument.
-        Plus aucune duplication entre USB et RJ11 : une seule
-        implementation, deux ports. La centaine de lignes
-        dupliquee de l'ancien loop() a disparu.
-   [23] Slew loop ecoute desormais USB ET RJ11 (Serial3) :
-        la raquette ne timeout plus pendant un GoTo.
-   [24] Parsers :Sr / :SC / :SL bornes sur ci pour eviter les
-        lectures hors-buffer si le client envoie un format court.
-   [25] :GU# : nouveau flag 'F' (time-not-set) tant que :SC/:SL
-        n'ont pas ete recus (ou GPS non fixe). Empeche les goto a l'aveugle.
-   [26] USB passe a 19200 baud par defaut (etait 9600). Les
-        drivers INDI modernes y sont plus a l'aise.
-*/
+ * GotoUniversalMega - Controleur de monture Astro Mega 2560 (Protocole OnStep)
+ * 
+ * Cablage :
+ * - Moteur AZ  : Step Pin 2, Dir Pin 3
+ * - Moteur ALT : Step Pin 5, Dir Pin 6
+ * - Buzzer     : Pin 11
+ * - Raquette   : Serial3 (Pin 14 TX, Pin 15 RX) @ 38400 baud
+ * - Module GPS : Serial2 (Pin 16 TX, Pin 17 RX) @ 9600 baud
+ */
 
 #include <math.h>
 #include <EEPROM.h>
