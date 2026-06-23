@@ -17,6 +17,43 @@ Ce projet supporte de manière universelle trois types de montures astronomiques
 
 ---
 
+## Guide d'Installation & Mode d'Emploi
+
+### 1. Prérequis
+Pour exécuter les applications graphiques en Python sur votre ordinateur, vous devez disposer de **Python 3**, du module **Tkinter** et de la bibliothèque **pyserial**.
+
+Sur Ubuntu / Debian / Raspberry Pi OS, installez-les via votre terminal :
+```bash
+sudo apt update
+sudo apt install python3 python3-tk python3-pip
+pip3 install pyserial
+```
+
+### 2. Démarrage des Applications
+Exécutez les scripts Python correspondants depuis le dossier du projet :
+
+* **Configuration & Flashage** :
+  ```bash
+  python3 goto_universal_config_tool.py
+  ```
+* **Cartographie du Ciel & Pilotage** :
+  ```bash
+  python3 goto_universal.py
+  ```
+* **Raquette Virtuelle (Émulateur)** :
+  ```bash
+  python3 raquette_virtuelle.py
+  ```
+
+### 3. Compiler & Flasher sans IDE Arduino
+Vous pouvez programmer vos cartes directement depuis l'utilitaire de configuration (sans avoir besoin d'ouvrir l'IDE Arduino classique) :
+1. Installez l'utilitaire [arduino-cli](https://arduino.github.io/arduino-cli/latest/) sur votre PC.
+2. Ouvrez l'utilitaire de configuration (`python3 goto_universal_config_tool.py`).
+3. Sélectionnez le **Port** série de votre carte dans les paramètres de connexion.
+4. Dans l'encadré **« Téléversement du Firmware »**, cliquez sur le bouton correspondant à votre carte pour compiler et flasher automatiquement.
+
+---
+
 ## Fonctionnalités Avancées
 
 * **Ajout du type de monture `GermanEq`** : Le firmware de l'Arduino Mega calcule automatiquement les inversions d'axes (Ascension Droite et Déclinaison) lors du franchissement du méridien.
