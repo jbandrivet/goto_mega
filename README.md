@@ -71,6 +71,26 @@ Câblez votre carte Arduino Mega 2560 en suivant ce schéma de connexion :
 
 *Note : Les signaux de masse négatifs (`PUL-`, `DIR-`, `ENB-` des drivers, GND du buzzer, du GPS et de la Teensy) doivent tous être connectés à une broche **GND** de l'Arduino Mega.*
 
+### 5. Matériel Compatible
+
+Pour monter votre système GotoUniversal, les composants matériels suivants sont compatibles et recommandés :
+
+* **Cartes de Contrôle** :
+  * **Arduino Mega 2560** (carte principale de la monture).
+  * **Teensy 4.1** (pour la raquette de commande physique).
+* **Drivers de Moteurs** :
+  * Drivers standard acceptant des entrées `PUL/DIR` (Impulsion/Direction) comme les modèles **M542**, **DM542**, **TB6600**, **TMC2209**, etc.
+* **Moteurs** :
+  * Moteurs pas à pas bipolaires (ex. **NEMA 17** ou **NEMA 23** en 200 pas/tour).
+* **Module GPS (Optionnel)** :
+  * Module **Adafruit Ultimate GPS** (MTK3339) ou tout autre récepteur GPS délivrant des trames NMEA standards à 9600 bauds sur port série.
+* **Afficheur Raquette** :
+  * Écran **LCD 20x4** caractères équipé d'un adaptateur **I2C** (généralement à l'adresse `0x27`).
+* **Boutons Raquette** :
+  * 5 boutons poussoirs momentanés (Haut, Bas, Gauche, Droite, Validation).
+* **Alerte Sonore** :
+  * Un **Buzzer actif 5V**.
+
 ---
 
 ## Fonctionnalités Avancées
