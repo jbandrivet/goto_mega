@@ -52,6 +52,25 @@ Vous pouvez programmer vos cartes directement depuis l'utilitaire de configurati
 3. Sélectionnez le **Port** série de votre carte dans les paramètres de connexion.
 4. Dans l'encadré **« Téléversement du Firmware »**, cliquez sur le bouton correspondant à votre carte pour compiler et flasher automatiquement.
 
+### 4. Schéma de Câblage Rapide (Arduino Mega)
+
+Câblez votre carte Arduino Mega 2560 en suivant ce schéma de connexion :
+
+| Composant / Axe | Broche Arduino Mega | Signal Module / Driver |
+| :--- | :--- | :--- |
+| **Moteur Azimut (AZ/RA)** | **Pin 2** | `PUL+` (Pulse/Step) |
+| | **Pin 3** | `DIR+` (Direction) |
+| | **Pin 4** | `ENB+` (Enable - Optionnel) |
+| **Moteur Altitude (ALT/DEC)** | **Pin 5** | `PUL+` (Pulse/Step) |
+| | **Pin 6** | `DIR+` (Direction) |
+| | **Pin 7** | `ENB+` (Enable - Optionnel) |
+| **Buzzer** | **Pin 49** | Borne `+` (via résistance 100 Ω) |
+| **Raquette Teensy 4.1** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
+| | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
+| **Module GPS Adafruit** | **Pin 17 (RX2)** | `TX` du module GPS |
+
+*Note : Les signaux de masse négatifs (`PUL-`, `DIR-`, `ENB-` des drivers, GND du buzzer, du GPS et de la Teensy) doivent tous être connectés à une broche **GND** de l'Arduino Mega.*
+
 ---
 
 ## Fonctionnalités Avancées
