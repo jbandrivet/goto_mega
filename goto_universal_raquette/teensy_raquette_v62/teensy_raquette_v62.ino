@@ -1698,20 +1698,6 @@ void sendLocationToMega() {
     mega_cmd(buf);
 }
 
-void updateLcdColor() {
-    if (uiState == UI_OFFLINE) {
-        lcd.setRGB(255, 0, 0); // Rouge pour hors-ligne
-    } else if (uiState == UI_SLEWING) {
-        lcd.setRGB(0, 150, 255); // Bleu pour mouvement
-    } else if (uiState == UI_ALIGN || uiState == UI_ALIGN_CENTER) {
-        lcd.setRGB(255, 100, 0); // Orange pour alignement
-    } else if (uiState == UI_MESSAGE) {
-        lcd.setRGB(255, 0, 255); // Violet pour les messages pop-up
-    } else {
-        lcd.setRGB(255, 255, 255); // Blanc pour menu normal
-    }
-}
-
 void refreshLcd(){
     updateLcdColor();
     switch(uiState){
@@ -2211,7 +2197,6 @@ void setup(){
 
     Wire.begin();
     lcd.begin(16, 2);
-    lcd.setRGB(255, 255, 255);
     initCustomChars();
 
     lcd.clear();

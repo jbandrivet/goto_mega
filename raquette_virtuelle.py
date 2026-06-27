@@ -208,7 +208,7 @@ class VirtualTeensyApp(tk.Tk):
         lcd_case.pack(pady=10, fill="x")
         
         # Écran LCD matriciel retro couleur (simule Grove RGB)
-        self.lcd_frame = tk.Frame(lcd_case, bg="#ffffff", padx=10, pady=10)
+        self.lcd_frame = tk.Frame(lcd_case, bg="#ff0000", padx=10, pady=10)
         self.lcd_frame.pack(fill="both", expand=True)
         
         self.lcd_lines = []
@@ -216,7 +216,7 @@ class VirtualTeensyApp(tk.Tk):
             lbl = tk.Label(
                 self.lcd_frame, 
                 text=" "*16, 
-                bg="#ffffff", 
+                bg="#ff0000", 
                 fg="#000000", 
                 font=f_lcd, 
                 width=16, 
@@ -654,8 +654,7 @@ class VirtualTeensyApp(tk.Tk):
     def set_msg(self, l0, l1, l2, l3, duration_ms, return_state):
         self.lcd_lines[0].config(text=f"{l0:<16}"[:16])
         self.lcd_lines[1].config(text=f"{l1:<16}"[:16])
-        self.lcd_frame.configure(bg="#ff00ff")
-        for lbl in self.lcd_lines: lbl.configure(bg="#ff00ff")
+        
         self.state = self.UI_MESSAGE
         self.msg_return_state = return_state
         self.msg_until = time.time() + duration_ms/1000.0
@@ -667,19 +666,7 @@ class VirtualTeensyApp(tk.Tk):
             self.update_lcd()
 
     def update_lcd(self):
-        # Update Backlight color based on state
-        if not self.is_connected:
-            bg_color = "#ff0000" # Red
-        elif self.state == self.UI_SLEWING:
-            bg_color = "#0099ff" # Blue
-        elif self.state == self.UI_ALIGN_CENTER:
-            bg_color = "#ff6600" # Orange
-        else:
-            bg_color = "#ffffff" # White default
-            
-        self.lcd_frame.configure(bg=bg_color)
-        for lbl in self.lcd_lines:
-            lbl.configure(bg=bg_color)
+
 
         if self.state == self.UI_MESSAGE: return
         
