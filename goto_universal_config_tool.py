@@ -24,7 +24,9 @@ DEFAULTS = {
     "microstep": 125,
     "language": "fr",
     "rev_az": False,
-    "rev_alt": False
+    "rev_alt": False,
+    "park_alt": 90.0,
+    "park_az": 0.0
 }
 
 TRANSLATIONS = {
@@ -45,6 +47,9 @@ TRANSLATIONS = {
         "gear_ratio_alt": "ALT/DEC Ratio:",
         "latitude": "Site Latitude (N):",
         "longitude": "Longitude (E):",
+        "park_pos": "Park Position:",
+        "park_alt": "Altitude (deg):",
+        "park_az": "Azimuth (deg):",
         "gps_coords": "GPS Coordinates:",
         "auto_detect": "Auto Detect (Internet) 🛰",
         "goto_speed": "GoTo Speed (°/s):",
@@ -282,6 +287,22 @@ class ConfigToolApp(tk.Tk):
         self.gear_alt_entry.insert(0, str(self.settings["gear_ratio_alt"]))
         self.gear_alt_entry.pack(side="left", padx=5)
 
+        # Configuration Row 2.5: Park Position
+        row_park = tk.Frame(form_inner, bg="#c0c0c0")
+        row_park.pack(fill="x", pady=6)
+        self.lbl_park = tk.Label(row_park, text="Position Parking :", width=20, anchor="w", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_park.pack(side="left")
+        self.lbl_park_alt = tk.Label(row_park, text="Altitude (deg):", width=12, anchor="e", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_park_alt.pack(side="left")
+        self.park_alt_entry = tk.Entry(row_park, width=8, bd=2, relief="sunken", font=f_entry, bg="white", fg="black")
+        self.park_alt_entry.insert(0, str(self.settings["park_alt"]))
+        self.park_alt_entry.pack(side="left", padx=5)
+        self.lbl_park_az = tk.Label(row_park, text="Azimut (deg):", width=12, anchor="e", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_park_az.pack(side="left", padx=(5, 0))
+        self.park_az_entry = tk.Entry(row_park, width=8, bd=2, relief="sunken", font=f_entry, bg="white", fg="black")
+        self.park_az_entry.insert(0, str(self.settings["park_az"]))
+        self.park_az_entry.pack(side="left", padx=5)
+
         # Configuration Row 3: Lieu d'observation
         row_loc = tk.Frame(form_inner, bg="#c0c0c0")
         row_loc.pack(fill="x", pady=6)
@@ -449,6 +470,9 @@ class ConfigToolApp(tk.Tk):
         self.lbl_gear_alt.config(text=t["gear_ratio_alt"])
         self.lbl_latitude.config(text=t["latitude"])
         self.lbl_longitude.config(text=t["longitude"])
+        self.lbl_park.config(text=t["park_pos"])
+        self.lbl_park_alt.config(text=t["park_alt"])
+        self.lbl_park_az.config(text=t["park_az"])
         self.lbl_gps.config(text=t["gps_coords"])
         self.gps_btn.config(text=t["auto_detect"])
         self.lbl_goto_speed.config(text=t["goto_speed"])
