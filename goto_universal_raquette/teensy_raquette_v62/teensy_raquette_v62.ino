@@ -31,7 +31,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
+#include "rgb_lcd.h"
 #include <EEPROM.h>
 #include "mini_ephem.h"
 
@@ -1698,7 +1698,22 @@ void sendLocationToMega() {
     mega_cmd(buf);
 }
 
+void updateLcdColor() {
+    if (uiState == UI_OFFLINE) {
+        lcd.setRGB(255, 0, 0); // Rouge pour hors-ligne
+    } else if (uiState == UI_SLEWING) {
+        lcd.setRGB(0, 150, 255); // Bleu pour mouvement
+    } else if (uiState == UI_ALIGN || uiState == UI_ALIGN_CENTER) {
+        lcd.setRGB(255, 100, 0); // Orange pour alignement
+    } else if (uiState == UI_MESSAGE) {
+        lcd.setRGB(255, 0, 255); // Violet pour les messages pop-up
+    } else {
+        lcd.setRGB(255, 255, 255); // Blanc pour menu normal
+    }
+}
+
 void refreshLcd(){
+    updateLcdColor();
     switch(uiState){
         case UI_MAIN:        printMain();       break;
         case UI_CAT_SELECT:  printCatSelect();  break;
@@ -2195,7 +2210,8 @@ void setup(){
     for(int i=0;i<5;i++) pinMode(BTN_PINS[i],INPUT_PULLUP);
 
     Wire.begin();
-    lcd.init(); lcd.backlight();
+    lcd.begin(16, 2);
+    lcd.setRGB(255, 255, 255);
     initCustomChars();
 
     lcd.clear();

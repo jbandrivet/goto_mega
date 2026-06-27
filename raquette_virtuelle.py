@@ -207,16 +207,16 @@ class VirtualTeensyApp(tk.Tk):
         lcd_case = tk.Frame(main_container, bg="#c0c0c0", bd=2, relief="sunken")
         lcd_case.pack(pady=10, fill="x")
         
-        # Écran LCD matriciel retro rouge
-        lcd_frame = tk.Frame(lcd_case, bg="#ff0000", padx=10, pady=10)
-        lcd_frame.pack(fill="both", expand=True)
+        # Écran LCD matriciel retro couleur (simule Grove RGB)
+        self.lcd_frame = tk.Frame(lcd_case, bg="#ffffff", padx=10, pady=10)
+        self.lcd_frame.pack(fill="both", expand=True)
         
         self.lcd_lines = []
         for i in range(2):
             lbl = tk.Label(
-                lcd_frame, 
+                self.lcd_frame, 
                 text=" "*16, 
-                bg="#ff0000", 
+                bg="#ffffff", 
                 fg="#000000", 
                 font=f_lcd, 
                 width=16, 
