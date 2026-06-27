@@ -745,7 +745,7 @@ class VirtualTeensyApp(tk.Tk):
             o = self.obj_list[self.obj_idx]
             name = o.get('name', f"{o.get('cat')} {o.get('num')}")
             l0 = f"Centrez {name[:8]}"[:16].ljust(16) if lang == "fr" else f"Center {name[:9]}"[:16].ljust(16)
-            l1 = "ENT=SYNC <=RET  "[:16] if lang == "fr" else "ENT=SYNC <=BACK "[:16]
+            l1 = "   ENT=SYNC     "[:16]
             
         elif self.state == self.UI_SETTINGS:
             l0 = "[ MENU ]        " if lang == "fr" else "[ MENU ]        "
