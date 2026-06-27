@@ -62,6 +62,7 @@ class VirtualTeensyApp(tk.Tk):
         self.UI_SLEWING = 4
         self.UI_SETTINGS = 5
         self.UI_SPEED = 6
+        self.UI_MESSAGE = 7
         self.UI_BEEP = 8
         self.UI_MOTOR_POWER = 9
         self.UI_LANGUAGE = 10
