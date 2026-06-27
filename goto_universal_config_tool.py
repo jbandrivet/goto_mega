@@ -71,7 +71,7 @@ TRANSLATIONS = {
         "rev_az": "Reverse AZ/RA",
         "rev_alt": "Reverse ALT/DEC",
         "flash_lf": "Firmware Flashing (arduino-cli)",
-        "flash_mega": "Compile & Flash Arduino Mega 2560 🚀",
+        "flash_mega": "Compile & Flash Arduino Mega 2560",
         "flash_teensy": "Compile & Flash Teensy 4.1 Raquette",
         "flashing_title": "Firmware Flashing",
         "flashing_success": "Successfully compiled and flashed the firmware!",
@@ -119,7 +119,7 @@ TRANSLATIONS = {
         "rev_az": "Inverser AZ/RA",
         "rev_alt": "Inverser ALT/DEC",
         "flash_lf": "Téléversement du Firmware (arduino-cli)",
-        "flash_mega": "Compiler & Flasher Arduino Mega 2560 🚀",
+        "flash_mega": "Compiler & Flasher Arduino Mega 2560",
         "flash_teensy": "Compiler & Flasher Raquette Teensy 4.1",
         "flashing_title": "Téléversement du Firmware",
         "flashing_success": "Le firmware a été compilé et téléversé avec succès !",
@@ -412,7 +412,7 @@ class ConfigToolApp(tk.Tk):
         flash_inner = tk.Frame(self.flash_lf, bg="#c0c0c0")
         flash_inner.pack(padx=15, pady=10, fill="x")
         
-        self.flash_mega_btn = tk.Button(flash_inner, text="Compile & Flash Arduino Mega 2560 🚀", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("mega"), width=25)
+        self.flash_mega_btn = tk.Button(flash_inner, text="Compile & Flash Arduino Mega 2560", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("mega"), width=25)
         self.flash_mega_btn.pack(side="left", padx=5, fill="x", expand=True)
         
         self.flash_teensy_btn = tk.Button(flash_inner, text="Compile & Flash Teensy 4.1 Raquette", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("teensy"), width=25)
