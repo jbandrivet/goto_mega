@@ -1099,7 +1099,7 @@ StarObject getStarFromCatalog(uint16_t index) {
 // ============================================================
 // SECTION 2 : OBJETS GLOBAUX
 // ============================================================
-LiquidCrystal_I2C lcd(LCD_ADDR, 20, 4);
+LiquidCrystal_I2C lcd(LCD_ADDR, 16, 2);
 
 // ============================================================
 // SECTION 3 : ÉTAT MONTURE (mis à jour par polling)
@@ -1484,49 +1484,32 @@ void selectCurrentObject(){
 // SECTION 10 : AFFICHAGE LCD
 // ============================================================
 void lcdLine(uint8_t row, const char* str){
+    if (row >= 2) return;
     lcd.setCursor(0,row);
-    char buf[21]; snprintf(buf,21,"%-20s",str);
+    char buf[17]; snprintf(buf,17,"%-16s",str);
     lcd.print(buf);
 }
 
 void printMain(){
-    char buf[21];
+    char buf[17];
     int rah=(int)m_currentRA, ram=(int)((m_currentRA-rah)*60);
-    int ras=(int)(((m_currentRA-rah)*60-ram)*60);
     bool dneg=(m_currentDEC<0); double da=fabs(m_currentDEC);
-    int dd=(int)da, dm=(int)((da-dd)*60), ds=(int)(((da-dd)*60-dm)*60);
-    snprintf(buf,21,"RA%02d%02d%02d DEC%c%02d%02d%02d",
-             rah,ram,ras, dneg?'-':'+', dd,dm,ds);
+    int dd=(int)da, dm=(int)((da-dd)*60);
+    snprintf(buf,17,"R%02dh%02d D%c%02d%c%02d", rah,ram, dneg?'-':'+', dd, 0xDF, dm);
     lcdLine(0,buf);
 
-    int azD=(int)m_currentAz, azM=(int)((m_currentAz-azD)*60);
-    int alD=(int)m_currentAlt, alM=(int)fabs((m_currentAlt-alD)*60);
-    snprintf(buf,21,"AZ%03d%02d' AL%02d%02d' %s",
-             azD,azM, alD,alM, m_limitHit?(isEnglish?"!LIM":"!LIM"):"    ");
-    lcdLine(1,buf);
-
     if(!m_online){
-        lcdLine(2, isEnglish ? "  MOUNT OFFLINE!    " : "  MONTURE OFFLINE! ");
+        lcdLine(1, "OFFLINE");
     } else if(m_isPaused){
-        lcdLine(2, isEnglish ? " * MOTORS PAUSED    " : " * MOTEURS EN PAUSE ");
+        lcdLine(1, "* EN PAUSE *");
+    } else if(m_limitHit){
+        lcdLine(1, "!! LIMITE !!");
     } else {
-        snprintf(buf,21,"%c%s %.1f%c/s %s",
+        snprintf(buf,17,"%cMNT OK %c%s", 
                  m_isTracking?(char)CHAR_CHECK:'-',
-                 m_isSlewing?" GOTO":"     ",
-                 m_slewSpeed,(char)0xDF,
-                 m_online?"   ":"OFF");
-        lcdLine(2,buf);
-    }
-    
-    if(m_limitHit){
-        lcdLine(3, isEnglish ? "!! CABLE LIMIT !!   " : "!! LIMITE CABLES !! ");
-    } else if(!m_timeSet) {
-        // [v6.3] Le message d'avertissement specifie le GPS
-        lcdLine(3, isEnglish ? " WAIT GPS / SET TIME" : " ATTENTE FIX GPS... ");
-    } else {
-        snprintf(buf,21, isEnglish ? "%c%c%c%c=MOVE. ENT=MENU" : "%c%c%c%c=DEPL. ENT=MENU",
-                 (char)CHAR_UP,(char)CHAR_DOWN,(char)CHAR_LEFT,(char)CHAR_RIGHT);
-        lcdLine(3,buf);
+                 (char)CHAR_UP,
+                 m_isSlewing?" GOTO":"");
+        lcdLine(1,buf);
     }
 }
 
@@ -1534,15 +1517,13 @@ void printMessage(){
     lcd.clear();
     lcdLine(0, uiMsgL0);
     lcdLine(1, uiMsgL1);
-    lcdLine(2, "                    ");
-    lcdLine(3, "                    ");
 }
 
 const char* getCatName(int idx) {
     if (idx < 0 || idx >= CAT_COUNT) return "";
     if (isEnglish) {
         const char* const NAMES_EN[] = {
-            "Messier", "NGC", "IC", "PK", "Caldwell", "Stars  ", "SolarSys"
+            "Messier", "NGC", "IC", "PK", "Caldwell", "Stars", "Sol"
         };
         return NAMES_EN[idx];
     }
@@ -1550,93 +1531,54 @@ const char* getCatName(int idx) {
 }
 
 void printCatSelect(){
-    lcdLine(0, isEnglish ? "--   CATALOGS  --   " : "--  CATALOGUE  --   ");
-    for(int i=0;i<3;i++){
-        int idx=((int)currentCat-1+i+CAT_COUNT)%CAT_COUNT;
-        char buf[21];
-        snprintf(buf,21,"%s%-8s %5lu obj",
-                 idx==(int)currentCat?">":" ",
-                 getCatName(idx), getCatalogCount((CatID)idx));
-        lcdLine(i+1,buf);
-    }
+    lcdLine(0, isEnglish ? "[ SELECT CATAL.]" : "[ CHOIX CATALOG]");
+    char buf[17];
+    snprintf(buf,17,">%s %4lu", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
+    lcdLine(1,buf);
 }
 
 void printObjectList(){
-    uint32_t total=getCatalogCount(currentCat);
-    char buf[21];
-    snprintf(buf,21,"%-3s  %5lu / %-5lu  ",
-             getCatName((int)currentCat), objectIndex+1, total);
+    char buf[17];
+    snprintf(buf,17,"[%s] %4luobj", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
     lcdLine(0,buf);
 
-    for(int i=0;i<3;i++){
-        long idx=(long)objectIndex-1+i;
-        if(idx<0||(uint32_t)idx>=total){ lcdLine(i+1,"                    "); continue; }
-        char line[21];
-        if(currentCat==CAT_BSC){
-            StarObject s=getStarFromCatalog((uint32_t)idx);
-            snprintf(line,21,"%s%-11s%4.1f ",
-                     idx==(long)objectIndex?">":" ",
-                     s.name, s.mag/10.0f);
-        } else if(currentCat==CAT_SYSSOL){
-            snprintf(line,21,"%s%-12s      ",
-                     idx==(long)objectIndex?">":" ",
-                     sysSolObjs[idx].name);
-        } else {
-            DeepSkyObject o; getObj(currentCat,(uint32_t)idx,o);
-            snprintf(line,21,"%s%-3s%5d %c m%4.1f",
-                     idx==(long)objectIndex?">":" ",
-                     getCatPrefix(currentCat), o.id,
-                     (char)getTypeChar(o.type), o.mag/10.0f);
-        }
-        lcdLine(i+1,line);
+    uint32_t total=getCatalogCount(currentCat);
+    if(total==0){ lcdLine(1," Aucun objet"); return; }
+
+    char line[17];
+    if(currentCat==CAT_BSC){
+        StarObject s=getStarFromCatalog((uint32_t)objectIndex);
+        snprintf(line,17,">%s m%.1f", s.name, s.mag/10.0f);
+    } else if(currentCat==CAT_SYSSOL){
+        snprintf(line,17,">%s", sysSolObjs[objectIndex].name);
+    } else {
+        DeepSkyObject o; getObj(currentCat,(uint32_t)objectIndex,o);
+        snprintf(line,17,">%s%d m%.1f", getCatPrefix(currentCat), o.id, o.mag/10.0f);
     }
+    lcdLine(1,line);
 }
 
 void printObjectInfo(){
-    char buf[21];
+    char buf[17];
     if (currentCat == CAT_SYSSOL) {
-        PlanetObj &p = sysSolObjs[objectIndex];
-        snprintf(buf,21,"%-20s",p.name); lcdLine(0,buf);
-        snprintf(buf,21, isEnglish ? "Solar System        " : "Systeme Solaire     "); lcdLine(1,buf);
-        int rah=(int)p.ra, ram=(int)((p.ra-rah)*60), ras=(int)(((p.ra-rah)*60-ram)*60);
-        bool neg=(p.dec<0); float da=fabs(p.dec);
-        int dd=(int)da, dm=(int)((da-dd)*60), ds=(int)(((da-dd)*60-dm)*60);
-        snprintf(buf,21,"RA%02d%02d%02d D%c%02d%02d%02d  ", rah,ram,ras, neg?'-':'+', dd,dm,ds);
-        lcdLine(2,buf);
-        lcdLine(3, isEnglish ? " ENT=GOTO    <=BACK " : " ENT=GOTO    <=RET  ");
+        snprintf(buf,17,">%s",sysSolObjs[objectIndex].name);
     } else if(selectedIsStar){
-        StarObject &s=selectedStar;
-        snprintf(buf,21,"%-20s",s.name); lcdLine(0,buf);
-        snprintf(buf,21, isEnglish ? "Star     mag %4.1f  " : "Etoile   mag %4.1f  ", s.mag/10.0f); lcdLine(1,buf);
-        int rah=(int)s.ra, ram=(int)((s.ra-rah)*60), ras=(int)(((s.ra-rah)*60-ram)*60);
-        bool neg=(s.dec<0); float da=fabs(s.dec);
-        int dd=(int)da, dm=(int)((da-dd)*60), ds=(int)(((da-dd)*60-dm)*60);
-        snprintf(buf,21,"RA%02d%02d%02d D%c%02d%02d%02d  ",
-                 rah,ram,ras, neg?'-':'+', dd,dm,ds);
-        lcdLine(2,buf);
-        lcdLine(3, isEnglish ? " ENT=GOTO    <=BACK " : " ENT=GOTO    <=RET  ");
+        snprintf(buf,17,">%s",selectedStar.name);
     } else {
-        DeepSkyObject &o=selectedObj;
-        snprintf(buf,21,"%s%-5d mag%4.1f %c    ",
-                 getCatPrefix(currentCat), o.id,
-                 o.mag/10.0f, (char)getTypeChar(o.type));
-        lcdLine(0,buf);
-        snprintf(buf,21,"%-20s",getTypeName(o.type)); lcdLine(1,buf);
-        int rah=(int)o.ra, ram=(int)((o.ra-rah)*60), ras=(int)(((o.ra-rah)*60-ram)*60);
-        bool neg=(o.dec<0); float da=fabs(o.dec);
-        int dd=(int)da, dm=(int)((da-dd)*60), ds=(int)(((da-dd)*60-dm)*60);
-        snprintf(buf,21,"RA%02d%02d%02d D%c%02d%02d%02d  ",
-                 rah,ram,ras, neg?'-':'+', dd,dm,ds);
-        lcdLine(2,buf);
-        lcdLine(3, isEnglish ? " ENT=GOTO    <=BACK " : " ENT=GOTO    <=RET  ");
+        snprintf(buf,17,">%s%d %s", getCatPrefix(currentCat), selectedObj.id, getTypeName(selectedObj.type));
     }
+    lcdLine(0,buf);
+    lcdLine(1, "ENT=GOTO <=RET");
 }
 
 void printSlewing(){
     double ra  = selectedIsStar?selectedStar.ra  :selectedObj.ra;
     double dec = selectedIsStar?selectedStar.dec :selectedObj.dec;
-    char buf[21];
-    lcdLine(0, isEnglish ? "  >>>  SLEWING... >>>" : "  >>>  EN GOTO  >>> ");
+    char anim_chars[] = {'*', '+', 'x', '+'};
+    char anim = anim_chars[(millis() / 250) % 4];
+    char b0[17];
+    snprintf(b0, 17, isEnglish ? "SLEWING %c" : "GOTO %c", anim);
+    lcdLine(0, b0);
     
     double c_dec_rad = m_currentDEC * DEGRAD;
     double t_dec_rad = dec * DEGRAD;
@@ -1649,73 +1591,37 @@ void printSlewing(){
     if (speed < 0.05) speed = 3.0;
     int eta = (int)(dist / speed);
 
-    snprintf(buf, 21, " Dist: %5.1f deg    ", dist); lcdLine(1, buf);
-    if (isEnglish) {
-        snprintf(buf, 21, " Time: %5d sec    ", eta);
-    } else {
-        snprintf(buf, 21, " Temps: %4d sec    ", eta);
-    }
-    lcdLine(2, buf);
-    lcdLine(3, isEnglish ? " ENT/<  =  CANCEL   " : " ENT/<  =  ANNULER  ");
+    char buf[17];
+    snprintf(buf, 17, "E:%ds D:%.1f%c", eta, dist, 0xDF);
+    lcdLine(1, buf);
 }
 
 void printSpeed(){
-    char buf[21];
-    lcdLine(0, isEnglish ? "--- GOTO SPEED   ---" : "--- VITESSE GOTO ---");
-    int barLen=(int)((temp_slewSpeed-0.5)/(6.0-0.5)*16.0);
-    barLen=constrain(barLen,0,16);
-    char bar[21]; memset(bar,' ',20); bar[20]='\0';
-    for(int i=0;i<barLen;i++) bar[i]=(char)0xFF;
-    bar[16]='\0';
-    snprintf(buf,21,"[%-16s]",bar);      lcdLine(1,buf);
-    snprintf(buf,21,"   %4.1f deg/s      ",temp_slewSpeed); lcdLine(2,buf);
-    if (isEnglish) {
-        snprintf(buf,21,"%cLess     More%c    ",(char)CHAR_DOWN,(char)CHAR_UP);
-    } else {
-        snprintf(buf,21,"%cMoins    Plus%c    ",(char)CHAR_DOWN,(char)CHAR_UP);
-    }
-    lcdLine(3,buf);
+    char buf[17];
+    lcdLine(0, isEnglish ? "[ GOTO SPEED ]" : "[ VITESSE GOTO ]");
+    snprintf(buf,17," > %.1f deg/s", temp_slewSpeed);
+    lcdLine(1,buf);
 }
 
 void printSettings() {
-    lcdLine(0,"== REGLAGES ======== ");
+    lcdLine(0,"[ REGLAGES ]");
     const char* opts[] = {
-        " Vitesse GoTo",
-        " Synchroniser",
-        " Parking",
-        " Type Monture",
-        " Ratio AZ",
-        " Ratio ALT",
-        " Buzzer",
-        " Date/Heure",
-        " Lieu Obs."
+        "Vitesse GoTo", "Synchroniser", "Parking", "Type Monture",
+        "Ratio AZ", "Ratio ALT", "Buzzer", "Date/Heure", "Lieu Obs."
     };
-    int maxItems = 9;
-    int start = max(0, min(settingsSel - 1, maxItems - 3));
-    
-    char buf[21];
-    for(int i=0; i<3; i++){
-        if (start+i < maxItems) {
-            snprintf(buf,21,"%c%s", (settingsSel == start+i) ? '>' : ' ', opts[start+i]+1);
-            lcdLine(i+1, buf);
-        } else {
-            lcdLine(i+1, "                    ");
-        }
-    }
+    char buf[17];
+    snprintf(buf,17,">%s", opts[settingsSel]);
+    lcdLine(1, buf);
 }
 
 void printAlign(){
-    lcdLine(0, isEnglish ? "-- SYNCHRONIZATION--" : "-- SYNCHRONISATION--");
-    lcdLine(1, isEnglish ? " Center a known star" : " Centrez une etoile ");
-    lcdLine(2, isEnglish ? "   in the eyepiece  " : " connue dans l oculaire");
-    lcdLine(3, isEnglish ? " ENTER=Sync  <=Back  " : " ENTER=Sync  <=Retour");
+    lcdLine(0, "SYNCHRONISATION");
+    lcdLine(1, "ENT=OK  <=RET");
 }
 
 void printParking(){
-    lcdLine(0,"---- PARKING -------");
-    lcdLine(1, isEnglish ? "Go to North Az=0    " : "Retour Nord Az=0    ");
-    lcdLine(2, isEnglish ? "Alt=2deg (Horiz.)   " : "Alt=2deg (Horiz.)   ");
-    lcdLine(3, isEnglish ? " ENTER=OK   <=Cancel " : " ENTER=OK   <=Annuler");
+    lcdLine(0, "PARKING");
+    lcdLine(1, "ENT=OK  <=RET");
 }
 
 void sendLocationToMega() {
@@ -1726,7 +1632,7 @@ void sendLocationToMega() {
     mega_cmd(buf);
     int lon_deg = abs(obs_lon);
     int lon_min = (abs(obs_lon) - lon_deg) * 60;
-    snprintf(buf, 16, ":Sg%c%03d*%02d", obs_lon>=0?'+':'-', lon_deg, lon_min); // Protocol OnStep: East is '-' for :Sg
+    snprintf(buf, 16, ":Sg%c%03d*%02d", obs_lon>=0?'+':'-', lon_deg, lon_min);
     mega_cmd(buf);
 }
 
@@ -1744,101 +1650,64 @@ void refreshLcd(){
         case UI_MESSAGE:     printMessage();    break;
         
         case UI_MOUNT: {
-            lcdLine(0, isEnglish ? "==[ MOUNT TYPE ]====" : "==[ TYPE MONTURE ]==");
-            char buf[21]; snprintf(buf,21," > %s <", temp_mountType == 0 ? "AltAz     " : (temp_mountType == 1 ? "ForkEq    " : "GermanEq  "));
-            lcdLine(2, buf);
-            lcdLine(1,""); lcdLine(3, isEnglish ? " [ENTER] = OK  " : " [ENTREE] = OK ");
+            lcdLine(0, "[ TYPE MONTURE ]");
+            char buf[17]; snprintf(buf,17,">%s", temp_mountType == 0 ? "AltAz" : (temp_mountType == 1 ? "ForkEq" : "GermanEq"));
+            lcdLine(1, buf);
             break;
         }
         case UI_RATIO_AZ: {
-            lcdLine(0, isEnglish ? "==[ AZ/RA RATIO ]===" : "==[ RATIO AZ/RA ]===");
-            char buf[21]; snprintf(buf,21," > %.1f <", temp_gearRatioAZ);
-            lcdLine(2, buf);
-            lcdLine(1,""); lcdLine(3, isEnglish ? " [ENTER] = OK  " : " [ENTREE] = OK ");
+            lcdLine(0, "[ RATIO AZ/RA ]");
+            char buf[17]; snprintf(buf,17,">%.1f", temp_gearRatioAZ);
+            lcdLine(1, buf);
             break;
         }
         case UI_RATIO_ALT: {
-            lcdLine(0, isEnglish ? "==[ DEC/ALT RATIO ]" : "==[ RATIO DEC/ALT ]=");
-            char buf[21]; snprintf(buf,21," > %.1f <", temp_gearRatioALT);
-            lcdLine(2, buf);
-            lcdLine(1,""); lcdLine(3, isEnglish ? " [ENTER] = OK  " : " [ENTREE] = OK ");
+            lcdLine(0, "[ RATIO DEC/AL ]");
+            char buf[17]; snprintf(buf,17,">%.1f", temp_gearRatioALT);
+            lcdLine(1, buf);
             break;
         }
         case UI_BEEP: {
-            lcdLine(0, isEnglish ? "==[ BEEP SETTING ]==" : "==[ REGLAGE BIP ]===");
-            char buf[21]; snprintf(buf,21," > %s <", temp_buzzerOn ? (isEnglish ? "ACTIVE " : "ACTIF  ") : (isEnglish ? "INACTIVE" : "INACTIF"));
-            lcdLine(2, buf);
-            lcdLine(1,""); lcdLine(3, isEnglish ? " [ENTER] = OK  " : " [ENTREE] = OK ");
+            lcdLine(0, "[ REGLAGE BIP ]");
+            char buf[17]; snprintf(buf,17,"> %s", temp_buzzerOn ? "ACTIF" : "INACTIF");
+            lcdLine(1, buf);
             break;
         }
         case UI_EDIT_TIME: {
-            lcdLine(0, isEnglish ? "==[ SET DATE/TIME ]" : "==[ REGLAGE HEURE ]=");
-            char b[21];
-            snprintf(b,21," %02d / %02d / %04d     ", dt_d, dt_m, dt_y);
-            if(editSel==0) { b[1]='>'; b[4]='<'; }
-            if(editSel==1) { b[6]='>'; b[9]='<'; }
-            if(editSel==2) { b[11]='>'; b[16]='<'; }
+            lcdLine(0, "[ HEURE ]");
+            char b[17];
+            snprintf(b,17,"%02d/%02d %02d:%02d", dt_d, dt_m, dt_hr, dt_min);
             lcdLine(1,b);
-            snprintf(b,21,"    %02d:%02d:%02d      ", dt_hr, dt_min, dt_sec);
-            if(editSel==3) { b[3]='>'; b[6]='<'; }
-            if(editSel==4) { b[6]='>'; b[9]='<'; }
-            if(editSel==5) { b[9]='>'; b[12]='<'; }
-            lcdLine(2,b);
-            lcdLine(3, isEnglish ? " ENTER=Save        " : " ENT=Sauver        ");
             break;
         }
         case UI_EDIT_LOCATION: {
-            lcdLine(0, isEnglish ? "==[ SET LOCATION ]==" : "==[ REGLAGE LIEU ]==");
-            char b[21];
-            snprintf(b,21," Lat: %.2f       ", obs_lat);
-            if(editSel==0) b[0]='>';
+            lcdLine(0, "[ LIEU ]");
+            char b[17];
+            snprintf(b,17,"La:%.1f Lo:%.1f", obs_lat, obs_lon);
             lcdLine(1,b);
-            snprintf(b,21," Lon: %.2f       ", obs_lon);
-            if(editSel==1) b[0]='>';
-            lcdLine(2,b);
-            lcdLine(3, isEnglish ? " ENTER=Save        " : " ENT=Sauver        ");
             break;
         }
         case UI_MOTOR_POWER: {
-            lcdLine(0, isEnglish ? "==[ MOTOR POWER ]===" : "==[ ALIM MOTEURS ]==");
-            char buf[21];
-            if (isEnglish) {
-                snprintf(buf, 21, " > %s <", temp_motorPowerOn ? "ENABLED " : "DISABLED");
-            } else {
-                snprintf(buf, 21, " > %s <", temp_motorPowerOn ? "ACTIVE  " : "DESACTIVE");
-            }
-            lcdLine(2, buf);
-            lcdLine(1, "");
-            lcdLine(3, isEnglish ? " [ENTER] = OK  " : " [ENTREE] = OK ");
+            lcdLine(0, "[ ALIM MOTEURS ]");
+            char buf[17]; snprintf(buf, 17, " > %s", temp_motorPowerOn ? "ACTIVE" : "DESACTIVE");
+            lcdLine(1, buf);
             break;
         }
         case UI_LANGUAGE: {
-            lcdLine(0, isEnglish ? "==[ LANGUAGE ]======" : "==[ LANGUE ]========");
-            char buf[21];
-            snprintf(buf, 21, " > %s <", temp_isEnglish ? "ENGLISH " : "FRANCAIS");
-            lcdLine(2, buf);
-            lcdLine(1, "");
-            lcdLine(3, isEnglish ? " [ENTER] = OK  " : " [ENTREE] = OK ");
+            lcdLine(0, "[ LANGUE ]");
+            char buf[17]; snprintf(buf, 17, " > %s", temp_isEnglish ? "EN" : "FR");
+            lcdLine(1, buf);
             break;
         }
         case UI_MENU_SELECT: {
-            lcdLine(0, isEnglish ? "=== MAIN MENU ======" : "=== MENU PRINCIPAL =");
-            char b[21];
-            const char* opt0 = isEnglish ? "Catalogs" : "Catalogues";
-            const char* opt1 = m_isPaused ? (isEnglish ? "Resume Tracking" : "Reprendre Suivi") : (isEnglish ? "Pause Motors" : "Pause Moteurs");
-            const char* opt2 = isEnglish ? "Settings" : "Reglages";
-            
-            int start = max(0, min(menuSel - 1, 3 - 3));
-            for(int i=0; i<3; i++) {
-                int curr = start + i;
-                const char* name = "";
-                if (curr == 0) name = opt0;
-                else if (curr == 1) name = opt1;
-                else if (curr == 2) name = opt2;
-                
-                snprintf(b, 21, " %c %-18s", menuSel == curr ? '>' : ' ', name);
-                lcdLine(i + 1, b);
-            }
+            lcdLine(0, "[ MENU ]");
+            char b[17];
+            const char* opt0 = "Catalogues";
+            const char* opt1 = m_isPaused ? "Reprendre Suivi" : "Pause Moteurs";
+            const char* opt2 = "Reglages";
+            const char* name = (menuSel == 0) ? opt0 : ((menuSel == 1) ? opt1 : opt2);
+            snprintf(b, 17, " > %-13s", name);
+            lcdLine(1, b);
             break;
         }
         default: break;

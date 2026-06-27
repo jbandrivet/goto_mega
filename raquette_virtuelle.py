@@ -199,19 +199,19 @@ class VirtualTeensyApp(tk.Tk):
         lcd_case = tk.Frame(main_container, bg="#c0c0c0", bd=2, relief="sunken")
         lcd_case.pack(pady=10, fill="x")
         
-        # Écran LCD matriciel retro jaune-vert
-        lcd_frame = tk.Frame(lcd_case, bg="#94b010", padx=10, pady=10)
+        # Écran LCD matriciel retro rouge
+        lcd_frame = tk.Frame(lcd_case, bg="#ff0000", padx=10, pady=10)
         lcd_frame.pack(fill="both", expand=True)
         
         self.lcd_lines = []
-        for i in range(4):
+        for i in range(2):
             lbl = tk.Label(
                 lcd_frame, 
-                text=" "*20, 
-                bg="#94b010", 
-                fg="#102000", 
+                text=" "*16, 
+                bg="#ff0000", 
+                fg="#000000", 
                 font=f_lcd, 
-                width=20, 
+                width=16, 
                 anchor="w", 
                 padx=2, 
                 pady=1
@@ -625,10 +625,8 @@ class VirtualTeensyApp(tk.Tk):
             self.press_active[btn] = False
 
     def set_msg(self, l0, l1, l2, l3, duration_ms, return_state):
-        self.lcd_lines[0].config(text=f"{l0:<20}"[:20])
-        self.lcd_lines[1].config(text=f"{l1:<20}"[:20])
-        self.lcd_lines[2].config(text=f"{l2:<20}"[:20])
-        self.lcd_lines[3].config(text=f"{l3:<20}"[:20])
+        self.lcd_lines[0].config(text=f"{l0:<16}"[:16])
+        self.lcd_lines[1].config(text=f"{l1:<16}"[:16])
         self.state = self.UI_MESSAGE
         self.msg_return_state = return_state
         self.msg_until = time.time() + duration_ms/1000.0
@@ -642,32 +640,28 @@ class VirtualTeensyApp(tk.Tk):
     def update_lcd(self):
         if self.state == self.UI_MESSAGE: return
         
-        l0 = l1 = l2 = l3 = " "*20
+        l0 = l1 = " "*16
         lang = self.cfg.get("language", "fr")
         
         if self.state == self.UI_MAIN:
-            l0 = " RA  " + self.current_ra.ljust(15)
-            l1 = " DEC " + self.current_dec.ljust(15)
+            ra_short = self.current_ra[:5].replace(':', 'h')
+            dec_short = self.current_dec[:6].replace('*', '°')
+            l0 = f"R{ra_short} D{dec_short}"[:16]
             if self.is_connected:
-                if lang == "en":
-                    l2 = " Mount OK !         " if not self.sim_mode else " SIMULATOR Mode     "
-                else:
-                    l2 = " Monture OK !       " if not self.sim_mode else " Mode SIMULATEUR    "
+                stat = "OK" if not self.sim_mode else "SIMU"
+                l1 = f"MNT {stat} [ENT=MNU]"[:16]
             else:
-                l2 = " MOUNT OFFLINE      " if lang == "en" else " MONTURE OFFLINE    "
-            l3 = " [ENTER] -> MENUS   " if lang == "en" else " [ENTREE] -> MENUS  "
+                l1 = "OFFLINE         "
             
         elif self.state == self.UI_CAT_SELECT:
-            l0 = "== SELECT CATALOG ==" if lang == "en" else "== CHOIX CATALOGUE ="
-            l1 = "   ^                "
+            l0 = "[ CHOIX CATALOG]" if lang == "fr" else "[ SELECT CATAL.]"
             cat_name = self.catalogs[self.cat_idx]
             count = len(self.db_cat.get(cat_name, []))
             disp_cat = cat_name
             if lang == "en":
-                if cat_name == "Systeme Solaire": disp_cat = "Solar System"
+                if cat_name == "Systeme Solaire": disp_cat = "Solar Sys"
                 elif cat_name == "Étoiles": disp_cat = "Stars"
-            l2 = f" > {disp_cat[:8]:<8} ({count}) "
-            l3 = "   v                "
+            l1 = f">{disp_cat[:9]:<9}({count})"[:16]
             
         elif self.state == self.UI_OBJECT_LIST:
             cat_name = self.catalogs[self.cat_idx]
@@ -680,138 +674,76 @@ class VirtualTeensyApp(tk.Tk):
                 
             disp_cat = cat_name
             if lang == "en":
-                if cat_name == "Systeme Solaire": disp_cat = "Solar System"
-                elif cat_name == "Étoiles": disp_cat = "Stars"
-            l0 = f"[{disp_cat}] {len(self.obj_list)} obj"
+                if cat_name == "Systeme Solaire": disp_cat = "Sol"
+                elif cat_name == "Étoiles": disp_cat = "Star"
+            else:
+                disp_cat = disp_cat[:3]
+                
+            l0 = f"[{disp_cat}] {len(self.obj_list)}obj"[:16]
             
             if len(self.obj_list) == 0:
-                l1 = " No object found    " if lang == "en" else " Aucun objet        "
+                l1 = " Aucun objet    " if lang == "fr" else " No object      "
             else:
                 o = self.obj_list[self.obj_idx]
                 name = o.get('name', f"{o.get('cat')} {o.get('num')}")
                 if name == f"{o.get('cat')} {o.get('num')}": name = f"{disp_cat} {o.get('num')}"
-                l1 = f" {name:<19}"
-                
-                # Visibilité
-                now = datetime.now(timezone.utc)
-                lst = Astro.lst(now, self.lon)
-                az, alt = Astro.eq_to_horiz(o['ra'], o['dec'], lst, self.lat)
-                if alt < self.alt_min:
-                    l2 = " [BELOW HORIZON]    " if lang == "en" else " [SOUS HORIZON]     "
-                else:
-                    tname = o.get('type_name', 'Objet')
-                    if lang == "en":
-                        type_map = {
-                            "Galaxie": "Galaxy",
-                            "Amas ouvert": "Open Cluster",
-                            "Amas globulaire": "Glob. Cluster",
-                            "Nébuleuse": "Nebula",
-                            "Nébuleuse planétaire": "Plan. Nebula",
-                            "Reste supernova": "Supernova Rem.",
-                            "Étoile double": "Double Star",
-                            "Astérisme": "Asterism",
-                            "Étoile": "Star",
-                            "Objet": "Object"
-                        }
-                        tname = type_map.get(tname, tname)
-                    l2 = f" Type: {tname[:13]:<13}"
-                
-                l3 = f" Mag: {o.get('mag', '?'):<14}"
+                mag_str = f" m{o.get('mag')}" if o.get('mag') else ""
+                l1 = f">{name:<9}{mag_str}"[:16]
                 
         elif self.state == self.UI_OBJECT_INFO:
             o = self.obj_list[self.obj_idx]
             disp_cat = self.catalogs[self.cat_idx]
             if lang == "en":
-                if disp_cat == "Systeme Solaire": disp_cat = "Solar System"
-                elif disp_cat == "Étoiles": disp_cat = "Stars"
+                if disp_cat == "Systeme Solaire": disp_cat = "Sol"
+                elif disp_cat == "Étoiles": disp_cat = "Star"
+            else:
+                disp_cat = disp_cat[:3]
             name = o.get('name', f"{o.get('cat')} {o.get('num')}")
             if name == f"{o.get('cat')} {o.get('num')}": name = f"{disp_cat} {o.get('num')}"
-            l0 = f"=>{name:<18}"
-            l1 = f"RA: {Astro.fmt_ra(o['ra'])}"
-            l2 = f"DEC: {Astro.fmt_dec(o['dec'])}"
-            l3 = " [ENTER] -> GOTO    " if lang == "en" else " [ENTREE] -> GOTO   "
+            l0 = f">{name[:15]:<15}"
+            l1 = "ENT=GOTO <=RET  " if lang == "fr" else "ENT=GOTO <=BACK "
             
         elif self.state == self.UI_SLEWING:
-            l0 = " !!! GOTO ACTIVE !!!" if lang == "en" else "!!! GOTO EN COURS !!!"
+            anim_chars = ['*', '+', 'x', '+']
+            anim = anim_chars[int(time.time() * 4) % 4]
+            l0 = f"GOTO {anim}        " if lang == "fr" else f"SLEWING {anim}     "
             if self.target_ra is not None:
                 try:
                     c_ra = Astro.parse_ra(self.current_ra)
                     c_dec = Astro.parse_dec(self.current_dec)
                     dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
                     eta = dist / self.current_speed
-                    l1 = f" Dist: {dist:.1f} deg     "
-                    l2 = f" ETA : ~{int(eta)} sec     "
+                    l1 = f"E:{int(eta)}s D:{dist:.1f}°"[:16]
                 except:
-                    l1 = " Please wait...     " if lang == "en" else " Patientez...       "
+                    l1 = " Patientez...   " if lang == "fr" else " Please wait... "
             else:
-                l1 = " Please wait...     " if lang == "en" else " Patientez...       "
-            l3 = " [ENTER] -> STOP    " if lang == "en" else " [ENTREE] -> STOP   "
+                l1 = " Patientez...   " if lang == "fr" else " Please wait... "
             
         elif self.state == self.UI_SETTINGS:
-            if lang == "en":
-                l0 = "== MAIN MENU ======= "
-                opts = [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Motor Power", " Language"]
-            else:
-                l0 = "== MENU PRINCIPAL == "
-                opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Alim Moteurs", " Langue"]
-            opts[self.settings_sel] = ">" + opts[self.settings_sel][1:]
-            
-            # Défilement
-            lines = []
-            start = max(0, min(self.settings_sel - 1, len(opts)-3))
-            for i in range(3):
-                if start+i < len(opts):
-                    lines.append(opts[start+i])
-                else:
-                    lines.append("")
-            
-            l1 = f"{lines[0]:<20}"
-            l2 = f"{lines[1]:<20}"
-            l3 = f"{lines[2]:<20}"
+            l0 = "= MENU ======== " if lang == "fr" else "= MENU ======== "
+            opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Alim Moteurs", " Langue"] if lang == "fr" else [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Motor Power", " Language"]
+            l1 = f">{opts[self.settings_sel][1:]:15}"[:16]
             
         elif self.state == self.UI_SPEED:
-            l0 = "== GOTO SPEED ====== " if lang == "en" else "== VITESSE GOTO ==== "
-            l1 = "   ^                 "
-            l2 = f" > {self.temp_speed:.1f} deg/s      "
-            l3 = "   v                 "
+            l0 = "[ VITESSE GOTO ]" if lang == "fr" else "[ GOTO SPEED ]  "
+            l1 = f"> {self.temp_speed:.1f} deg/s   "[:16]
             
         elif self.state == self.UI_BEEP:
-            l0 = "== BEEP BUZZER ====== " if lang == "en" else "== BIP BUZZER ====== "
-            l1 = "   ^                 "
+            l0 = "[ BIP BUZZER ]  " if lang == "fr" else "[ BEEP BUZZER ] "
             state_str = "ON" if self.temp_buzzer_on else "OFF"
-            l2 = f" > {state_str}               "
-            l3 = "   v                 "
+            l1 = f"> {state_str}         "[:16]
             
         elif self.state == self.UI_MOTOR_POWER:
-            if lang == "en":
-                l0 = "== MOTOR POWER ===== "
-                l1 = "   ^                 "
-                status = "ENABLED" if self.temp_motor_power else "DISABLED"
-                l2 = f" > {status:<15}  "
-                l3 = " [ENTER] -> OK       "
-            else:
-                l0 = "== ALIM MOTEURS ==== "
-                l1 = "   ^                 "
-                status = "ACTIVE" if self.temp_motor_power else "DESACTIVE"
-                l2 = f" > {status:<15}  "
-                l3 = " [ENTREE] -> OK      "
+            l0 = "[ ALIM MOTEURS ]" if lang == "fr" else "[ MOTOR POWER ] "
+            status = ("ACTIVE" if self.temp_motor_power else "OFF") if lang == "fr" else ("ON" if self.temp_motor_power else "OFF")
+            l1 = f"> {status:<14}"[:16]
                 
         elif self.state == self.UI_LANGUAGE:
-            if lang == "en":
-                l0 = "== LANGUAGE ======== "
-                l1 = "   ^                 "
-                l2 = f" > {'ENGLISH' if self.temp_lang == 'en' else 'FRANCAIS':<15}  "
-                l3 = " [ENTER] -> OK       "
-            else:
-                l0 = "== LANGUE ========== "
-                l1 = "   ^                 "
-                l2 = f" > {'ENGLISH' if self.temp_lang == 'en' else 'FRANCAIS':<15}  "
-                l3 = " [ENTREE] -> OK      "
+            l0 = "[ LANGUE ]      " if lang == "fr" else "[ LANGUAGE ]    "
+            l1 = f">{('FRANCAIS' if self.temp_lang == 'fr' else 'ENGLISH'):15}"[:16]
                 
-        self.lcd_lines[0].config(text=f"{l0:<20}"[:20])
-        self.lcd_lines[1].config(text=f"{l1:<20}"[:20])
-        self.lcd_lines[2].config(text=f"{l2:<20}"[:20])
-        self.lcd_lines[3].config(text=f"{l3:<20}"[:20])
+        self.lcd_lines[0].config(text=f"{l0:<16}"[:16])
+        self.lcd_lines[1].config(text=f"{l1:<16}"[:16])
 
     def handle_btn(self, btn):
         if self.state == self.UI_MESSAGE:
