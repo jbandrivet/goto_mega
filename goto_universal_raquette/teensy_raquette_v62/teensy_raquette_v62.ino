@@ -1177,9 +1177,10 @@ enum UIState {
     UI_SLEWING, UI_SETTINGS, UI_SPEED, UI_ALIGN, UI_PARKING,
     UI_MOUNT, UI_RATIO_AZ, UI_RATIO_ALT, UI_BEEP, UI_OFFLINE,
     UI_MESSAGE, UI_EDIT_TIME, UI_EDIT_LOCATION, UI_MENU_SELECT,
-    UI_MOTOR_POWER, UI_LANGUAGE
+    UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER
 };
 UIState uiState = UI_MAIN;
+bool isAlignWorkflow = false;
 
 const char* const CAT_NAMES[] = { "Messier","NGC","IC","PK","Caldwell","Etoiles","SysSol  " };
 
@@ -1389,11 +1390,39 @@ void showMessage(const char* line0, const char* line1, unsigned long ms, int ret
 }
 
 // [v6.3] Synchronisation GPS automatique avant edition menu
+
+float current_lst = -1.0;
+unsigned long lst_sync_millis = 0;
+
+float getCurrentLST() {
+    if (current_lst < 0) return -1.0;
+    float elapsed_h = (millis() - lst_sync_millis) * 1.0027379 / 3600000.0;
+    float lst = current_lst + elapsed_h;
+    while (lst >= 24.0) lst -= 24.0;
+    return lst;
+}
+
+bool isVisible(float ra_h, float dec_deg) {
+    float lst = getCurrentLST();
+    if (lst < 0) return true; // Si pas d'heure siderale, on suppose visible
+    float ha_h = lst - ra_h;
+    float ha_rad = ha_h * 15.0 * (PI / 180.0);
+    float dec_rad = dec_deg * (PI / 180.0);
+    float lat_rad = obs_lat * (PI / 180.0);
+    
+    float sin_alt = sin(dec_rad)*sin(lat_rad) + cos(dec_rad)*cos(lat_rad)*cos(ha_rad);
+    float alt_rad = asin(sin_alt);
+    float alt_deg = alt_rad * (180.0 / PI);
+    return alt_deg > 10.0;
+}
+
 void syncDataFromMega() {
     String gt = mega_cmd(":GL#");
     String gc = mega_cmd(":GC#");
     String glat = mega_cmd(":Gt#");
     String glon = mega_cmd(":Gg#");
+
+    String gs = mega_cmd(":GS#");
 
     if(gt.length() >= 8 && gc.length() >= 8) {
         dt_hr = gt.substring(0,2).toInt();
@@ -1415,6 +1444,13 @@ void syncDataFromMega() {
         float mn = glon.substring(5,7).toFloat();
         // Protocole OnStep : '-' = EST positif local
         obs_lon = (sign < 0) ? (deg + mn/60.0) : -(deg + mn/60.0);
+    }
+    if(gs.length() >= 8) {
+        float h = gs.substring(0,2).toFloat();
+        float m = gs.substring(3,5).toFloat();
+        float s = gs.substring(6,8).toFloat();
+        current_lst = h + m/60.0 + s/3600.0;
+        lst_sync_millis = millis();
     }
 }
 
@@ -1548,12 +1584,15 @@ void printObjectList(){
     char line[17];
     if(currentCat==CAT_BSC){
         StarObject s=getStarFromCatalog((uint32_t)objectIndex);
-        snprintf(line,17,">%s m%.1f", s.name, s.mag/10.0f);
+        char ast = isVisible(s.ra, s.dec) ? '*' : ' ';
+        snprintf(line,17,">%s%c m%.1f", s.name, ast, s.mag/10.0f);
     } else if(currentCat==CAT_SYSSOL){
-        snprintf(line,17,">%s", sysSolObjs[objectIndex].name);
+        char ast = isVisible(sysSolObjs[objectIndex].ra, sysSolObjs[objectIndex].dec) ? '*' : ' ';
+        snprintf(line,17,">%s%c", sysSolObjs[objectIndex].name, ast);
     } else {
         DeepSkyObject o; getObj(currentCat,(uint32_t)objectIndex,o);
-        snprintf(line,17,">%s%d m%.1f", getCatPrefix(currentCat), o.id, o.mag/10.0f);
+        char ast = isVisible(o.ra, o.dec) ? '*' : ' ';
+        snprintf(line,17,">%s%d%c m%.1f", getCatPrefix(currentCat), o.id, ast, o.mag/10.0f);
     }
     lcdLine(1,line);
 }
@@ -1561,11 +1600,14 @@ void printObjectList(){
 void printObjectInfo(){
     char buf[17];
     if (currentCat == CAT_SYSSOL) {
-        snprintf(buf,17,">%s",sysSolObjs[objectIndex].name);
+        char ast = isVisible(sysSolObjs[objectIndex].ra, sysSolObjs[objectIndex].dec) ? '*' : ' ';
+        snprintf(buf,17,">%s%c",sysSolObjs[objectIndex].name, ast);
     } else if(selectedIsStar){
-        snprintf(buf,17,">%s",selectedStar.name);
+        char ast = isVisible(selectedStar.ra, selectedStar.dec) ? '*' : ' ';
+        snprintf(buf,17,">%s%c",selectedStar.name, ast);
     } else {
-        snprintf(buf,17,">%s%d %s", getCatPrefix(currentCat), selectedObj.id, getTypeName(selectedObj.type));
+        char ast = isVisible(selectedObj.ra, selectedObj.dec) ? '*' : ' ';
+        snprintf(buf,17,">%s%d%c %s", getCatPrefix(currentCat), selectedObj.id, ast, getTypeName(selectedObj.type));
     }
     lcdLine(0,buf);
     lcdLine(1, "E=GOTO  >=SYNC");
@@ -1623,6 +1665,17 @@ void printSettings() {
     lcdLine(1, buf);
 }
 
+void printAlignCenter(){
+    char buf[17];
+    if (selectedIsStar) {
+        snprintf(buf, 17, isEnglish ? "Center %s" : "Centrez %s", selectedStar.name);
+    } else {
+        snprintf(buf, 17, isEnglish ? "Center %s%d" : "Centrez %s%d", getCatPrefix(currentCat), selectedObj.id);
+    }
+    lcdLine(0, buf);
+    lcdLine(1, "   ENT=SYNC     ");
+}
+
 void printAlign(){
     lcdLine(0, "SYNCHRONISATION");
     lcdLine(1, "ENT=OK  <=RET");
@@ -1655,6 +1708,7 @@ void refreshLcd(){
         case UI_SPEED:       printSpeed();      break;
         case UI_SETTINGS:    printSettings();   break;
         case UI_ALIGN:       printAlign();      break;
+        case UI_ALIGN_CENTER:printAlignCenter();break;
         case UI_PARKING:     printParking();    break;
         case UI_MESSAGE:     printMessage();    break;
         
@@ -1853,7 +1907,7 @@ void handleButtons(){
 
         case UI_OBJECT_INFO: {
             uint32_t total=getCatalogCount(currentCat);
-            if(left)  { uiState=UI_OBJECT_LIST; }
+            if(left)  { uiState=UI_OBJECT_LIST; isAlignWorkflow = false; }
             if(up)    { if(objectIndex>0) objectIndex--; else objectIndex=total-1;
                         selectCurrentObject(); }
             if(down)  { objectIndex=(objectIndex<total-1)?objectIndex+1:0;
@@ -1861,7 +1915,10 @@ void handleButtons(){
             if(right) {
                 double ra =selectedIsStar?selectedStar.ra  :selectedObj.ra;
                 double dec=selectedIsStar?selectedStar.dec :selectedObj.dec;
-                // Sync uses cmd_sync_target if available, else we can send :Sr, :Sd, :CM
+                if (!isVisible(ra, dec)) {
+                    showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_OBJECT_INFO);
+                    return;
+                }
                 char buf[16];
                 int hr=(int)ra, mn=(int)((ra-hr)*60), sc=(int)((ra-hr-mn/60.0)*3600);
                 snprintf(buf,16,":Sr%02d:%02d:%02d#",hr,mn,sc); mega_cmd(buf);
@@ -1874,7 +1931,14 @@ void handleButtons(){
             if(enter) {
                 double ra =selectedIsStar?selectedStar.ra  :selectedObj.ra;
                 double dec=selectedIsStar?selectedStar.dec :selectedObj.dec;
+                if (!isVisible(ra, dec)) {
+                    showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_OBJECT_INFO);
+                    return;
+                }
                 cmd_goto(ra,dec);
+                if (isAlignWorkflow) {
+                    uiState = UI_ALIGN_CENTER;
+                }
             }
             break;
         }
@@ -1916,11 +1980,41 @@ void handleButtons(){
             break;
 
         case UI_ALIGN:
-            if(left)  { uiState=UI_SETTINGS; }
+            // Find first visible star
+            {
+                bool found = false;
+                for (int i=0; i<BSC_COUNT; i++) {
+                    StarObject s = getStarFromCatalog(i);
+                    if (isVisible(s.ra, s.dec)) {
+                        currentCat = CAT_BSC;
+                        objectIndex = i;
+                        selectCurrentObject();
+                        isAlignWorkflow = true;
+                        uiState = UI_OBJECT_INFO;
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    showMessage(isEnglish ? " NO STAR FOUND  " : " AUCUNE ETOILE  ", " VISIBLE        ", 1500, UI_SETTINGS);
+                }
+            }
+            break;
+            
+        case UI_ALIGN_CENTER:
+            if(left)  { uiState=UI_MAIN; isAlignWorkflow = false; }
             if(enter) {
-                cmd_sync();
-                showMessage("  SYNCHRONISE !    ", "  Position OK.     ",
-                            1500, UI_MAIN);
+                double ra =selectedIsStar?selectedStar.ra  :selectedObj.ra;
+                double dec=selectedIsStar?selectedStar.dec :selectedObj.dec;
+                char buf[16];
+                int hr=(int)ra, mn=(int)((ra-hr)*60), sc=(int)((ra-hr-mn/60.0)*3600);
+                snprintf(buf,16,":Sr%02d:%02d:%02d#",hr,mn,sc); mega_cmd(buf);
+                bool n=dec<0; double d=abs(dec);
+                int deg=(int)d; mn=(int)((d-deg)*60); sc=(int)((d-deg-mn/60.0)*3600);
+                snprintf(buf,16,":Sd%c%02d*%02d:%02d#",n?'-':'+',deg,mn,sc); mega_cmd(buf);
+                mega_cmd(":CM#");
+                showMessage(isEnglish ? "  SYNCHRONIZED  " : "  SYNCHRONISE   ", "                ", 1500, UI_MAIN);
+                isAlignWorkflow = false;
             }
             break;
 
