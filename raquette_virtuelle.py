@@ -69,6 +69,7 @@ class VirtualTeensyApp(tk.Tk):
         self.UI_MOUNT = 11
         self.UI_RATIO_AZ = 12
         self.UI_RATIO_ALT = 13
+        self.UI_ALIGN_CENTER = 14
         
         self.motor_power = True
         self.temp_motor_power = True
@@ -78,6 +79,7 @@ class VirtualTeensyApp(tk.Tk):
         self.temp_ratio_alt = self.cfg.get("gear_ratio_alt", 750.0)
         
         self.state = self.UI_MAIN
+        self.is_align_workflow = False
         
         self.catalogs = ["Messier", "NGC", "IC", "Caldwell", "Systeme Solaire", "Étoiles"]
         self.cat_idx = 0
@@ -531,7 +533,11 @@ class VirtualTeensyApp(tk.Tk):
                                     except Exception:
                                         pass
                                 elif not self.is_slewing and self.state == self.UI_SLEWING:
-                                    self.state = self.UI_MAIN
+                                    if getattr(self, "is_align_workflow", False):
+                                        self.state = self.UI_ALIGN_CENTER
+                                        self.is_align_workflow = False
+                                    else:
+                                        self.state = self.UI_MAIN
                         
                         self.update_lcd()
                     except Exception as e:
@@ -546,10 +552,21 @@ class VirtualTeensyApp(tk.Tk):
             self.cmd_queue.clear()
             if is_goto:
                 self.is_slewing = True
+                if getattr(self, "is_align_workflow", False):
+                    self.after(3000, self.finish_sim_slew)  # Simulate slew delay
                 if self.state != self.UI_MESSAGE:
                     self.state = self.UI_SLEWING
             self.update_lcd()
             return
+
+    def finish_sim_slew(self):
+        self.is_slewing = False
+        if getattr(self, "is_align_workflow", False):
+            self.state = self.UI_ALIGN_CENTER
+            self.is_align_workflow = False
+        else:
+            self.state = self.UI_MAIN
+        self.update_lcd()
             
         if not self.cmd_queue: return
         cmd = self.cmd_queue.pop(0)
@@ -596,7 +613,7 @@ class VirtualTeensyApp(tk.Tk):
                     self.conn_lbl.config(text="Deconnecte", fg="#ff3b30")
 
     def on_press(self, btn):
-        if self.state == self.UI_MAIN:
+        if self.state in (self.UI_MAIN, self.UI_ALIGN_CENTER):
             if self.is_connected:
                 if not self.press_active.get(btn, False):
                     self.press_active[btn] = True
@@ -618,7 +635,7 @@ class VirtualTeensyApp(tk.Tk):
             self.handle_btn(btn)
 
     def on_release(self, btn):
-        if self.state == self.UI_MAIN:
+        if self.state in (self.UI_MAIN, self.UI_ALIGN_CENTER):
             # Rétablir le relief des boutons
             if btn == "UP": self.b_up.configure(relief=tk.RAISED, bg="#c0c0c0")
             elif btn == "DOWN": self.b_down.configure(relief=tk.RAISED, bg="#c0c0c0")
@@ -723,6 +740,12 @@ class VirtualTeensyApp(tk.Tk):
                     l1 = " Patientez...   " if lang == "fr" else " Please wait... "
             else:
                 l1 = " Patientez...   " if lang == "fr" else " Please wait... "
+                
+        elif self.state == self.UI_ALIGN_CENTER:
+            o = self.obj_list[self.obj_idx]
+            name = o.get('name', f"{o.get('cat')} {o.get('num')}")
+            l0 = f"Centrez {name[:8]}"[:16].ljust(16) if lang == "fr" else f"Center {name[:9]}"[:16].ljust(16)
+            l1 = "ENT=SYNC <=RET  "[:16] if lang == "fr" else "ENT=SYNC <=BACK "[:16]
             
         elif self.state == self.UI_SETTINGS:
             l0 = "[ MENU ]        " if lang == "fr" else "[ MENU ]        "
@@ -866,6 +889,7 @@ class VirtualTeensyApp(tk.Tk):
                     
         elif self.state == self.UI_OBJECT_INFO:
             if btn == "LEFT":
+                self.is_align_workflow = False
                 self.state = self.UI_OBJECT_LIST
             elif btn == "UP":
                 self.obj_idx = (self.obj_idx - 1) % len(self.obj_list) if self.obj_list else 0
@@ -912,6 +936,26 @@ class VirtualTeensyApp(tk.Tk):
                         self.set_msg(" ERREUR: ", " NON CONNECTE ", "", "", 2000, self.UI_OBJECT_INFO)
                     return
                     
+        elif self.state == self.UI_ALIGN_CENTER:
+            if btn == "LEFT":
+                self.state = self.UI_MAIN
+            elif btn == "ENTER":
+                if self.is_connected:
+                    o = self.obj_list[self.obj_idx]
+                    self.target_ra = o['ra']
+                    self.target_dec = o['dec']
+                    ra_str = Astro.fmt_ra_lx(o['ra'])
+                    dec_str = Astro.fmt_dec_lx(o['dec'])
+                    
+                    self.cmd_queue = [f":Sr{ra_str}#", f":Sd{dec_str}#", ":CM#"]
+                    self.process_queue()
+                    
+                    lang = self.cfg.get("language", "fr")
+                    if lang == "en":
+                        self.set_msg("  SYNCHRONIZED  ", "                ", "", "", 1500, self.UI_MAIN)
+                    else:
+                        self.set_msg("  SYNCHRONISE   ", "                ", "", "", 1500, self.UI_MAIN)
+                    
         elif self.state == self.UI_SLEWING:
             if btn in ("LEFT", "ENTER"):
                 self.send_cmd(":Q#")
@@ -944,6 +988,7 @@ class VirtualTeensyApp(tk.Tk):
                         self.obj_list = stars
                         self.obj_idx = 0
                         self.state = self.UI_OBJECT_INFO
+                        self.is_align_workflow = True
                     else:
                         lang = self.cfg.get("language", "fr")
                         self.set_msg(" AUCUNE ETOILE  " if lang=="fr" else " NO STAR FOUND  ", " VISIBLE        ", "", "", 1500, self.UI_SETTINGS)
