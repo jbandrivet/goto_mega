@@ -1610,7 +1610,9 @@ void printSettings() {
         isEnglish ? "Sync/Align" : "Synchroniser", 
         isEnglish ? "Parking" : "Parking", 
         isEnglish ? "Mount Type" : "Type Monture",
-        "Ratio AZ", "Ratio ALT", "Buzzer", 
+        (mountType == 0) ? "Ratio AZ" : "Ratio RA",
+        (mountType == 0) ? "Ratio ALT" : "Ratio DEC",
+        "Buzzer", 
         isEnglish ? "Date/Time" : "Date/Heure", 
         isEnglish ? "Location" : "Lieu Obs.", 
         isEnglish ? "Motor Power" : "Alim Moteurs", 
@@ -1955,7 +1957,7 @@ void handleButtons(){
                 gearRatioAZ = temp_gearRatioAZ;
                 Serial1.print(":BGa"); Serial1.print(gearRatioAZ); Serial1.print("#");
                 saveEEPROM();
-                showMessage(" RATIO AZ REGLE   ", "                    ", 1200, UI_SETTINGS);
+                showMessage((mountType == 0) ? " RATIO AZ REGLE   " : " RATIO RA REGLE   ", "                    ", 1200, UI_SETTINGS);
             }
             break;
 
@@ -1967,7 +1969,7 @@ void handleButtons(){
                 gearRatioALT = temp_gearRatioALT;
                 Serial1.print(":BGe"); Serial1.print(gearRatioALT); Serial1.print("#");
                 saveEEPROM();
-                showMessage(" RATIO ALT REGLE  ", "                    ", 1200, UI_SETTINGS);
+                showMessage((mountType == 0) ? " RATIO ALT REGLE  " : " RATIO DEC REGLE  ", "                    ", 1200, UI_SETTINGS);
             }
             break;
 

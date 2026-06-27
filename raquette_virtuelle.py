@@ -542,9 +542,12 @@ class VirtualTeensyApp(tk.Tk):
     def process_queue(self):
         if not self.is_connected: return
         if self.sim_mode:
-            self.is_slewing = True
-            self.state = self.UI_SLEWING
+            is_goto = any(":MS#" in c for c in self.cmd_queue)
             self.cmd_queue.clear()
+            if is_goto:
+                self.is_slewing = True
+                if self.state != self.UI_MESSAGE:
+                    self.state = self.UI_SLEWING
             self.update_lcd()
             return
             
@@ -567,7 +570,8 @@ class VirtualTeensyApp(tk.Tk):
         if self.cmd_queue:
             self.process_queue()
         else:
-            self.state = self.UI_SLEWING
+            if self.state != self.UI_MESSAGE:
+                self.state = self.UI_SLEWING
             self.update_lcd()
 
     def send_cmd(self, cmd):
@@ -720,7 +724,14 @@ class VirtualTeensyApp(tk.Tk):
             
         elif self.state == self.UI_SETTINGS:
             l0 = "[ MENU ]        " if lang == "fr" else "[ MENU ]        "
-            opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Type Monture", " Ratio AZ", " Ratio ALT", " Alim Moteurs", " Langue"] if lang == "fr" else [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Mount Type", " AZ Ratio", " ALT Ratio", " Motor Power", " Language"]
+            az_str = " Ratio AZ" if self.cfg.get("mount_type", "AltAz") == "AltAz" else " Ratio RA"
+            alt_str = " Ratio ALT" if self.cfg.get("mount_type", "AltAz") == "AltAz" else " Ratio DEC"
+            
+            if lang == "en":
+                az_str = " AZ Ratio" if self.cfg.get("mount_type", "AltAz") == "AltAz" else " RA Ratio"
+                alt_str = " ALT Ratio" if self.cfg.get("mount_type", "AltAz") == "AltAz" else " DEC Ratio"
+                
+            opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Type Monture", az_str, alt_str, " Alim Moteurs", " Langue"] if lang == "fr" else [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Mount Type", az_str, alt_str, " Motor Power", " Language"]
             l1 = f">{opts[self.settings_sel][1:]:15}"[:16]
             
         elif self.state == self.UI_SPEED:
@@ -747,11 +758,17 @@ class VirtualTeensyApp(tk.Tk):
             l1 = f"> {mount_str:13}"[:16]
             
         elif self.state == self.UI_RATIO_AZ:
-            l0 = "[ RATIO AZ ]    " if lang == "fr" else "[ AZ RATIO ]    "
+            is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
+            lbl = "RATIO AZ" if is_altaz else "RATIO RA"
+            if lang == "en": lbl = "AZ RATIO" if is_altaz else "RA RATIO"
+            l0 = f"[ {lbl} ]"[:16].ljust(16)
             l1 = f"> {self.temp_ratio_az:.1f}         "[:16]
             
         elif self.state == self.UI_RATIO_ALT:
-            l0 = "[ RATIO ALT ]   " if lang == "fr" else "[ ALT RATIO ]   "
+            is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
+            lbl = "RATIO ALT" if is_altaz else "RATIO DEC"
+            if lang == "en": lbl = "ALT RATIO" if is_altaz else "DEC RATIO"
+            l0 = f"[ {lbl} ]"[:16].ljust(16)
             l1 = f"> {self.temp_ratio_alt:.1f}         "[:16]
                 
         self.lcd_lines[0].config(text=f"{l0:<16}"[:16])
@@ -1015,7 +1032,10 @@ class VirtualTeensyApp(tk.Tk):
                 self.cfg.set("gear_ratio_az", self.temp_ratio_az)
                 self.cfg.save()
                 lang = self.cfg.get("language", "fr")
-                self.set_msg(" RATIO AZ OK    " if lang=="fr" else " AZ RATIO OK    ", "", "", "", 1500, self.UI_SETTINGS)
+                is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
+                lbl = "RATIO AZ" if is_altaz else "RATIO RA"
+                if lang == "en": lbl = "AZ RATIO" if is_altaz else "RA RATIO"
+                self.set_msg(f" {lbl} OK".ljust(16), "", "", "", 1500, self.UI_SETTINGS)
                 
         elif self.state == self.UI_RATIO_ALT:
             if btn == "LEFT":
@@ -1030,7 +1050,10 @@ class VirtualTeensyApp(tk.Tk):
                 self.cfg.set("gear_ratio_alt", self.temp_ratio_alt)
                 self.cfg.save()
                 lang = self.cfg.get("language", "fr")
-                self.set_msg(" RATIO ALT OK   " if lang=="fr" else " ALT RATIO OK   ", "", "", "", 1500, self.UI_SETTINGS)
+                is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
+                lbl = "RATIO ALT" if is_altaz else "RATIO DEC"
+                if lang == "en": lbl = "ALT RATIO" if is_altaz else "DEC RATIO"
+                self.set_msg(f" {lbl} OK".ljust(16), "", "", "", 1500, self.UI_SETTINGS)
                 
         self.update_lcd()
 
