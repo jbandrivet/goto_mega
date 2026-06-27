@@ -25,7 +25,7 @@ DEFAULTS = {
     "language": "fr",
     "rev_az": False,
     "rev_alt": False,
-    "park_alt": 90.0,
+    "park_alt": 0.0,
     "park_az": 0.0
 }
 
@@ -157,6 +157,11 @@ class ConfigToolApp(tk.Tk):
                 self.settings.update(json.loads(CONFIG_FILE.read_text()))
             except Exception:
                 pass
+        
+        # Ensure default park alt matches mount type if they are pure defaults
+        if self.settings["mount_type"] in ("ForkEq", "GermanEq") and self.settings["park_alt"] == 0.0 and self.settings["park_az"] == 0.0:
+            # If the user saved EQ but park is 0/0 (the new default), migrate it to 90
+            self.settings["park_alt"] = 90.0
 
     def save_local_settings(self):
         try:
@@ -252,7 +257,7 @@ class ConfigToolApp(tk.Tk):
         self.lbl_mount_type = tk.Label(row_type, text="Mount Type:", width=20, anchor="w", bg="#c0c0c0", fg="black", font=f_label)
         self.lbl_mount_type.pack(side="left")
         self.mount_type_var = tk.StringVar(value=self.settings["mount_type"])
-        self.mount_type_menu = tk.OptionMenu(row_type, self.mount_type_var, "AltAz", "ForkEq", "GermanEq")
+        self.mount_type_menu = tk.OptionMenu(row_type, self.mount_type_var, "AltAz", "ForkEq", "GermanEq", command=self.on_mount_type_changed)
         self.mount_type_menu.config(bg="#c0c0c0", fg="black", font=f_label, relief="raised", bd=2, activebackground="#d9d9d9", highlightthickness=0)
         self.mount_type_menu["menu"].config(bg="#c0c0c0", fg="black", font=f_label)
         self.mount_type_menu.pack(side="left", padx=5)
@@ -430,6 +435,19 @@ class ConfigToolApp(tk.Tk):
 
         self.launch_pad_btn = tk.Button(actions_frame, text="Virtual Handpad", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.launch_virtual_handpad)
         self.launch_pad_btn.pack(side="left", padx=5, fill="x", expand=True)
+
+    def on_mount_type_changed(self, new_type):
+        try:
+            current_alt = float(self.park_alt_entry.get())
+            # Only auto-update if it looks like they were using the other default
+            if new_type == "AltAz" and current_alt == 90.0:
+                self.park_alt_entry.delete(0, tk.END)
+                self.park_alt_entry.insert(0, "0.0")
+            elif new_type in ("ForkEq", "GermanEq") and current_alt == 0.0:
+                self.park_alt_entry.delete(0, tk.END)
+                self.park_alt_entry.insert(0, "90.0")
+        except ValueError:
+            pass
 
     def launch_virtual_handpad(self):
         try:
