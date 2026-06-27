@@ -85,6 +85,8 @@ static volatile bool limitHit=false; // Volatile because modified in ISR
 static bool alarmActive = false;
 static bool buzzerEnabled = true;
 static bool azReversed = false;
+float parkAlt = 90.0;
+float parkAz = 0.0;
 static bool altReversed = false;
 static uint8_t trackRate=0;
 static uint8_t slowSpeed=8;
@@ -122,6 +124,8 @@ const uint16_t EEPROM_ADDR_LATITUDE   = 40;
 const uint16_t EEPROM_ADDR_LONGITUDE  = 44; 
 const uint16_t EEPROM_ADDR_REV_AZ     = 48; 
 const uint16_t EEPROM_ADDR_REV_ALT    = 49; 
+const uint16_t EEPROM_ADDR_PARK_ALT   = 50;
+const uint16_t EEPROM_ADDR_PARK_AZ    = 54;
 const byte     EEPROM_MAGIC         = 0x5E;
 
 template <typename T>
@@ -160,6 +164,8 @@ static void saveStateToEEPROM() {
   eepromWrite(EEPROM_ADDR_LONGITUDE, siteLon);
   EEPROM.update(EEPROM_ADDR_REV_AZ, azReversed ? 1 : 0);
   EEPROM.update(EEPROM_ADDR_REV_ALT, altReversed ? 1 : 0);
+  eepromWrite(EEPROM_ADDR_PARK_ALT, parkAlt);
+  eepromWrite(EEPROM_ADDR_PARK_AZ, parkAz);
 }
 
 static void loadStateFromEEPROM() {
@@ -175,6 +181,10 @@ static void loadStateFromEEPROM() {
     eepromRead(EEPROM_ADDR_LONGITUDE, siteLon);
     azReversed = (EEPROM.read(EEPROM_ADDR_REV_AZ) == 1);
     altReversed = (EEPROM.read(EEPROM_ADDR_REV_ALT) == 1);
+    eepromRead(EEPROM_ADDR_PARK_ALT, parkAlt);
+    eepromRead(EEPROM_ADDR_PARK_AZ, parkAz);
+    if (isnan(parkAlt) || parkAlt < -90.0 || parkAlt > 90.0) parkAlt = (mountType >= 1) ? 90.0 : 0.0;
+    if (isnan(parkAz) || parkAz < 0.0 || parkAz > 360.0) parkAz = 0.0;
     
     if (isnan(siteLat) || siteLat < -90.0 || siteLat > 90.0 ||
         isnan(siteLon) || siteLon < -180.0 || siteLon > 180.0) {
@@ -207,6 +217,8 @@ static void loadStateFromEEPROM() {
     buzzerEnabled = true;
     azReversed = false;
     altReversed = false;
+    parkAlt = (mountType >= 1) ? 90.0 : 0.0;
+    parkAz = 0.0;
     saveStateToEEPROM();
   }
 
@@ -1593,6 +1605,11 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
         recalculatePPD();
         saveStateToEEPROM();
       }
+    } else if (c2=='P') {
+      double val = atof(cmd+4);
+      if(c3=='a') parkAlt = val;
+      if(c3=='z') parkAz = val;
+      saveStateToEEPROM();
     }
     out.write('1'); return;
   }
@@ -1602,8 +1619,8 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     out.write('1'); 
     tracking=false;
     if (!alarmActive) {
-      double pAlt = (mountType >= 1) ? 90.0 : 0.0;
-      double pAz = 0.0;
+      double pAlt = parkAlt;
+      double pAz = parkAz;
       long pRA, pDEC;
       aa2rd(pAlt, pAz, &pRA, &pDEC);
       inRA = pRA;
