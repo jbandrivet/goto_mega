@@ -67,11 +67,15 @@ class VirtualTeensyApp(tk.Tk):
         self.UI_MOTOR_POWER = 9
         self.UI_LANGUAGE = 10
         self.UI_MOUNT = 11
+        self.UI_RATIO_AZ = 12
+        self.UI_RATIO_ALT = 13
         
         self.motor_power = True
         self.temp_motor_power = True
         self.temp_lang = "fr"
         self.temp_mount_type = 0
+        self.temp_ratio_az = self.cfg.get("gear_ratio_az", 750.0)
+        self.temp_ratio_alt = self.cfg.get("gear_ratio_alt", 750.0)
         
         self.state = self.UI_MAIN
         
@@ -716,7 +720,7 @@ class VirtualTeensyApp(tk.Tk):
             
         elif self.state == self.UI_SETTINGS:
             l0 = "[ MENU ]        " if lang == "fr" else "[ MENU ]        "
-            opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Type Monture", " Alim Moteurs", " Langue"] if lang == "fr" else [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Mount Type", " Motor Power", " Language"]
+            opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Type Monture", " Ratio AZ", " Ratio ALT", " Alim Moteurs", " Langue"] if lang == "fr" else [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Mount Type", " AZ Ratio", " ALT Ratio", " Motor Power", " Language"]
             l1 = f">{opts[self.settings_sel][1:]:15}"[:16]
             
         elif self.state == self.UI_SPEED:
@@ -741,9 +745,39 @@ class VirtualTeensyApp(tk.Tk):
             l0 = "[ TYPE MONTURE ]" if lang == "fr" else "[ MOUNT TYPE ]  "
             mount_str = "AltAz" if self.temp_mount_type == 0 else ("ForkEq" if self.temp_mount_type == 1 else "GermanEq")
             l1 = f"> {mount_str:13}"[:16]
+            
+        elif self.state == self.UI_RATIO_AZ:
+            l0 = "[ RATIO AZ ]    " if lang == "fr" else "[ AZ RATIO ]    "
+            l1 = f"> {self.temp_ratio_az:.1f}         "[:16]
+            
+        elif self.state == self.UI_RATIO_ALT:
+            l0 = "[ RATIO ALT ]   " if lang == "fr" else "[ ALT RATIO ]   "
+            l1 = f"> {self.temp_ratio_alt:.1f}         "[:16]
                 
         self.lcd_lines[0].config(text=f"{l0:<16}"[:16])
         self.lcd_lines[1].config(text=f"{l1:<16}"[:16])
+
+    def get_visible_stars(self):
+        try:
+            now = datetime.now(timezone.utc)
+            obs = ephem.Observer()
+            obs.lat = str(self.lat)
+            obs.lon = str(self.lon)
+            obs.date = now
+            stars = self.db_cat.get("Étoiles", [])
+            visible = []
+            for s in stars:
+                body = ephem.FixedBody()
+                body._ra = s['ra'] * math.pi / 12.0
+                body._dec = s['dec'] * math.pi / 180.0
+                body.compute(obs)
+                alt = float(body.alt) * 180.0 / math.pi
+                if 15.0 < alt < 80.0:
+                    visible.append(s)
+            visible.sort(key=lambda x: x.get('mag', 10.0))
+            return visible if visible else stars
+        except:
+            return self.db_cat.get("Étoiles", [])
 
     def handle_btn(self, btn):
         if self.state == self.UI_MESSAGE:
@@ -758,14 +792,21 @@ class VirtualTeensyApp(tk.Tk):
                 self.state = self.UI_SETTINGS
                 
         elif self.state == self.UI_CAT_SELECT:
-            if btn == "UP":
+            if btn == "LEFT":
+                self.state = self.UI_MAIN
+            elif btn == "UP":
                 self.cat_idx = (self.cat_idx - 1) % len(self.catalogs)
             elif btn == "DOWN":
                 self.cat_idx = (self.cat_idx + 1) % len(self.catalogs)
-            elif btn == "LEFT":
-                self.state = self.UI_SETTINGS
-            elif btn in ("RIGHT", "ENTER"):
-                self.state = self.UI_OBJECT_LIST
+            elif btn in ("ENTER", "RIGHT"):
+                cat_name = self.catalogs[self.cat_idx]
+                if cat_name == "Étoiles":
+                    self.obj_list = self.get_visible_stars()
+                else:
+                    self.obj_list = self.db_cat.get(cat_name, [])
+                self.obj_idx = 0
+                if self.obj_list:
+                    self.state = self.UI_OBJECT_LIST
                 
         elif self.state == self.UI_OBJECT_LIST:
             if btn == "UP":
@@ -836,9 +877,9 @@ class VirtualTeensyApp(tk.Tk):
             if btn == "LEFT":
                 self.state = self.UI_MAIN
             elif btn == "UP":
-                self.settings_sel = (self.settings_sel - 1) % 8
+                self.settings_sel = (self.settings_sel - 1) % 10
             elif btn == "DOWN":
-                self.settings_sel = (self.settings_sel + 1) % 8
+                self.settings_sel = (self.settings_sel + 1) % 10
             elif btn in ("ENTER", "RIGHT"):
                 lang = self.cfg.get("language", "fr")
                 if self.settings_sel == 0:
@@ -865,9 +906,13 @@ class VirtualTeensyApp(tk.Tk):
                 elif self.settings_sel == 5:
                     self.state = self.UI_MOUNT
                 elif self.settings_sel == 6:
+                    self.state = self.UI_RATIO_AZ
+                elif self.settings_sel == 7:
+                    self.state = self.UI_RATIO_ALT
+                elif self.settings_sel == 8:
                     self.temp_motor_power = getattr(self, "motor_power", True)
                     self.state = self.UI_MOTOR_POWER
-                elif self.settings_sel == 7:
+                elif self.settings_sel == 9:
                     self.temp_lang = lang
                     self.state = self.UI_LANGUAGE
                     
@@ -949,11 +994,43 @@ class VirtualTeensyApp(tk.Tk):
                 if self.temp_mount_type == 0: self.send_cmd(":BMa#")
                 elif self.temp_mount_type == 1: self.send_cmd(":BMe#")
                 else: self.send_cmd(":BMg#")
+                self.cfg.set("mount_type", ["AltAz", "ForkEq", "GermanEq"][self.temp_mount_type])
+                self.cfg.save()
                 lang = self.cfg.get("language", "fr")
                 if lang == "en":
                     self.set_msg(" MOUNT SET      ", "                ", "", "", 1500, self.UI_SETTINGS)
                 else:
                     self.set_msg(" MONTURE REGLEE ", "                ", "", "", 1500, self.UI_SETTINGS)
+                    
+        elif self.state == self.UI_RATIO_AZ:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn == "UP":
+                self.temp_ratio_az += 10.0
+            elif btn == "DOWN":
+                self.temp_ratio_az -= 10.0
+                if self.temp_ratio_az < 10.0: self.temp_ratio_az = 10.0
+            elif btn == "ENTER":
+                self.send_cmd(f":BGa{self.temp_ratio_az}#")
+                self.cfg.set("gear_ratio_az", self.temp_ratio_az)
+                self.cfg.save()
+                lang = self.cfg.get("language", "fr")
+                self.set_msg(" RATIO AZ OK    " if lang=="fr" else " AZ RATIO OK    ", "", "", "", 1500, self.UI_SETTINGS)
+                
+        elif self.state == self.UI_RATIO_ALT:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn == "UP":
+                self.temp_ratio_alt += 10.0
+            elif btn == "DOWN":
+                self.temp_ratio_alt -= 10.0
+                if self.temp_ratio_alt < 10.0: self.temp_ratio_alt = 10.0
+            elif btn == "ENTER":
+                self.send_cmd(f":BGe{self.temp_ratio_alt}#")
+                self.cfg.set("gear_ratio_alt", self.temp_ratio_alt)
+                self.cfg.save()
+                lang = self.cfg.get("language", "fr")
+                self.set_msg(" RATIO ALT OK   " if lang=="fr" else " ALT RATIO OK   ", "", "", "", 1500, self.UI_SETTINGS)
                 
         self.update_lcd()
 
