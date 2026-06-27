@@ -896,6 +896,11 @@ class VirtualTeensyApp(tk.Tk):
             elif btn == "RIGHT":
                 if self.is_connected:
                     o = self.obj_list[self.obj_idx]
+                    if not o.get('visible', False):
+                        lang = self.cfg.get("language", "fr")
+                        self.set_msg(" SOUS HORIZON ! " if lang=="fr" else " BELOW HORIZON! ", "                ", "", "", 2000, self.UI_OBJECT_INFO)
+                        return
+                        
                     self.target_ra = o['ra']
                     self.target_dec = o['dec']
                     ra_str = Astro.fmt_ra_lx(o['ra'])
@@ -919,6 +924,11 @@ class VirtualTeensyApp(tk.Tk):
             elif btn == "ENTER":
                 if self.is_connected:
                     o = self.obj_list[self.obj_idx]
+                    if not o.get('visible', False):
+                        lang = self.cfg.get("language", "fr")
+                        self.set_msg(" SOUS HORIZON ! " if lang=="fr" else " BELOW HORIZON! ", "                ", "", "", 2000, self.UI_OBJECT_INFO)
+                        return
+                        
                     self.target_ra = o['ra']
                     self.target_dec = o['dec']
                     ra_str = Astro.fmt_ra_lx(o['ra'])
