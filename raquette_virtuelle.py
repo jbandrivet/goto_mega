@@ -697,13 +697,15 @@ class VirtualTeensyApp(tk.Tk):
                 o = self.obj_list[self.obj_idx]
                 name = o.get('name', f"{o.get('cat')} {o.get('num')}")
                 if name == f"{o.get('cat')} {o.get('num')}": name = f"{disp_cat} {o.get('num')}"
-                mag_str = f" m{o.get('mag')}" if o.get('mag') else ""
-                l1 = f">{name:<9}{mag_str}"[:16]
+                vis_star = "*" if o.get("visible", False) else ""
+                mag_str = f"m{o.get('mag')}" if o.get('mag') else ""
+                l1 = f">{name[:8]}{vis_star} {mag_str}"[:16]
                 
         elif self.state == self.UI_OBJECT_INFO:
             o = self.obj_list[self.obj_idx]
             name = o.get('name', f"{o.get('cat')} {o.get('num')}")
-            l0 = f">{name[:15]:<15}"[:16]
+            vis_star = "*" if o.get("visible", False) else ""
+            l0 = f">{name[:14]:<14}{vis_star}"[:16]
             l1 = "E=GOTO  >=SYNC  "
             
         elif self.state == self.UI_SLEWING:
@@ -796,6 +798,30 @@ class VirtualTeensyApp(tk.Tk):
         except:
             return self.db_cat.get("Étoiles", [])
 
+    def get_catalog_with_visibility(self, cat_name):
+        try:
+            now = datetime.now(timezone.utc)
+            obs = ephem.Observer()
+            obs.lat = str(self.lat)
+            obs.lon = str(self.lon)
+            obs.date = now
+            raw_list = self.db_cat.get(cat_name, [])
+            enriched = []
+            for s in raw_list:
+                s_copy = s.copy()
+                body = ephem.FixedBody()
+                body._ra = s['ra'] * math.pi / 12.0
+                body._dec = s['dec'] * math.pi / 180.0
+                body.compute(obs)
+                if (float(body.alt) * 180.0 / math.pi) > self.alt_min:
+                    s_copy['visible'] = True
+                else:
+                    s_copy['visible'] = False
+                enriched.append(s_copy)
+            return enriched
+        except:
+            return self.db_cat.get(cat_name, [])
+
     def handle_btn(self, btn):
         if self.state == self.UI_MESSAGE:
             self.state = self.msg_return_state
@@ -818,9 +844,11 @@ class VirtualTeensyApp(tk.Tk):
             elif btn in ("ENTER", "RIGHT"):
                 cat_name = self.catalogs[self.cat_idx]
                 if cat_name == "Étoiles":
-                    self.obj_list = self.get_visible_stars()
+                    stars = self.get_visible_stars()
+                    for s in stars: s['visible'] = True
+                    self.obj_list = stars
                 else:
-                    self.obj_list = self.db_cat.get(cat_name, [])
+                    self.obj_list = self.get_catalog_with_visibility(cat_name)
                 self.obj_idx = 0
                 if self.obj_list:
                     self.state = self.UI_OBJECT_LIST
@@ -909,11 +937,16 @@ class VirtualTeensyApp(tk.Tk):
                     self.temp_buzzer_on = self.buzzer_on
                     self.state = self.UI_BEEP
                 elif self.settings_sel == 3:
-                    self.send_cmd(":CM#")
-                    if lang == "en":
-                        self.set_msg("  SYNCHRONIZED!  ", " Position OK. ", "", "", 1500, self.UI_SETTINGS)
+                    # Alignment: Propose best star
+                    stars = self.get_visible_stars()
+                    if stars:
+                        for s in stars: s['visible'] = True
+                        self.obj_list = stars
+                        self.obj_idx = 0
+                        self.state = self.UI_OBJECT_INFO
                     else:
-                        self.set_msg("  SYNCHRONISE !  ", " Position OK. ", "", "", 1500, self.UI_SETTINGS)
+                        lang = self.cfg.get("language", "fr")
+                        self.set_msg(" AUCUNE ETOILE  " if lang=="fr" else " NO STAR FOUND  ", " VISIBLE        ", "", "", 1500, self.UI_SETTINGS)
                 elif self.settings_sel == 4:
                     self.send_cmd(":hP#")
                     if lang == "en":
