@@ -51,18 +51,18 @@ TRANSLATIONS = {
         "park_alt": "Altitude (deg):",
         "park_az": "Azimuth (deg):",
         "gps_coords": "GPS Coordinates:",
-        "auto_detect": "Auto Detect (Internet) 🛰",
+        "auto_detect": "Auto Detect (Internet)",
         "goto_speed": "GoTo Speed (°/s):",
         "buzzer": "Bip/Buzzer Mount:",
         "enabled": "Enabled",
-        "test_beep": "Test Beep 🔊",
+        "test_beep": "Test Beep",
         "time_sync": "Time Synchronization",
         "sync_clock": "Synchronize Arduino with PC clock",
         "clock_not_synced": "PC clock not synced",
         "clock_synced": "PC clock synced",
         "read_config": "Read Config from Arduino",
         "apply_config": "Apply & Save to Arduino",
-        "virtual_pad": "Virtual Handpad 🎮",
+        "virtual_pad": "Virtual Handpad",
         "lang_label": "Language / Langue:",
         "mount_control": "Mount Control",
         "park_mount": "Park Mount ⏾",
@@ -72,7 +72,7 @@ TRANSLATIONS = {
         "rev_alt": "Reverse ALT/DEC",
         "flash_lf": "Firmware Flashing (arduino-cli)",
         "flash_mega": "Compile & Flash Arduino Mega 2560 🚀",
-        "flash_teensy": "Compile & Flash Teensy 4.1 Raquette 🎮",
+        "flash_teensy": "Compile & Flash Teensy 4.1 Raquette",
         "flashing_title": "Firmware Flashing",
         "flashing_success": "Successfully compiled and flashed the firmware!",
         "flashing_error": "Compilation or Flashing failed:\n",
@@ -99,18 +99,18 @@ TRANSLATIONS = {
         "park_alt": "Altitude (deg) :",
         "park_az": "Azimut (deg) :",
         "gps_coords": "Coordonnées GPS :",
-        "auto_detect": "Détection Auto (Internet) 🛰",
+        "auto_detect": "Détection Auto (Internet)",
         "goto_speed": "Vitesse GoTo (°/s) :",
         "buzzer": "Bip/Buzzer Monture :",
         "enabled": "Actif",
-        "test_beep": "Tester Bip 🔊",
+        "test_beep": "Tester Bip",
         "time_sync": "Synchronisation de l'Heure",
         "sync_clock": "Synchroniser l'Arduino avec l'heure du PC",
         "clock_not_synced": "Horloge PC non synchronisée",
         "clock_synced": "Horloge PC synchronisée",
         "read_config": "Lire la configuration Arduino",
         "apply_config": "Appliquer & Enregistrer",
-        "virtual_pad": "Raquette Virtuelle 🎮",
+        "virtual_pad": "Raquette Virtuelle",
         "lang_label": "Langue :",
         "mount_control": "Contrôle Monture",
         "park_mount": "Parquer Monture ⏾",
@@ -120,7 +120,7 @@ TRANSLATIONS = {
         "rev_alt": "Inverser ALT/DEC",
         "flash_lf": "Téléversement du Firmware (arduino-cli)",
         "flash_mega": "Compiler & Flasher Arduino Mega 2560 🚀",
-        "flash_teensy": "Compiler & Flasher Raquette Teensy 4.1 🎮",
+        "flash_teensy": "Compiler & Flasher Raquette Teensy 4.1",
         "flashing_title": "Téléversement du Firmware",
         "flashing_success": "Le firmware a été compilé et téléversé avec succès !",
         "flashing_error": "Échec de compilation ou téléversement :\n",
@@ -329,7 +329,7 @@ class ConfigToolApp(tk.Tk):
         self.lbl_gps = tk.Label(row_gps, text="GPS Coordinates:", width=20, anchor="w", bg="#c0c0c0", fg="black", font=f_label)
         self.lbl_gps.pack(side="left")
 
-        self.gps_btn = tk.Button(row_gps, text="Auto Detect (Internet) 🛰", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.auto_detect_gps)
+        self.gps_btn = tk.Button(row_gps, text="Auto Detect (Internet)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.auto_detect_gps)
         self.gps_btn.pack(side="left", padx=5)
 
         # Configuration Row 4: Vitesse Slew
@@ -356,7 +356,7 @@ class ConfigToolApp(tk.Tk):
         self.buzzer_chk = tk.Checkbutton(row_beep, text="Enabled", variable=self.buzzer_var, bg="#c0c0c0", fg="black", selectcolor="#ffffff", activebackground="#c0c0c0", font=f_label)
         self.buzzer_chk.pack(side="left", padx=5)
 
-        self.beep_test_btn = tk.Button(row_beep, text="Test Beep 🔊", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.test_beep, state="disabled")
+        self.beep_test_btn = tk.Button(row_beep, text="Test Beep", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.test_beep, state="disabled")
         self.beep_test_btn.pack(side="left", padx=20)
 
         # Motor Inversion Row
@@ -415,7 +415,7 @@ class ConfigToolApp(tk.Tk):
         self.flash_mega_btn = tk.Button(flash_inner, text="Compile & Flash Arduino Mega 2560 🚀", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("mega"), width=25)
         self.flash_mega_btn.pack(side="left", padx=5, fill="x", expand=True)
         
-        self.flash_teensy_btn = tk.Button(flash_inner, text="Compile & Flash Teensy 4.1 Raquette 🎮", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("teensy"), width=25)
+        self.flash_teensy_btn = tk.Button(flash_inner, text="Compile & Flash Teensy 4.1 Raquette", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("teensy"), width=25)
         self.flash_teensy_btn.pack(side="left", padx=5, fill="x", expand=True)
 
         # 5. Buttons Actions Panel
@@ -428,7 +428,7 @@ class ConfigToolApp(tk.Tk):
         self.apply_btn = tk.Button(actions_frame, text="Apply & Save to Arduino", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.apply_config_to_arduino, state="disabled")
         self.apply_btn.pack(side="left", padx=5, fill="x", expand=True)
 
-        self.launch_pad_btn = tk.Button(actions_frame, text="Virtual Handpad 🎮", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.launch_virtual_handpad)
+        self.launch_pad_btn = tk.Button(actions_frame, text="Virtual Handpad", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.launch_virtual_handpad)
         self.launch_pad_btn.pack(side="left", padx=5, fill="x", expand=True)
 
     def launch_virtual_handpad(self):
