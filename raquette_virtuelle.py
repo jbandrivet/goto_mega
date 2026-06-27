@@ -62,14 +62,15 @@ class VirtualTeensyApp(tk.Tk):
         self.UI_SLEWING = 4
         self.UI_SETTINGS = 5
         self.UI_SPEED = 6
-        self.UI_BEEP = 7
-        self.UI_MESSAGE = 9
-        self.UI_MOTOR_POWER = 10
-        self.UI_LANGUAGE = 11
+        self.UI_BEEP = 8
+        self.UI_MOTOR_POWER = 9
+        self.UI_LANGUAGE = 10
+        self.UI_MOUNT = 11
         
         self.motor_power = True
         self.temp_motor_power = True
         self.temp_lang = "fr"
+        self.temp_mount_type = 0
         
         self.state = self.UI_MAIN
         
@@ -713,8 +714,8 @@ class VirtualTeensyApp(tk.Tk):
                 l1 = " Patientez...   " if lang == "fr" else " Please wait... "
             
         elif self.state == self.UI_SETTINGS:
-            l0 = "= MENU ======== " if lang == "fr" else "= MENU ======== "
-            opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Alim Moteurs", " Langue"] if lang == "fr" else [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Motor Power", " Language"]
+            l0 = "[ MENU ]        " if lang == "fr" else "[ MENU ]        "
+            opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Type Monture", " Alim Moteurs", " Langue"] if lang == "fr" else [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Mount Type", " Motor Power", " Language"]
             l1 = f">{opts[self.settings_sel][1:]:15}"[:16]
             
         elif self.state == self.UI_SPEED:
@@ -734,6 +735,11 @@ class VirtualTeensyApp(tk.Tk):
         elif self.state == self.UI_LANGUAGE:
             l0 = "[ LANGUE ]      " if lang == "fr" else "[ LANGUAGE ]    "
             l1 = f">{('FRANCAIS' if self.temp_lang == 'fr' else 'ENGLISH'):15}"[:16]
+            
+        elif self.state == self.UI_MOUNT:
+            l0 = "[ TYPE MONTURE ]" if lang == "fr" else "[ MOUNT TYPE ]  "
+            mount_str = "AltAz" if self.temp_mount_type == 0 else ("ForkEq" if self.temp_mount_type == 1 else "GermanEq")
+            l1 = f"> {mount_str:13}"[:16]
                 
         self.lcd_lines[0].config(text=f"{l0:<16}"[:16])
         self.lcd_lines[1].config(text=f"{l1:<16}"[:16])
@@ -829,9 +835,9 @@ class VirtualTeensyApp(tk.Tk):
             if btn == "LEFT":
                 self.state = self.UI_MAIN
             elif btn == "UP":
-                self.settings_sel = (self.settings_sel - 1) % 7
+                self.settings_sel = (self.settings_sel - 1) % 8
             elif btn == "DOWN":
-                self.settings_sel = (self.settings_sel + 1) % 7
+                self.settings_sel = (self.settings_sel + 1) % 8
             elif btn in ("ENTER", "RIGHT"):
                 lang = self.cfg.get("language", "fr")
                 if self.settings_sel == 0:
@@ -852,13 +858,15 @@ class VirtualTeensyApp(tk.Tk):
                 elif self.settings_sel == 4:
                     self.send_cmd(":hP#")
                     if lang == "en":
-                        self.set_msg(" PARKING ACTIVE  ", "", "", "", 1500, self.UI_SETTINGS)
+                        self.set_msg("  PARKING...    ", "                ", "", "", 1500, self.UI_MAIN)
                     else:
-                        self.set_msg(" PARKING EN COURS", "", "", "", 1500, self.UI_SETTINGS)
+                        self.set_msg("  PARKING...    ", "                ", "", "", 1500, self.UI_MAIN)
                 elif self.settings_sel == 5:
+                    self.state = self.UI_MOUNT
+                elif self.settings_sel == 6:
                     self.temp_motor_power = getattr(self, "motor_power", True)
                     self.state = self.UI_MOTOR_POWER
-                elif self.settings_sel == 6:
+                elif self.settings_sel == 7:
                     self.temp_lang = lang
                     self.state = self.UI_LANGUAGE
                     
@@ -930,6 +938,21 @@ class VirtualTeensyApp(tk.Tk):
                 else:
                     self.title("Raquette T4.1 Virtuelle")
                     self.set_msg(" LANGUE ENREG.   ", "", "", "", 1200, self.UI_SETTINGS)
+        
+        elif self.state == self.UI_MOUNT:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn in ("UP", "DOWN"):
+                self.temp_mount_type = (self.temp_mount_type + 1) % 3
+            elif btn == "ENTER":
+                if self.temp_mount_type == 0: self.send_cmd(":BMa#")
+                elif self.temp_mount_type == 1: self.send_cmd(":BMe#")
+                else: self.send_cmd(":BMg#")
+                lang = self.cfg.get("language", "fr")
+                if lang == "en":
+                    self.set_msg(" MOUNT SET      ", "                ", "", "", 1500, self.UI_SETTINGS)
+                else:
+                    self.set_msg(" MONTURE REGLEE ", "                ", "", "", 1500, self.UI_SETTINGS)
                 
         self.update_lcd()
 
