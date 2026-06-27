@@ -692,13 +692,6 @@ class VirtualTeensyApp(tk.Tk):
             
         elif self.state == self.UI_OBJECT_LIST:
             cat_name = self.catalogs[self.cat_idx]
-            if self.current_cat_name != cat_name:
-                self.obj_list = list(self.db_cat.get(cat_name, []))
-                if cat_name not in ("Systeme Solaire", "Étoiles"):
-                    self.obj_list.sort(key=lambda x: int(x.get('num', 0)) if str(x.get('num','0')).isdigit() else 0)
-                self.current_cat_name = cat_name
-                self.obj_idx = 0
-                
             disp_cat = cat_name
             if lang == "en":
                 if cat_name == "Systeme Solaire": disp_cat = "Sol"
@@ -841,8 +834,13 @@ class VirtualTeensyApp(tk.Tk):
                 else:
                     s_copy['visible'] = False
                 enriched.append(s_copy)
+            
+            if cat_name not in ("Systeme Solaire", "Étoiles"):
+                enriched.sort(key=lambda x: int(x.get('num', 0)) if str(x.get('num','0')).isdigit() else 0)
+                
             return enriched
-        except:
+        except Exception as e:
+            print(f"ERROR in get_catalog_with_visibility: {e}")
             return self.db_cat.get(cat_name, [])
 
     def handle_btn(self, btn):
