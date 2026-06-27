@@ -70,3 +70,29 @@ $$PPD = \frac{\text{Pas Moteur} \times \text{Microstepping} \times \text{Rapport
 *   **Suivi Sidéral (Ciel profond) :** Calculé en temps réel par l'Arduino Mega toutes les 500 ms à partir du Temps Sidéral Local (LST) de l'horloge.
 *   **Suivi Lunaire (`:TL#`) :** Vitesse de l'angle horaire (HA) ralentie de **~2,37%** (facteur d'échelle `0.976327`) pour compenser le déplacement orbital de la Lune.
 *   **Suivi Solaire (`:TS#`) :** Vitesse ralentie de **~0,27%** (facteur d'échelle `0.997270`) pour compenser le mouvement orbital de la Terre.
+
+## Câblage de la Raquette Physique (Teensy 4.1)
+
+La raquette physique est articulée autour d'une carte **Teensy 4.1**.
+
+### 1. Prise RJ11 (Communication avec le Mega)
+* **GND** $\rightarrow$ Broche **GND** de la Teensy
+* **TX (Teensy 4.1)** $\rightarrow$ Broche **Pin 1 (TX1)** de la Teensy
+* **RX (Teensy 4.1)** $\rightarrow$ Broche **Pin 0 (RX1)** de la Teensy
+
+*(Rappel : Ces pins sont reliées aux pins RX3/TX3 de l'Arduino Mega).*
+
+### 2. Écran LCD Grove I2C
+* **SDA** $\rightarrow$ Broche **Pin 18 (SDA0)** de la Teensy
+* **SCL** $\rightarrow$ Broche **Pin 19 (SCL0)** de la Teensy
+* **VCC** $\rightarrow$ Broche **5V** (ou **3.3V** selon le modèle Grove)
+* **GND** $\rightarrow$ Broche **GND**
+
+### 3. Boutons Poussoirs (Clavier directionnel)
+Les boutons sont câblés en **INPUT_PULLUP**, ce qui signifie qu'ils doivent être reliés d'un côté à la broche correspondante de la Teensy, et de l'autre côté à la masse (**GND**). Aucun besoin de résistance externe !
+
+* **Haut (UP)** $\rightarrow$ Broche **Pin 6**
+* **Bas (DOWN)** $\rightarrow$ Broche **Pin 7**
+* **Gauche (LEFT)** $\rightarrow$ Broche **Pin 8**
+* **Droite (RIGHT)** $\rightarrow$ Broche **Pin 9**
+* **Entrée/OK (ENTER)** $\rightarrow$ Broche **Pin 10**
