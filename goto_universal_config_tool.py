@@ -50,6 +50,8 @@ TRANSLATIONS = {
         "park_pos": "Park Position:",
         "park_alt": "Altitude (deg):",
         "park_az": "Azimuth (deg):",
+        "park_dec": "DEC (deg):",
+        "park_ra": "RA/HA (deg):",
         "gps_coords": "GPS Coordinates:",
         "auto_detect": "Auto Detect (Internet)",
         "goto_speed": "GoTo Speed (°/s):",
@@ -98,6 +100,8 @@ TRANSLATIONS = {
         "park_pos": "Position Parking :",
         "park_alt": "Altitude (deg) :",
         "park_az": "Azimut (deg) :",
+        "park_dec": "DEC (deg) :",
+        "park_ra": "RA/HA (deg) :",
         "gps_coords": "Coordonnées GPS :",
         "auto_detect": "Détection Auto (Internet)",
         "goto_speed": "Vitesse GoTo (°/s) :",
@@ -437,6 +441,14 @@ class ConfigToolApp(tk.Tk):
         self.launch_pad_btn.pack(side="left", padx=5, fill="x", expand=True)
 
     def on_mount_type_changed(self, new_type):
+        t = TRANSLATIONS[self.lang_var.get()]
+        if new_type == "AltAz":
+            self.lbl_park_alt.config(text=t["park_alt"])
+            self.lbl_park_az.config(text=t["park_az"])
+        else:
+            self.lbl_park_alt.config(text=t["park_dec"])
+            self.lbl_park_az.config(text=t["park_ra"])
+        
         try:
             current_alt = float(self.park_alt_entry.get())
             # Only auto-update if it looks like they were using the other default
@@ -492,8 +504,15 @@ class ConfigToolApp(tk.Tk):
         self.lbl_latitude.config(text=t["latitude"])
         self.lbl_longitude.config(text=t["longitude"])
         self.lbl_park.config(text=t["park_pos"])
-        self.lbl_park_alt.config(text=t["park_alt"])
-        self.lbl_park_az.config(text=t["park_az"])
+        
+        mtype = self.mount_type_var.get()
+        if mtype == "AltAz":
+            self.lbl_park_alt.config(text=t["park_alt"])
+            self.lbl_park_az.config(text=t["park_az"])
+        else:
+            self.lbl_park_alt.config(text=t["park_dec"])
+            self.lbl_park_az.config(text=t["park_ra"])
+            
         self.lbl_gps.config(text=t["gps_coords"])
         self.gps_btn.config(text=t["auto_detect"])
         self.lbl_goto_speed.config(text=t["goto_speed"])
