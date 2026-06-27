@@ -692,16 +692,9 @@ class VirtualTeensyApp(tk.Tk):
                 
         elif self.state == self.UI_OBJECT_INFO:
             o = self.obj_list[self.obj_idx]
-            disp_cat = self.catalogs[self.cat_idx]
-            if lang == "en":
-                if disp_cat == "Systeme Solaire": disp_cat = "Sol"
-                elif disp_cat == "Étoiles": disp_cat = "Star"
-            else:
-                disp_cat = disp_cat[:3]
             name = o.get('name', f"{o.get('cat')} {o.get('num')}")
-            if name == f"{o.get('cat')} {o.get('num')}": name = f"{disp_cat} {o.get('num')}"
-            l0 = f">{name[:15]:<15}"
-            l1 = "ENT=GOTO <=RET  " if lang == "fr" else "ENT=GOTO <=BACK "
+            l0 = f">{name[:15]:<15}"[:16]
+            l1 = "E=GOTO  >=SYNC  "
             
         elif self.state == self.UI_SLEWING:
             anim_chars = ['*', '+', 'x', '+']
@@ -785,6 +778,29 @@ class VirtualTeensyApp(tk.Tk):
                 self.obj_idx = (self.obj_idx - 1) % len(self.obj_list) if self.obj_list else 0
             elif btn == "DOWN":
                 self.obj_idx = (self.obj_idx + 1) % len(self.obj_list) if self.obj_list else 0
+            elif btn == "RIGHT":
+                if self.is_connected:
+                    o = self.obj_list[self.obj_idx]
+                    self.target_ra = o['ra']
+                    self.target_dec = o['dec']
+                    ra_str = Astro.fmt_ra_lx(o['ra'])
+                    dec_str = Astro.fmt_dec_lx(o['dec'])
+                    
+                    self.cmd_queue = [f":Sr{ra_str}#", f":Sd{dec_str}#", ":CM#"]
+                    self.process_queue()
+                    
+                    lang = self.cfg.get("language", "fr")
+                    if lang == "en":
+                        self.set_msg("  SYNCHRONIZED  ", "                ", "", "", 1500, self.UI_MAIN)
+                    else:
+                        self.set_msg("  SYNCHRONISE   ", "                ", "", "", 1500, self.UI_MAIN)
+                else:
+                    lang = self.cfg.get("language", "fr")
+                    if lang == "en":
+                        self.set_msg(" ERROR: ", " NOT CONNECTED ", "", "", 2000, self.UI_OBJECT_INFO)
+                    else:
+                        self.set_msg(" ERREUR: ", " NON CONNECTE ", "", "", 2000, self.UI_OBJECT_INFO)
+                    return
             elif btn == "ENTER":
                 if self.is_connected:
                     o = self.obj_list[self.obj_idx]

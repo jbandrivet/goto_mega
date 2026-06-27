@@ -1568,7 +1568,7 @@ void printObjectInfo(){
         snprintf(buf,17,">%s%d %s", getCatPrefix(currentCat), selectedObj.id, getTypeName(selectedObj.type));
     }
     lcdLine(0,buf);
-    lcdLine(1, "ENT=GOTO <=RET");
+    lcdLine(1, "E=GOTO  >=SYNC");
 }
 
 void printSlewing(){
@@ -1604,10 +1604,17 @@ void printSpeed(){
 }
 
 void printSettings() {
-    lcdLine(0,"[ REGLAGES ]");
+    lcdLine(0, isEnglish ? "[ SETTINGS ]" : "[ REGLAGES ]");
     const char* opts[] = {
-        "Vitesse GoTo", "Synchroniser", "Parking", "Type Monture",
-        "Ratio AZ", "Ratio ALT", "Buzzer", "Date/Heure", "Lieu Obs."
+        isEnglish ? "GoTo Speed" : "Vitesse GoTo", 
+        isEnglish ? "Sync/Align" : "Synchroniser", 
+        isEnglish ? "Parking" : "Parking", 
+        isEnglish ? "Mount Type" : "Type Monture",
+        "Ratio AZ", "Ratio ALT", "Buzzer", 
+        isEnglish ? "Date/Time" : "Date/Heure", 
+        isEnglish ? "Location" : "Lieu Obs.", 
+        isEnglish ? "Motor Power" : "Alim Moteurs", 
+        isEnglish ? "Language" : "Langue"
     };
     char buf[17];
     snprintf(buf,17,">%s", opts[settingsSel]);
@@ -1849,6 +1856,19 @@ void handleButtons(){
                         selectCurrentObject(); }
             if(down)  { objectIndex=(objectIndex<total-1)?objectIndex+1:0;
                         selectCurrentObject(); }
+            if(right) {
+                double ra =selectedIsStar?selectedStar.ra  :selectedObj.ra;
+                double dec=selectedIsStar?selectedStar.dec :selectedObj.dec;
+                // Sync uses cmd_sync_target if available, else we can send :Sr, :Sd, :CM
+                char buf[16];
+                int hr=(int)ra, mn=(int)((ra-hr)*60), sc=(int)((ra-hr-mn/60.0)*3600);
+                snprintf(buf,16,":Sr%02d:%02d:%02d#",hr,mn,sc); mega_cmd(buf);
+                bool n=dec<0; double d=abs(dec);
+                int deg=(int)d; mn=(int)((d-deg)*60); sc=(int)((d-deg-mn/60.0)*3600);
+                snprintf(buf,16,":Sd%c%02d*%02d:%02d#",n?'-':'+',deg,mn,sc); mega_cmd(buf);
+                mega_cmd(":CM#");
+                showMessage(isEnglish ? "  SYNCHRONIZED  " : "  SYNCHRONISE   ", "                ", 1500, UI_MAIN);
+            }
             if(enter) {
                 double ra =selectedIsStar?selectedStar.ra  :selectedObj.ra;
                 double dec=selectedIsStar?selectedStar.dec :selectedObj.dec;
