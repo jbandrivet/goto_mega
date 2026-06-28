@@ -1181,6 +1181,7 @@ enum UIState {
 };
 UIState uiState = UI_MAIN;
 bool isAlignWorkflow = false;
+bool isParkingWorkflow = false;
 
 const char* const CAT_NAMES[] = { "Messier","NGC","IC","PK","Caldwell","Etoiles","SysSol  " };
 
@@ -1614,28 +1615,35 @@ void printObjectInfo(){
 }
 
 void printSlewing(){
-    double ra  = selectedIsStar?selectedStar.ra  :selectedObj.ra;
-    double dec = selectedIsStar?selectedStar.dec :selectedObj.dec;
     char anim_chars[] = {'*', '+', 'x', '+'};
     char anim = anim_chars[(millis() / 250) % 4];
     char b0[17];
-    snprintf(b0, 17, isEnglish ? "SLEWING %c" : "GOTO %c", anim);
-    lcdLine(0, b0);
     
-    double c_dec_rad = m_currentDEC * DEGRAD;
-    double t_dec_rad = dec * DEGRAD;
-    double d_ra_rad = (m_currentRA - ra) * 15.0 * DEGRAD;
-    double cos_dist = sin(c_dec_rad) * sin(t_dec_rad) + cos(c_dec_rad) * cos(t_dec_rad) * cos(d_ra_rad);
-    if (cos_dist < -1.0) cos_dist = -1.0;
-    if (cos_dist > 1.0) cos_dist = 1.0;
-    double dist = acos(cos_dist) * RADEG;
-    double speed = m_slewSpeed;
-    if (speed < 0.05) speed = 3.0;
-    int eta = (int)(dist / speed);
+    if (isParkingWorkflow) {
+        snprintf(b0, 17, "PARKING %c", anim);
+        lcdLine(0, b0);
+        lcdLine(1, isEnglish ? " Please wait... " : " Patientez...   ");
+    } else {
+        snprintf(b0, 17, isEnglish ? "SLEWING %c" : "GOTO %c", anim);
+        lcdLine(0, b0);
+        
+        double ra  = selectedIsStar?selectedStar.ra  :selectedObj.ra;
+        double dec = selectedIsStar?selectedStar.dec :selectedObj.dec;
+        double c_dec_rad = m_currentDEC * DEGRAD;
+        double t_dec_rad = dec * DEGRAD;
+        double d_ra_rad = (m_currentRA - ra) * 15.0 * DEGRAD;
+        double cos_dist = sin(c_dec_rad) * sin(t_dec_rad) + cos(c_dec_rad) * cos(t_dec_rad) * cos(d_ra_rad);
+        if (cos_dist < -1.0) cos_dist = -1.0;
+        if (cos_dist > 1.0) cos_dist = 1.0;
+        double dist = acos(cos_dist) * RADEG;
+        double speed = m_slewSpeed;
+        if (speed < 0.05) speed = 3.0;
+        int eta = (int)(dist / speed);
 
-    char buf[17];
-    snprintf(buf, 17, "E:%ds D:%.1f%c", eta, dist, 0xDF);
-    lcdLine(1, buf);
+        char buf[17];
+        snprintf(buf, 17, "E:%ds D:%.1f%c", eta, dist, 0xDF);
+        lcdLine(1, buf);
+    }
 }
 
 void printSpeed(){
@@ -1945,7 +1953,7 @@ void handleButtons(){
         }
 
         case UI_SLEWING:
-            if(enter||left){ cmd_stop(); uiState=UI_MAIN; }
+            if(enter||left){ cmd_stop(); uiState=UI_MAIN; isParkingWorkflow=false; }
             break;
         case UI_SETTINGS:
             if(left)       { uiState=UI_MENU_SELECT; }
@@ -2023,8 +2031,9 @@ void handleButtons(){
             if(left)  { uiState=UI_SETTINGS; }
             if(enter) {
                 cmd_parking();
+                isParkingWorkflow = true;
                 showMessage(" PARKING EN COURS..", "                    ",
-                            800, UI_MAIN);
+                            1500, UI_SLEWING);
             }
             break;
 
@@ -2249,7 +2258,10 @@ void loop(){
         pollMega();
         lastPoll=millis();
 
-        if(uiState==UI_SLEWING && !m_isSlewing) uiState=UI_MAIN;
+        if(uiState==UI_SLEWING && !m_isSlewing) {
+            uiState=UI_MAIN;
+            isParkingWorkflow = false;
+        }
         lcdNeedsRefresh=true;
     }
 

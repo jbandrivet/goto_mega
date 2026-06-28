@@ -80,6 +80,7 @@ class VirtualTeensyApp(tk.Tk):
         
         self.state = self.UI_MAIN
         self.is_align_workflow = False
+        self.is_parking_workflow = False
         
         self.catalogs = ["Messier", "NGC", "IC", "Caldwell", "Systeme Solaire", "Étoiles"]
         self.cat_idx = 0
@@ -538,6 +539,7 @@ class VirtualTeensyApp(tk.Tk):
                                         self.is_align_workflow = False
                                     else:
                                         self.state = self.UI_MAIN
+                                        self.is_parking_workflow = False
                         
                         self.update_lcd()
                     except Exception as e:
@@ -548,11 +550,11 @@ class VirtualTeensyApp(tk.Tk):
     def process_queue(self):
         if not self.is_connected: return
         if self.sim_mode:
-            is_goto = any(":MS#" in c for c in self.cmd_queue)
+            is_goto = any(":MS#" in c or ":hP#" in c for c in self.cmd_queue)
             self.cmd_queue.clear()
             if is_goto:
                 self.is_slewing = True
-                if getattr(self, "is_align_workflow", False):
+                if getattr(self, "is_align_workflow", False) or getattr(self, "is_parking_workflow", False):
                     self.after(3000, self.finish_sim_slew)  # Simulate slew delay
                 if self.state != self.UI_MESSAGE:
                     self.state = self.UI_SLEWING
@@ -566,6 +568,7 @@ class VirtualTeensyApp(tk.Tk):
             self.is_align_workflow = False
         else:
             self.state = self.UI_MAIN
+            self.is_parking_workflow = False
         self.update_lcd()
             
         if not self.cmd_queue: return
@@ -724,18 +727,22 @@ class VirtualTeensyApp(tk.Tk):
         elif self.state == self.UI_SLEWING:
             anim_chars = ['*', '+', 'x', '+']
             anim = anim_chars[int(time.time() * 4) % 4]
-            l0 = f"GOTO {anim}        " if lang == "fr" else f"SLEWING {anim}     "
-            if self.target_ra is not None:
-                try:
-                    c_ra = Astro.parse_ra(self.current_ra)
-                    c_dec = Astro.parse_dec(self.current_dec)
-                    dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
-                    eta = dist / self.current_speed
-                    l1 = f"E:{int(eta)}s D:{dist:.1f}°"[:16]
-                except:
-                    l1 = " Patientez...   " if lang == "fr" else " Please wait... "
-            else:
+            if getattr(self, "is_parking_workflow", False):
+                l0 = f"PARKING {anim}      "
                 l1 = " Patientez...   " if lang == "fr" else " Please wait... "
+            else:
+                l0 = f"GOTO {anim}        " if lang == "fr" else f"SLEWING {anim}     "
+                if self.target_ra is not None:
+                    try:
+                        c_ra = Astro.parse_ra(self.current_ra)
+                        c_dec = Astro.parse_dec(self.current_dec)
+                        dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
+                        eta = dist / self.current_speed
+                        l1 = f"E:{int(eta)}s D:{dist:.1f}°"[:16]
+                    except:
+                        l1 = " Patientez...   " if lang == "fr" else " Please wait... "
+                else:
+                    l1 = " Patientez...   " if lang == "fr" else " Please wait... "
                 
         elif self.state == self.UI_ALIGN_CENTER:
             o = self.obj_list[self.obj_idx]
@@ -1004,11 +1011,9 @@ class VirtualTeensyApp(tk.Tk):
                         lang = self.cfg.get("language", "fr")
                         self.set_msg(" AUCUNE ETOILE  " if lang=="fr" else " NO STAR FOUND  ", " VISIBLE        ", "", "", 1500, self.UI_SETTINGS)
                 elif self.settings_sel == 4:
-                    self.send_cmd(":hP#")
-                    if lang == "en":
-                        self.set_msg("  PARKING...    ", "                ", "", "", 1500, self.UI_MAIN)
-                    else:
-                        self.set_msg("  PARKING...    ", "                ", "", "", 1500, self.UI_MAIN)
+                    self.is_parking_workflow = True
+                    self.cmd_queue.append(":hP#")
+                    self.process_queue()
                 elif self.settings_sel == 5:
                     self.state = self.UI_MOUNT
                 elif self.settings_sel == 6:
