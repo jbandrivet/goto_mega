@@ -443,7 +443,7 @@ class ConfigToolApp(tk.Tk):
 
         # Signature
         author_lbl = tk.Label(main_container, text="Créé par Andrivet Jean-Baptiste", font=("Helvetica", 8, "italic"), bg="#e0e0e0", fg="#555555")
-        author_lbl.pack(side="bottom", pady=(5, 0))
+        author_lbl.pack(side="bottom", anchor="se", pady=(5, 0), padx=5)
 
     def on_mount_type_changed(self, new_type):
         t = TRANSLATIONS[self.lang_var.get()]

@@ -297,7 +297,7 @@ class VirtualTeensyApp(tk.Tk):
             
         # Signature
         author_lbl = tk.Label(main_container, text="Créé par Andrivet Jean-Baptiste", font=("Helvetica", 8, "italic"), bg="#c0c0c0", fg="#555555")
-        author_lbl.pack(side="bottom", pady=(5, 0))
+        author_lbl.pack(side="bottom", anchor="se", pady=(5, 0), padx=5)
 
     def on_btn_hover(self, btn):
         btn.configure(bg="#d9d9d9")
