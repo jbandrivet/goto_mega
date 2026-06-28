@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Auteur : Andrivet Jean-Baptiste
 import tkinter as tk
 from tkinter import ttk
 import serial

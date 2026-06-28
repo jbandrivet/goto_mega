@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Auteur : Andrivet Jean-Baptiste
 """
 ╔══════════════════════════════════════════════════════════════╗
 ║      GotoUniversal — Contrôleur Universel Linux              ║
