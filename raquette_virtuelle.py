@@ -294,6 +294,10 @@ class VirtualTeensyApp(tk.Tk):
         for btn in (self.b_up, self.b_down, self.b_left, self.b_right, self.b_center):
             btn.bind("<Enter>", lambda e, b=btn: self.on_btn_hover(b))
             btn.bind("<Leave>", lambda e, b=btn: self.on_btn_leave(b))
+            
+        # Signature
+        author_lbl = tk.Label(main_container, text="Créé par Andrivet Jean-Baptiste", font=("Helvetica", 8, "italic"), bg="#c0c0c0", fg="#555555")
+        author_lbl.pack(side="bottom", pady=(5, 0))
 
     def on_btn_hover(self, btn):
         btn.configure(bg="#d9d9d9")

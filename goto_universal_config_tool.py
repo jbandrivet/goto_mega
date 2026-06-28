@@ -441,6 +441,10 @@ class ConfigToolApp(tk.Tk):
         self.launch_pad_btn = tk.Button(actions_frame, text="Virtual Handpad", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.launch_virtual_handpad)
         self.launch_pad_btn.pack(side="left", padx=5, fill="x", expand=True)
 
+        # Signature
+        author_lbl = tk.Label(main_container, text="Créé par Andrivet Jean-Baptiste", font=("Helvetica", 8, "italic"), bg="#e0e0e0", fg="#555555")
+        author_lbl.pack(side="bottom", pady=(5, 0))
+
     def on_mount_type_changed(self, new_type):
         t = TRANSLATIONS[self.lang_var.get()]
         if new_type == "AltAz":
