@@ -1,32 +1,11 @@
-/**
- * ============================================================
- * GotoUniversal - TEENSY 4.1 - RAQUETTE v6.3  (fichier unique)
- * ============================================================
- * Role     : Interface utilisateur (LCD 20x4 + 5 boutons)
- * Envoie commandes LX200/OnStep a l'Arduino Mega via RJ11 (Serial1)
- * Catalogues complets en Flash (Teensy 4.1 = 8 MB Flash adressable)
- *
- * COMPATIBILITE : Cette raquette coexiste avec ASIAir / PC USB.
- * Le Mega repond sur les deux ports en parallele, chacun a son
- * client. Si la raquette est debranchee, rien ne change cote USB.
- *
- * Changements v6.3 (Support GPS depuis le Mega)
- * - L'ecran affiche "ATTENTE FIX GPS..." tant que le flag 'F'
- * est present dans la reponse :GU#.
- * - Ajout de syncDataFromMega() : la raquette telecharge l'heure
- * et les coordonnees du Mega avant d'entrer dans les menus
- * d'edition, assurant que l'UI affiche toujours les donnees GPS.
- *
- * Changements v6.2 (compatibilite Mega v9.1)
- * - showMessage(...) non bloquant : plus de delay() qui freezent
- * les boutons et le polling. Les ecrans transitoires utilisent
- * uiTimedReturn (etat + timestamp).
- *
- * TELEVERSEMENT : Ce fichier seul suffit, aucune dependance externe.
- * Cablage RJ11 : Teensy Pin 1 (TX1) -> Mega Pin 15 (RX3)
+/*
+ * GotoUniversal - Teensy 4.1 Raquette
+ * Firmware UI (LCD + boutons)
+ * 
+ * Cablage RJ11 : 
+ * Teensy Pin 1 (TX1) -> Mega Pin 15 (RX3)
  * Teensy Pin 0 (RX1) <- Mega Pin 14 (TX3)
  * GND commun obligatoire.
- * ============================================================
  */
 
 #include <Arduino.h>
