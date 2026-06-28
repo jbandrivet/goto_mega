@@ -957,33 +957,36 @@ class ConfigToolApp(tk.Tk):
         self.flash_teensy_btn.config(state="disabled")
         self.update()
 
-        try:
-            # 0. Update from GitHub first
-            res_pull = subprocess.run(["git", "pull"], cwd=str(script_dir), capture_output=True, text=True, timeout=30)
-            if res_pull.returncode != 0:
-                print("Git pull failed: " + res_pull.stderr)
-                
-            # 1. Compile
-            compile_cmd = [cli, "compile", "--fqbn", fqbn] + additional_args + [str(sketch_path)]
-            res_comp = subprocess.run(compile_cmd, capture_output=True, text=True, timeout=90)
-            if res_comp.returncode != 0:
-                messagebox.showerror(t["flashing_title"], t["flashing_error"] + res_comp.stderr)
-                return
+        def run_flash():
+            try:
+                # 0. Update from GitHub first
+                res_pull = subprocess.run(["git", "pull"], cwd=str(script_dir), capture_output=True, text=True, timeout=30)
+                if res_pull.returncode != 0:
+                    print("Git pull failed: " + res_pull.stderr)
+                    
+                # 1. Compile
+                compile_cmd = [cli, "compile", "--fqbn", fqbn] + additional_args + [str(sketch_path)]
+                res_comp = subprocess.run(compile_cmd, capture_output=True, text=True, timeout=90)
+                if res_comp.returncode != 0:
+                    self.after(0, lambda err=res_comp.stderr: messagebox.showerror(t["flashing_title"], t["flashing_error"] + err))
+                    return
 
-            # 2. Upload
-            upload_cmd = [cli, "upload", "-p", port, "--fqbn", fqbn] + additional_args + [str(sketch_path)]
-            res_upl = subprocess.run(upload_cmd, capture_output=True, text=True, timeout=90)
-            if res_upl.returncode != 0:
-                messagebox.showerror(t["flashing_title"], t["flashing_error"] + res_upl.stderr)
-                return
+                # 2. Upload
+                upload_cmd = [cli, "upload", "-p", port, "--fqbn", fqbn] + additional_args + [str(sketch_path)]
+                res_upl = subprocess.run(upload_cmd, capture_output=True, text=True, timeout=90)
+                if res_upl.returncode != 0:
+                    self.after(0, lambda err=res_upl.stderr: messagebox.showerror(t["flashing_title"], t["flashing_error"] + err))
+                    return
 
-            messagebox.showinfo(t["flashing_title"], t["flashing_success"])
-        except Exception as e:
-            messagebox.showerror(t["flashing_title"], t["flashing_error"] + str(e))
-        finally:
-            self.flash_mega_btn.config(state="normal")
-            self.flash_teensy_btn.config(state="normal")
-            self.update()
+                self.after(0, lambda: messagebox.showinfo(t["flashing_title"], t["flashing_success"]))
+            except Exception as e:
+                self.after(0, lambda err=str(e): messagebox.showerror(t["flashing_title"], t["flashing_error"] + err))
+            finally:
+                self.after(0, lambda: self.flash_mega_btn.config(state="normal"))
+                self.after(0, lambda: self.flash_teensy_btn.config(state="normal"))
+
+        import threading
+        threading.Thread(target=run_flash, daemon=True).start()
 
 if __name__ == "__main__":
     app = ConfigToolApp()
