@@ -180,17 +180,6 @@ class VirtualTeensyApp(tk.Tk):
         f_label = ("MS Sans Serif", 9)
         f_lcd = ("Courier New", 13, "bold")
         
-        # 1. Custom Active Window Title Bar (Win95 look)
-        title_bar = tk.Frame(self, bg="#000080", height=24) # Dark blue
-        title_bar.pack(fill="x", side="top", padx=2, pady=2)
-        title_bar.pack_propagate(False)
-
-        title_lbl = tk.Label(title_bar, text=" Raquette Virtuelle T4.1", bg="#000080", fg="white", font=f_title, anchor="w")
-        title_lbl.pack(side="left", fill="both", expand=True)
-
-        close_btn = tk.Button(title_bar, text="X", bg="#c0c0c0", fg="black", font=("Arial", 8, "bold"), bd=1, relief="raised", command=self.destroy, width=2, height=1)
-        close_btn.pack(side="right", padx=2, pady=2)
-
         # Main window inner container with a 3D sunken border
         main_border = tk.Frame(self, bg="#c0c0c0", bd=2, relief="raised")
         main_border.pack(fill="both", expand=True, padx=4, pady=(0, 4))

@@ -182,17 +182,7 @@ class ConfigToolApp(tk.Tk):
         f_button = ("MS Sans Serif", 9)
         f_entry = ("Courier New", 9)
 
-        # 1. Custom Active Window Title Bar (Win95 look)
-        title_bar = tk.Frame(self, bg="#000080", height=24) # Dark blue
-        title_bar.pack(fill="x", side="top", padx=2, pady=2)
-        title_bar.pack_propagate(False)
 
-        self.title_lbl = tk.Label(title_bar, text=" GotoUniversal Configuration Utility", bg="#000080", fg="white", font=f_title, anchor="w")
-        self.title_lbl.pack(side="left", fill="both", expand=True)
-
-        # Mimic close button
-        close_btn = tk.Button(title_bar, text="X", bg="#c0c0c0", fg="black", font=("Arial", 8, "bold"), bd=1, relief="raised", command=self.destroy, width=2, height=1)
-        close_btn.pack(side="right", padx=2, pady=2)
 
         # Main window inner container with a 3D sunken border
         main_border = tk.Frame(self, bg="#c0c0c0", bd=2, relief="raised")
@@ -487,7 +477,6 @@ class ConfigToolApp(tk.Tk):
         t = TRANSLATIONS[lang]
         
         self.title(t["title"].strip())
-        self.title_lbl.config(text=t["title"])
         self.conn_lf.config(text=t["conn_lf"])
         self.lbl_port.config(text=t["port"])
         self.lbl_baud.config(text=t["baud"])
