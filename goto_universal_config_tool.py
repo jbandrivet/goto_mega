@@ -78,7 +78,10 @@ TRANSLATIONS = {
         "flashing_title": "Firmware Flashing",
         "flashing_success": "Successfully compiled and flashed the firmware!",
         "flashing_error": "Compilation or Flashing failed:\n",
-        "cli_not_found": "arduino-cli was not found. Please install it (or copy to ~/.local/bin/arduino-cli) to use this feature."
+        "cli_not_found": "arduino-cli was not found. Please install it (or copy to ~/.local/bin/arduino-cli) to use this feature.",
+        "update_git": "Update from GitHub",
+        "update_git_success": "Successfully updated from GitHub. Please restart the configurator if necessary.",
+        "update_git_error": "Failed to update from GitHub:\n"
     },
     "fr": {
         "title": " Utilitaire de Configuration GotoUniversal",
@@ -128,7 +131,10 @@ TRANSLATIONS = {
         "flashing_title": "Téléversement du Firmware",
         "flashing_success": "Le firmware a été compilé et téléversé avec succès !",
         "flashing_error": "Échec de compilation ou téléversement :\n",
-        "cli_not_found": "arduino-cli n'a pas été trouvé. Veuillez l'installer (ou le copier dans ~/.local/bin/arduino-cli) pour utiliser cette fonction."
+        "cli_not_found": "arduino-cli est introuvable. Veuillez l'installer (ou le copier dans ~/.local/bin/arduino-cli) pour utiliser cette fonction.",
+        "update_git": "Mettre à jour depuis GitHub",
+        "update_git_success": "Mise à jour réussie depuis GitHub. Veuillez redémarrer le configurateur si nécessaire.",
+        "update_git_error": "Échec de la mise à jour depuis GitHub :\n"
     }
 }
 
@@ -440,6 +446,9 @@ class ConfigToolApp(tk.Tk):
         self.launch_pad_btn = tk.Button(actions_frame, text="Virtual Handpad", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.launch_virtual_handpad)
         self.launch_pad_btn.pack(side="left", padx=5, fill="x", expand=True)
 
+        self.update_git_btn = tk.Button(actions_frame, text="Mettre à jour depuis GitHub", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.update_from_github)
+        self.update_git_btn.pack(side="left", padx=5, fill="x", expand=True)
+
     def on_mount_type_changed(self, new_type):
         t = TRANSLATIONS[self.lang_var.get()]
         if new_type == "AltAz":
@@ -537,6 +546,7 @@ class ConfigToolApp(tk.Tk):
         self.read_btn.config(text=t["read_config"])
         self.apply_btn.config(text=t["apply_config"])
         self.launch_pad_btn.config(text=t["virtual_pad"])
+        self.update_git_btn.config(text=t["update_git"])
         self.mount_ctrl_lf.config(text=t["mount_control"])
         self.park_btn.config(text=t["park_mount"])
         self.unpark_btn.config(text=t["unpark_mount"])
@@ -978,6 +988,27 @@ class ConfigToolApp(tk.Tk):
         finally:
             self.flash_mega_btn.config(state="normal")
             self.flash_teensy_btn.config(state="normal")
+            self.update()
+
+    def update_from_github(self):
+        import subprocess
+        from pathlib import Path
+        lang = self.settings.get("language", "fr")
+        t = TRANSLATIONS[lang]
+        
+        script_dir = Path(__file__).parent
+        try:
+            self.update_git_btn.config(state="disabled")
+            self.update()
+            res = subprocess.run(["git", "pull"], cwd=str(script_dir), capture_output=True, text=True, timeout=30)
+            if res.returncode == 0:
+                messagebox.showinfo(t["update_git"], t["update_git_success"] + "\n\n" + res.stdout)
+            else:
+                messagebox.showerror(t["update_git"], t["update_git_error"] + res.stderr)
+        except Exception as e:
+            messagebox.showerror(t["update_git"], t["update_git_error"] + str(e))
+        finally:
+            self.update_git_btn.config(state="normal")
             self.update()
 
 if __name__ == "__main__":
