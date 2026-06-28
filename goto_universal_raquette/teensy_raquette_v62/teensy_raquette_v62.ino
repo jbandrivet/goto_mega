@@ -1,5 +1,6 @@
 /*
  * GotoUniversal - Teensy 4.1 Raquette
+ * Auteur : Andrivet Jean-Baptiste
  * Firmware UI (LCD + boutons)
  * 
  * Cablage RJ11 : 

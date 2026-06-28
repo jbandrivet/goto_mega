@@ -1,5 +1,6 @@
 /*
  * GotoUniversalMega - Controleur de monture Astro Mega 2560 (Protocole OnStep)
+ * Auteur : Andrivet Jean-Baptiste
  * 
  * Cablage :
  * - Moteur AZ  : Step Pin 2, Dir Pin 3
