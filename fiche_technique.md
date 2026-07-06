@@ -8,7 +8,7 @@ Ce document regroupe les spécifications électriques, le schéma de câblage de
 ## 1. Caractéristiques de Communication
 
 *   **Liaison USB (PC / ASIAir / INDI) :** **38 400 bauds** (Vitesse optimisée pour la télémétrie en temps réel).
-*   **Liaison Raquette (Serial3 / RJ11) :** **38 400 bauds**.
+*   **Liaison Raquette (Serial3 / DIN 4 broches) :** **38 400 bauds**.
 *   **Protocole :** Meade LX200 avec extensions OnStep (supporté par KStars/Ekos, Stellarium, SkySafari).
 
 ---
@@ -43,11 +43,28 @@ Le driver de l'axe Altitude (ALT) est raccordé de la même manière :
 *   **Borne positive (+)** $\rightarrow$ Résistance de 100 $\Omega$ $\rightarrow$ Broche **Pin 49** (dans la zone **`DIGITAL`** commençant à 22)
 *   **Borne négative (-)** $\rightarrow$ **GND** (dans la zone **`POWER`**)
 
-### Prise RJ11 Raquette (Teensy 4.1 $\leftrightarrow$ Mega)
-*   **TX (Teensy 4.1)** $\rightarrow$ Broche **Pin 15 (RX3)** (dans la zone **`COMMUNICATION`**)
-*   **RX (Teensy 4.1)** $\rightarrow$ Broche **Pin 14 (TX3)** (dans la zone **`COMMUNICATION`**)
-*   **GND** $\rightarrow$ **GND** (dans la zone **`POWER`**)
-*   **5V** $\rightarrow$ **5V** (dans la zone **`POWER`**) *(Alimente la raquette)*
+### Connecteur DIN 4 broches Raquette (Teensy 4.1 $\leftrightarrow$ Mega)
+
+Connecteur DIN 4 broches avec détrompeur intégré (mâle côté câble, femelle châssis côté boîtier raquette).
+
+| Pin DIN | Signal | Broche Mega | Zone sur la carte |
+|---|---|---|---|
+| **1** | GND | **GND** | **`POWER`** |
+| **2** | 5V (alim Teensy → VIN) | **5V** | **`POWER`** |
+| **3** | TX (Teensy → Mega) | **Pin 15 (RX3)** | **`COMMUNICATION`** |
+| **4** | RX (Mega → Teensy) | **Pin 14 (TX3)** | **`COMMUNICATION`** |
+
+> [!WARNING]
+> Le Mega doit être alimenté par **barrel jack (7-12V DC)** pour fournir assez de courant au Teensy via la pin 5V. Ne pas alimenter le Mega uniquement par USB si la raquette est branchée.
+> **Ne pas brancher l'USB du Teensy** quand le VIN est alimenté, sauf si le pad VUSB est coupé.
+
+### Module GPS (Adafruit Ultimate GPS Breakout v3)
+Le module GPS (pour l'heure et la position exactes) communique via le port série matériel 2 (`Serial2`) à 9600 bauds. Le module Adafruit v3 est 100% compatible avec la logique 5V de l'Arduino Mega.
+
+*   **VIN (Alimentation)** $\rightarrow$ **5V** (dans la zone **`POWER`** du Mega)
+*   **GND (Masse)** $\rightarrow$ **GND** (dans la zone **`POWER`** du Mega)
+*   **TX (Transmission GPS)** $\rightarrow$ Broche **Pin 17 (RX2)** (dans la zone **`COMMUNICATION`** du Mega)
+*   **RX (Réception GPS)** $\rightarrow$ Broche **Pin 16 (TX2)** (dans la zone **`COMMUNICATION`** du Mega)
 
 ---
 
@@ -73,14 +90,21 @@ $$PPD = \frac{\text{Pas Moteur} \times \text{Microstepping} \times \text{Rapport
 
 ## Câblage de la Raquette Physique (Teensy 4.1)
 
-La raquette physique est articulée autour d'une carte **Teensy 4.1**.
+La raquette physique est articulée autour d'une carte **Teensy 4.1**, alimentée par le **5V du Mega** via sa broche **VIN** (plage acceptée : 3.6V – 5.5V).
 
-### 1. Prise RJ11 (Communication avec le Mega)
-* **GND** $\rightarrow$ Broche **GND** de la Teensy
-* **TX (Teensy 4.1)** $\rightarrow$ Broche **Pin 1 (TX1)** de la Teensy
-* **RX (Teensy 4.1)** $\rightarrow$ Broche **Pin 0 (RX1)** de la Teensy
+### 1. Connecteur DIN 4 broches (Communication + Alimentation depuis le Mega)
 
-*(Rappel : Ces pins sont reliées aux pins RX3/TX3 de l'Arduino Mega).*
+| Pin DIN | Signal | Broche Teensy |
+|---|---|---|
+| **1** | GND | **GND** |
+| **2** | 5V (alimentation) | **VIN** |
+| **3** | TX (Teensy → Mega) | **Pin 1 (TX1)** |
+| **4** | RX (Mega → Teensy) | **Pin 0 (RX1)** |
+
+*(Rappel : TX1/RX1 du Teensy sont reliées aux pins RX3/TX3 de l'Arduino Mega via le câble DIN.)*
+
+> [!NOTE]
+> **Consommation :** Teensy 4.1 (~100-150 mA) + LCD I2C (~30 mA) = ~200 mA. Le régulateur du Mega (barrel jack) supporte ~800 mA, marge largement suffisante.
 
 ### 2. Écran LCD Grove I2C
 * **SDA** $\rightarrow$ Broche **Pin 18 (SDA0)** de la Teensy

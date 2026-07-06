@@ -4,3 +4,11 @@ __pycache__/
 .DS_Store
 *.bak
 *.tmp
+
+# Fichiers de test et logs
+scratch/
+patch_*.py
+test_*.py
+sim_*.py
+revert_*.py
+app_log.txt

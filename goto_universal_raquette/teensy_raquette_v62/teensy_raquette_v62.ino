@@ -3,15 +3,25 @@
  * Auteur : Andrivet Jean-Baptiste
  * Firmware UI (LCD + boutons)
  * 
- * Cablage RJ11 : 
- * Teensy Pin 1 (TX1) -> Mega Pin 15 (RX3)
- * Teensy Pin 0 (RX1) <- Mega Pin 14 (TX3)
- * GND commun obligatoire.
+ * Cablage DIN 4 broches (Teensy raquette <-> Mega) :
+ *
+ *   Pin DIN    Signal                    Connexion
+ *   -------    ------                    ---------
+ *     1        GND                       Mega GND  <-> Teensy GND
+ *     2        5V  (alim Teensy)         Mega 5V    -> Teensy VIN
+ *     3        TX  (Teensy -> Mega)      Teensy Pin 1 (TX1) -> Mega Pin 15 (RX3)
+ *     4        RX  (Mega -> Teensy)      Mega Pin 14 (TX3)  -> Teensy Pin 0 (RX1)
+ *
+ * ALIMENTATION : Le Teensy est alimente par la pin 5V du Mega via VIN.
+ *   Le Mega doit etre alimente par barrel jack (7-12V) pour fournir
+ *   assez de courant (regulateur ~800mA, conso totale ~250mA).
+ *   ATTENTION : ne pas brancher l'USB du Teensy en meme temps que le
+ *   VIN est alimente, sauf si le pad VUSB est coupe sur le Teensy.
  */
 
 #include <Arduino.h>
 #include <Wire.h>
-#include "rgb_lcd.h"
+#include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
 #include "mini_ephem.h"
 
@@ -1687,7 +1697,7 @@ void sendLocationToMega() {
 }
 
 void refreshLcd(){
-    updateLcdColor();
+    // LCD I2C standard (pas de gestion couleur RGB)
     switch(uiState){
         case UI_MAIN:        printMain();       break;
         case UI_CAT_SELECT:  printCatSelect();  break;

@@ -6,7 +6,7 @@
  * - Moteur AZ  : Step Pin 2, Dir Pin 3
  * - Moteur ALT : Step Pin 5, Dir Pin 6
  * - Buzzer     : Pin 11
- * - Raquette   : Serial3 (Pin 14 TX, Pin 15 RX) @ 38400 baud
+ * - Raquette   : Serial3 (Pin 14 TX, Pin 15 RX) @ 38400 baud (Connecteur DIN 4 broches)
  * - Module GPS : Serial2 (Pin 16 TX, Pin 17 RX) @ 9600 baud
  */
 
@@ -262,6 +262,7 @@ static void handleGBE(Print& out);
 static int slewToAA(double tAlt, double tAz);
 void updateBuzzer();
 void triggerConnectBeep();
+void triggerGpsFixBeep();
 
 // ======================== HELPERS DATE =====================
 
@@ -297,9 +298,15 @@ static void getUTC(int *uy, int *um, int *ud, int *uh, int *umi, int *us) {
 // ======================== GPS ADAFRUIT =====================
 TinyGPSPlus gps;
 
+static bool gpsHasFixedOnce = false;
+
 static void handleGPS() {
   while (Serial2.available() > 0) {
     if (gps.encode(Serial2.read())) {
+      if (!gpsHasFixedOnce && gps.location.isValid() && gps.date.isValid()) {
+        gpsHasFixedOnce = true;
+        triggerGpsFixBeep();
+      }
       // Mise a jour des coordonnees
       if (gps.location.isValid() && gps.location.isUpdated()) {
         siteLat = gps.location.lat();
@@ -1768,6 +1775,17 @@ void triggerConnectBeep(){
   connectBeepNext   = millis();
 }
 
+static bool gpsFixBeepActive = false;
+static uint8_t gpsFixBeepStep = 0;
+static unsigned long gpsFixBeepNext = 0;
+
+void triggerGpsFixBeep(){
+  if (!buzzerEnabled) return;
+  gpsFixBeepActive = true;
+  gpsFixBeepStep   = 0;
+  gpsFixBeepNext   = millis();
+}
+
 void updateBuzzer(){
   unsigned long now = millis();
 
@@ -1839,6 +1857,24 @@ void updateBuzzer(){
     return;
   }
 
+  if(gpsFixBeepActive){
+    if(now < gpsFixBeepNext) return;
+    switch(gpsFixBeepStep){
+      case 0:
+        tone(BUZZER_PIN, 261); gpsFixBeepNext = now + 200; break; // C4
+      case 1:
+        tone(BUZZER_PIN, 329); gpsFixBeepNext = now + 200; break; // E4
+      case 2:
+        tone(BUZZER_PIN, 392); gpsFixBeepNext = now + 400; break; // G4
+      case 3:
+        noTone(BUZZER_PIN);
+        digitalWrite(BUZZER_PIN, LOW);
+        gpsFixBeepActive = false; return;
+    }
+    gpsFixBeepStep++;
+    return;
+  }
+
   static unsigned long slowMoveStartMs = 0;
   bool currentlyMovingSlow = (azMove != 0 || altMove != 0);
   if (currentlyMovingSlow) {
@@ -1895,10 +1931,10 @@ void setup() {
   }
   lastClkMs=millis(); lastTrkMs=millis();
   updatePos();
-  Serial.println(F("GotoUniversal v1.0 - OnStep ready"));
+  Serial.println(F("GotoUniversal v9.1 - OnStep ready"));
   Serial.println(F("Site: Default (0.0000N / 0.0000E)"));
-  Serial.println(F("USB:38400 + RJ11(Serial3):38400"));
-  Serial3.println(F("GotoUniversal Mega ready"));
+  Serial.println(F("USB:38400 + DIN4(Serial3):38400"));
+  Serial3.println(F("GotoUniversal Mega v9.1 ready"));
   
   noInterrupts();
   TCCR1A = 0;
