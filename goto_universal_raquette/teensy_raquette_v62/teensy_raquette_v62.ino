@@ -1115,7 +1115,9 @@ uint8_t mountType = 0;
 float   gearRatioAZ = 750.0;
 float   gearRatioALT = 750.0;
 bool    buzzerOn = true;
-bool    temp_isEnglish = false;
+bool    temp_isEnglish = true;
+bool    gpsEnabled = true;
+bool    temp_gpsEnabled = true;
 bool    motorPowerOn = true;
 bool    temp_motorPowerOn = true;
 
@@ -1167,7 +1169,7 @@ enum UIState {
     UI_SLEWING, UI_SETTINGS, UI_SPEED, UI_ALIGN, UI_PARKING,
     UI_MOUNT, UI_RATIO_AZ, UI_RATIO_ALT, UI_BEEP, UI_OFFLINE,
     UI_MESSAGE, UI_EDIT_TIME, UI_EDIT_LOCATION, UI_MENU_SELECT,
-    UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER
+    UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER, UI_GPS
 };
 UIState uiState = UI_MAIN;
 bool isAlignWorkflow = false;
@@ -1716,7 +1718,8 @@ void printSettings() {
         isEnglish ? "Date/Time" : "Date/Heure", 
         isEnglish ? "Location" : "Lieu Obs.", 
         isEnglish ? "Motor Power" : "Alim Moteurs", 
-        isEnglish ? "Language" : "Langue"
+        isEnglish ? "Language" : "Langue",
+        "GPS Auto"
     };
     char buf[21];
     snprintf(buf, 21,">%s", opts[settingsSel]);
@@ -1816,9 +1819,13 @@ void refreshLcd(){
             break;
         }
         case UI_LANGUAGE: {
-            lcdLine(0, "[ LANGUE ]");
-            char buf[21]; snprintf(buf, 21, " > %s", temp_isEnglish ? "EN" : "FR");
-            lcdLine(1, buf);
+            lcdLine(0, isEnglish ? "[ LANGUAGE ]" : "[ LANGUE ]");
+            lcdLine(1, temp_isEnglish ? "> English       " : "> Francais      ");
+            break;
+        }
+        case UI_GPS: {
+            lcdLine(0, "[ GPS ]");
+            lcdLine(1, temp_gpsEnabled ? (isEnglish ? "> Auto enabled  " : "> Auto active   ") : (isEnglish ? "> Disabled      " : "> Desactive     "));
             break;
         }
         case UI_MENU_SELECT: {
@@ -2007,8 +2014,8 @@ void handleButtons(){
             break;
         case UI_SETTINGS:
             if(left)       { uiState=UI_MENU_SELECT; }
-            if(up)         { settingsSel=(settingsSel-1+11)%11; }
-            if(down)       { settingsSel=(settingsSel+1)%11; }
+            if(up)         { settingsSel=(settingsSel-1+12)%12; }
+            if(down)       { settingsSel=(settingsSel+1)%12; }
             if(right||enter){
                 if(settingsSel==0) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
                 if(settingsSel==1) uiState=UI_ALIGN;
@@ -2017,11 +2024,11 @@ void handleButtons(){
                 if(settingsSel==4) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
                 if(settingsSel==5) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
                 if(settingsSel==6) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
-                // [v6.3] Synchro GPS forcée avant d'éditer manuellement
                 if(settingsSel==7) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_TIME; }
                 if(settingsSel==8) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
                 if(settingsSel==9) { temp_motorPowerOn = motorPowerOn; uiState=UI_MOTOR_POWER; }
                 if(settingsSel==10) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
+                if(settingsSel==11) { temp_gpsEnabled = gpsEnabled; uiState=UI_GPS; }
             }
             break;
 
@@ -2039,7 +2046,6 @@ void handleButtons(){
             break;
 
         case UI_ALIGN:
-            // Find first visible star
             {
                 bool found = false;
                 for (int i=0; i<BSC_COUNT; i++) {
@@ -2218,10 +2224,22 @@ void handleButtons(){
             if(up||down) {
                 temp_isEnglish = !temp_isEnglish;
             }
-            if(enter) {
+            if(enter||right) {
                 isEnglish = temp_isEnglish;
                 saveEEPROM();
                 showMessage(isEnglish ? " LANGUAGE SAVED " : " LANGUE ENREG.  ", "                    ", 1200, UI_SETTINGS);
+            }
+            break;
+
+        case UI_GPS:
+            if(left)  { uiState=UI_SETTINGS; }
+            if(up||down) {
+                temp_gpsEnabled = !temp_gpsEnabled;
+            }
+            if(enter||right) {
+                gpsEnabled = temp_gpsEnabled;
+                Serial1.print(gpsEnabled ? ":bg1#" : ":bg0#");
+                showMessage(" GPS REGLE        ", "                    ", 1200, UI_SETTINGS);
             }
             break;
 

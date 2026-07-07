@@ -47,6 +47,8 @@ class VirtualTeensyApp(tk.Tk):
         # Variables de télémétrie courantes (affichées à l'écran)
         self.current_ra = "12:00:00"
         self.current_dec = "+45*00:00"
+        self.current_alt = 0.0
+        self.current_az = 0.0
         self.is_slewing = False
         self.target_ra = None
         self.target_dec = None
@@ -71,9 +73,13 @@ class VirtualTeensyApp(tk.Tk):
         self.UI_RATIO_AZ = 12
         self.UI_RATIO_ALT = 13
         self.UI_ALIGN_CENTER = 14
+        self.UI_GPS = 15
+        self.UI_EDIT_TIME = 16
+        self.UI_EDIT_LOCATION = 17
         
         self.motor_power = True
         self.temp_motor_power = True
+        self.temp_gps_enabled = True
         self.temp_lang = "fr"
         self.temp_mount_type = 0
         self.temp_ratio_az = self.cfg.get("gear_ratio_az", 750.0)
@@ -831,7 +837,7 @@ class VirtualTeensyApp(tk.Tk):
             if lang == "en":
                 az_str = "AZ Ratio" if self.cfg.get("mount_type", "AltAz") == "AltAz" else "RA Ratio"
                 alt_str = "ALT Ratio" if self.cfg.get("mount_type", "AltAz") == "AltAz" else "DEC Ratio"
-            opts = ["Catalogues", "Vitesse", "Bips", "Alignement", "Parking", "Type Monture", az_str, alt_str, "Alim Moteurs", "Langue"] if lang == "fr" else ["Catalogs", "Speed", "Beeps", "Alignment", "Parking", "Mount Type", az_str, alt_str, "Motor Power", "Language"]
+            opts = ["Catalogues", "Vitesse", "Bips", "Alignement", "Parking", "Type Monture", az_str, alt_str, "Alim Moteurs", "Date/Heure", "Lieu Obs.", "Langue", "GPS Auto"] if lang == "fr" else ["Catalogs", "Speed", "Beeps", "Alignment", "Parking", "Mount Type", az_str, alt_str, "Motor Power", "Date/Time", "Location", "Language", "GPS Auto"]
             l1 = f"> {opts[self.settings_sel]}"[:20]
             l2 = "  " + (opts[self.settings_sel+1] if self.settings_sel+1 < len(opts) else "")[:18]
             l3 = "  [HAUT/BAS] Choisir" if lang == "fr" else "  [UP/DOWN] Select"
@@ -859,6 +865,25 @@ class VirtualTeensyApp(tk.Tk):
         elif self.state == self.UI_LANGUAGE:
             l0 = "[ LANGUE / LANG ]"
             l1 = f"> {'FRANCAIS' if self.temp_lang == 'fr' else 'ENGLISH'}"[:20]
+            l2 = ""
+            l3 = "[ENT] Valider" if lang == "fr" else "[ENT] Confirm"
+            
+        elif self.state == self.UI_EDIT_TIME:
+            l0 = "[ REGLAGE HEURE ]" if lang == "fr" else "[ SET TIME ]"
+            l1 = f" {time.strftime('%H:%M:%S')} (PC)"
+            l2 = ""
+            l3 = "[ENT] Sync PC" if lang == "fr" else "[ENT] Sync PC"
+            
+        elif self.state == self.UI_EDIT_LOCATION:
+            l0 = "[ LIEU / LOCATION ]"
+            l1 = f" Lat: {self.cfg.get('latitude', 0):.2f}"
+            l2 = f" Lon: {self.cfg.get('longitude', 0):.2f}"
+            l3 = "[ENT] Sync PC" if lang == "fr" else "[ENT] Sync PC"
+
+        elif self.state == self.UI_GPS:
+            l0 = "[ GPS ]"
+            status = ("Auto activé" if self.temp_gps_enabled else "Désactivé") if lang == "fr" else ("Auto enabled" if self.temp_gps_enabled else "Disabled")
+            l1 = f"> {status}"[:20]
             l2 = ""
             l3 = "[ENT] Valider" if lang == "fr" else "[ENT] Confirm"
             
@@ -1079,9 +1104,9 @@ class VirtualTeensyApp(tk.Tk):
             if btn == "LEFT":
                 self.state = self.UI_MAIN
             elif btn == "UP":
-                self.settings_sel = (self.settings_sel - 1) % 10
+                self.settings_sel = (self.settings_sel - 1) % 13
             elif btn == "DOWN":
-                self.settings_sel = (self.settings_sel + 1) % 10
+                self.settings_sel = (self.settings_sel + 1) % 13
             elif btn in ("ENTER", "RIGHT"):
                 lang = self.cfg.get("language", "fr")
                 if self.settings_sel == 0:
@@ -1119,8 +1144,15 @@ class VirtualTeensyApp(tk.Tk):
                     self.temp_motor_power = getattr(self, "motor_power", True)
                     self.state = self.UI_MOTOR_POWER
                 elif self.settings_sel == 9:
+                    self.state = self.UI_EDIT_TIME
+                elif self.settings_sel == 10:
+                    self.state = self.UI_EDIT_LOCATION
+                elif self.settings_sel == 11:
                     self.temp_lang = lang
                     self.state = self.UI_LANGUAGE
+                elif self.settings_sel == 12:
+                    self.temp_gps_enabled = self.cfg.get("gps_enabled", True)
+                    self.state = self.UI_GPS
                     
         elif self.state == self.UI_SPEED:
             if btn == "LEFT":
@@ -1190,6 +1222,50 @@ class VirtualTeensyApp(tk.Tk):
                 else:
                     self.title("Raquette T4.1 Virtuelle")
                     self.set_msg(" LANGUE ENREG.   ", "", "", "", 1200, self.UI_SETTINGS)
+                    
+        elif self.state == self.UI_EDIT_TIME:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn == "ENTER":
+                import time
+                t = time.localtime()
+                self.send_cmd(f":SC{time.strftime('%m/%d/%y', time.gmtime())}#")
+                self.send_cmd(f":SL{time.strftime('%H:%M:%S', time.gmtime())}#")
+                offset = -time.timezone // 3600
+                if time.daylight: offset = -time.altzone // 3600
+                self.send_cmd(f":SG{offset:+03d}#")
+                lang = self.cfg.get("language", "fr")
+                self.set_msg("    HEURE SYNC   " if lang=="fr" else "    TIME SYNC    ", "       (PC)     ", "", "", 1200, self.UI_SETTINGS)
+                
+        elif self.state == self.UI_EDIT_LOCATION:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn == "ENTER":
+                lat = self.cfg.get("latitude", 0)
+                lon = self.cfg.get("longitude", 0)
+                lat_deg, lat_m = int(abs(lat)), int((abs(lat) - int(abs(lat))) * 60)
+                lon_deg, lon_m = int(abs(lon)), int((abs(lon) - int(abs(lon))) * 60)
+                lat_str = f"{'+' if lat >= 0 else '-'}{lat_deg:02d}*{lat_m:02d}"
+                lon_str = f"{'+' if lon >= 0 else '-'}{lon_deg:03d}*{lon_m:02d}"
+                self.send_cmd(f":St{lat_str}#")
+                self.send_cmd(f":Sg{lon_str}#")
+                lang = self.cfg.get("language", "fr")
+                self.set_msg("    LIEU SYNC    " if lang=="fr" else "    LOC SYNC     ", "   (Config PC)  ", "", "", 1200, self.UI_SETTINGS)
+                
+        elif self.state == self.UI_GPS:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn in ("UP", "DOWN"):
+                self.temp_gps_enabled = not self.temp_gps_enabled
+            elif btn == "ENTER":
+                self.cfg.set("gps_enabled", self.temp_gps_enabled)
+                self.cfg.save()
+                self.send_cmd(":bg1#" if self.temp_gps_enabled else ":bg0#")
+                lang = self.cfg.get("language", "fr")
+                if lang == "en":
+                    self.set_msg("    GPS SAVED    ", "", "", "", 1200, self.UI_SETTINGS)
+                else:
+                    self.set_msg("    GPS REGL.    ", "", "", "", 1200, self.UI_SETTINGS)
         
         elif self.state == self.UI_MOUNT:
             if btn == "LEFT":

@@ -98,6 +98,7 @@ float parkAlt = 90.0;
 float parkAz = 0.0;
 static bool altReversed = false;
 static uint8_t trackRate=0;
+static bool gpsEnabled = true;
 static bool derotEnabled = false;
 static double derotPPD = 100.0;
 static long derotPos = 0;
@@ -146,6 +147,7 @@ const uint16_t EEPROM_ADDR_PARK_AZ    = 54;
 const uint16_t EEPROM_ADDR_DEROT_EN   = 58;
 const uint16_t EEPROM_ADDR_DEROT_PPD  = 59;
 const uint16_t EEPROM_ADDR_FOCUS_EN   = 63;
+const uint16_t EEPROM_ADDR_GPS_EN     = 64;
 const byte     EEPROM_MAGIC         = 0x5E;
 
 template <typename T>
@@ -189,6 +191,7 @@ static void saveStateToEEPROM() {
   EEPROM.update(EEPROM_ADDR_DEROT_EN, derotEnabled ? 1 : 0);
   eepromWrite(EEPROM_ADDR_DEROT_PPD, derotPPD);
   EEPROM.update(EEPROM_ADDR_FOCUS_EN, focusEnabled ? 1 : 0);
+  EEPROM.update(EEPROM_ADDR_GPS_EN, gpsEnabled ? 1 : 0);
 }
 
 static void loadStateFromEEPROM() {
@@ -209,6 +212,8 @@ static void loadStateFromEEPROM() {
     derotEnabled = (EEPROM.read(EEPROM_ADDR_DEROT_EN) == 1);
     eepromRead(EEPROM_ADDR_DEROT_PPD, derotPPD);
     focusEnabled = (EEPROM.read(EEPROM_ADDR_FOCUS_EN) == 1);
+    gpsEnabled = (EEPROM.read(EEPROM_ADDR_GPS_EN) == 1);
+    recalculatePPD();
     if(isnan(derotPPD) || derotPPD < 1.0) derotPPD = 100.0;
     if (isnan(parkAlt) || parkAlt < -90.0 || parkAlt > 90.0) parkAlt = (mountType >= 1) ? 90.0 : 0.0;
     if (isnan(parkAz) || parkAz < 0.0 || parkAz > 360.0) parkAz = 0.0;
@@ -328,10 +333,23 @@ static void getUTC(int *uy, int *um, int *ud, int *uh, int *umi, int *us) {
 TinyGPSPlus gps;
 
 static bool gpsHasFixedOnce = false;
+static unsigned long gpsSearchStart = 0;
 
 static void handleGPS() {
+  if (gpsSearchStart == 0) gpsSearchStart = millis();
+
+  // Desactivation auto apres 10 min (600 000 ms) sans fix
+  if (gpsEnabled && !gpsHasFixedOnce) {
+    if (millis() - gpsSearchStart > 600000UL) {
+      gpsEnabled = false; 
+    }
+  }
+
   while (Serial2.available() > 0) {
-    if (gps.encode(Serial2.read())) {
+    char c = Serial2.read();
+    if (!gpsEnabled) continue;
+
+    if (gps.encode(c)) {
       if (!gpsHasFixedOnce && gps.location.isValid() && gps.date.isValid()) {
         gpsHasFixedOnce = true;
         triggerGpsFixBeep();
@@ -1648,6 +1666,17 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       return;
     }
   }
+  
+  if(c1=='b' && c2=='g') {
+    if(ci >= 4) {
+      if(cmd[3] == '0') { gpsEnabled = false; gpsSearchStart = 0; saveStateToEEPROM(); }
+      else if(cmd[3] == '1') { gpsEnabled = true; gpsSearchStart = 0; gpsHasFixedOnce = false; saveStateToEEPROM(); }
+    }
+    out.write(gpsEnabled ? '1' : '0');
+    out.write('#');
+    return;
+  }
+
   
   if(c1=='B' && c2=='S'){
     if(ci>=5) {
