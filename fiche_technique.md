@@ -36,6 +36,20 @@ Le driver de l'axe Altitude (ALT) est raccordé de la même manière :
 *   **`ENB+` (Enable)** $\rightarrow$ Broche **Pin 7** (dans la zone **`PWM`**) *(Optionnel - Voir note)*
 *   **`PUL-` / `DIR-` / `ENB-`** $\rightarrow$ Reliés ensemble $\rightarrow$ **GND** (dans la zone **`POWER`**)
 
+### Dérotateur (Moteur DEROT) - Optionnel (AltAz)
+Le driver du dérotateur est raccordé de la même manière :
+*   **`PUL+` (Pulse / Step)** $\rightarrow$ Broche **Pin 8** (dans la zone **`PWM`**)
+*   **`DIR+` (Direction)** $\rightarrow$ Broche **Pin 9** (dans la zone **`PWM`**)
+*   **`ENB+` (Enable)** $\rightarrow$ Broche **Pin 10** (dans la zone **`PWM`**) *(Optionnel)*
+*   **`PUL-` / `DIR-` / `ENB-`** $\rightarrow$ Reliés ensemble $\rightarrow$ **GND** (dans la zone **`POWER`**)
+
+### Focuseur (Moteur FOCUS) - Optionnel
+Le driver du système de mise au point est raccordé de la même manière :
+*   **`PUL+` (Pulse / Step)** $\rightarrow$ Broche **Pin 11** (dans la zone **`PWM`**)
+*   **`DIR+` (Direction)** $\rightarrow$ Broche **Pin 12** (dans la zone **`PWM`**)
+*   **`ENB+` (Enable)** $\rightarrow$ Broche **Pin 13** (dans la zone **`PWM`**) *(Optionnel)*
+*   **`PUL-` / `DIR-` / `ENB-`** $\rightarrow$ Reliés ensemble $\rightarrow$ **GND** (dans la zone **`POWER`**)
+
 > [!NOTE]
 > **Activation des drivers (ENB) :** Les drivers M542 sont activés par défaut lorsque aucun courant ne traverse le signal `ENB`. Les raccordements à la **Pin 4** et **Pin 7** sont donc optionnels si vous souhaitez laisser les moteurs constamment sous tension (recommandé pour éviter le glissement de la monture).
 

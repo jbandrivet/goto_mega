@@ -64,6 +64,12 @@ Câblez votre carte Arduino Mega 2560 en suivant ce schéma de connexion :
 | **Moteur Altitude (ALT/DEC)** | **Pin 5** | `PUL+` (Pulse/Step) |
 | | **Pin 6** | `DIR+` (Direction) |
 | | **Pin 7** | `ENB+` (Enable - Optionnel) |
+| **Moteur Dérotateur (Optionnel)** | **Pin 8** | `PUL+` (Pulse/Step) |
+| | **Pin 9** | `DIR+` (Direction) |
+| | **Pin 10** | `ENB+` (Enable - Optionnel) |
+| **Moteur Focuseur (Optionnel)** | **Pin 11** | `PUL+` (Pulse/Step) |
+| | **Pin 12** | `DIR+` (Direction) |
+| | **Pin 13** | `ENB+` (Enable - Optionnel) |
 | **Buzzer** | **Pin 49** | Borne `+` (via résistance 100 Ω) |
 | **Raquette Teensy 4.1** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
 | | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
