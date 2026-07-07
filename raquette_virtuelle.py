@@ -442,6 +442,24 @@ class VirtualTeensyApp(tk.Tk):
                 self.ser.write(f":SG{sign}{int(abs(utc_offset)):02d}#".encode('ascii'))
                 self.ser.read_until(b"#")
                 
+                # 3.5 Sync Mechanical Settings
+                ms = self.cfg.get("microstep", 125)
+                self.ser.write(f":BMm{ms}#".encode('ascii'))
+                self.ser.read_until(b"#")
+                
+                sr = self.cfg.get("steps_per_rev_motor", 200)
+                self.ser.write(f":BMp{sr}#".encode('ascii'))
+                self.ser.read_until(b"#")
+                
+                ga = self.cfg.get("gear_ratio_az", 750.0)
+                self.ser.write(f":BGa{ga}#".encode('ascii'))
+                self.ser.read_until(b"#")
+                
+                ge = self.cfg.get("gear_ratio_alt", 750.0)
+                self.ser.write(f":BGe{ge}#".encode('ascii'))
+                self.ser.read_until(b"#")
+                
+                
                 # 4. Slew speed
                 self.ser.write(b":Bv#")
                 time.sleep(0.1)
