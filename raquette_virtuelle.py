@@ -738,7 +738,16 @@ class VirtualTeensyApp(tk.Tk):
                         c_ra = Astro.parse_ra(self.current_ra)
                         c_dec = Astro.parse_dec(self.current_dec)
                         dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
-                        eta = dist / self.current_speed
+                        
+                        v_max = self.current_speed if self.current_speed > 0 else 2.0
+                        v_start = v_max * (35.0 / 500.0)
+                        d_ramp = 0.5 * (v_start + v_max) * 5.0
+                        
+                        if dist > d_ramp:
+                            eta = 5.0 + (dist - d_ramp) / v_max
+                        else:
+                            eta = 5.0 * math.sqrt(dist / d_ramp) if d_ramp > 0 else 0
+                            
                         l1 = f"E:{int(eta)}s D:{dist:.1f}°"[:16]
                     except:
                         l1 = " Patientez...   " if lang == "fr" else " Please wait... "
