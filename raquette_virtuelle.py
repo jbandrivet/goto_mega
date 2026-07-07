@@ -740,7 +740,11 @@ class VirtualTeensyApp(tk.Tk):
                     try:
                         c_ra = Astro.parse_ra(self.current_ra)
                         c_dec = Astro.parse_dec(self.current_dec)
-                        dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
+                        
+                        ra_diff = abs(c_ra - self.target_ra) * 15.0
+                        if ra_diff > 180.0: ra_diff = 360.0 - ra_diff
+                        dec_diff = abs(c_dec - self.target_dec)
+                        dist = max(ra_diff, dec_diff)
                         
                         v_max = self.current_speed if self.current_speed > 0 else 2.0
                         v_start = v_max * (35.0 / 500.0)
@@ -764,7 +768,9 @@ class VirtualTeensyApp(tk.Tk):
                         elapsed = time.time() - self.slew_start_time
                         eta = max(0, int(self.initial_eta - elapsed))
                             
-                        l1 = f"E:{eta}s D:{dist:.1f}°"[:16]
+                        # Show the real great circle distance for D, but use the axis distance for ETA calculation
+                        gc_dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
+                        l1 = f"E:{eta}s D:{gc_dist:.1f}°"[:16]
                     except:
                         l1 = " Patientez...   " if lang == "fr" else " Please wait... "
                 else:
