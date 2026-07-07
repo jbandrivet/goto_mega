@@ -512,7 +512,7 @@ class VirtualTeensyApp(tk.Tk):
                             if len(parts) >= 8:
                                 self.is_slewing = (parts[1] == '1')
                                 try:
-                                    self.current_speed = float(parts[3])
+                                    self.current_speed = float(parts[3]) / 10.0
                                 except ValueError:
                                     pass
                                 if self.is_slewing:
