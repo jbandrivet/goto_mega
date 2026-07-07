@@ -538,9 +538,10 @@ class VirtualTeensyApp(tk.Tk):
                                 try:
                                     raw_speed = float(parts[3]) / 10.0
                                     ppd = self.cfg.get("gear_ratio_az", 750.0) * self.cfg.get("steps_per_rev_motor", 200) * self.cfg.get("microstep", 125) / 360.0
-                                    # Empirically, the Arduino Mega loop takes ~35us minimum per step when not spammed by serial
                                     max_phys_speed = 1000000.0 / (ppd * 35.0) if ppd > 0 else raw_speed
                                     self.current_speed = min(raw_speed, max_phys_speed)
+                                    self.current_alt = float(parts[4])
+                                    self.current_az = float(parts[5])
                                 except ValueError:
                                     pass
                                 if self.is_slewing:
@@ -709,10 +710,15 @@ class VirtualTeensyApp(tk.Tk):
         lang = self.cfg.get("language", "fr")
         
         if self.state == self.UI_MAIN:
-            ra_short = self.current_ra[:8].replace(':', 'h')
-            dec_short = self.current_dec[:9].replace('*', '°')
-            l0 = f"RA: {ra_short}"[:20]
-            l1 = f"DE: {dec_short}"[:20]
+            is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
+            if is_altaz and hasattr(self, 'current_alt') and hasattr(self, 'current_az'):
+                l0 = f"AZ: {self.current_az:05.1f}°"[:20]
+                l1 = f"AL: {self.current_alt:+05.1f}°"[:20]
+            else:
+                ra_short = self.current_ra[:8].replace(':', 'h')
+                dec_short = self.current_dec[:9].replace('*', '°')
+                l0 = f"RA: {ra_short}"[:20]
+                l1 = f"DE: {dec_short}"[:20]
             if self.is_connected:
                 stat = "EN LIGNE" if not self.sim_mode else "SIMULATEUR"
                 l2 = f"ETAT: {stat}"[:20]

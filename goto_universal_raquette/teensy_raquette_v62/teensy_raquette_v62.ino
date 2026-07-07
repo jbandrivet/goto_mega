@@ -1519,11 +1519,22 @@ void lcdLine(uint8_t row, const char* str){
 
 void printMain(){
     char buf[21];
-    int rah=(int)m_currentRA, ram=(int)((m_currentRA-rah)*60);
-    bool dneg=(m_currentDEC<0); double da=fabs(m_currentDEC);
-    int dd=(int)da, dm=(int)((da-dd)*60);
-    snprintf(buf, 21,"R%02dh%02d D%c%02d%c%02d", rah,ram, dneg?'-':'+', dd, 0xDF, dm);
-    lcdLine(0,buf);
+    
+    if (mountType == 0) {
+        snprintf(buf,21,"AZ: %05.1f%c", m_currentAz, 0xDF);
+        lcdLine(0,buf);
+        snprintf(buf,21,"AL: %c%04.1f%c", m_currentAlt<0?'-':'+', fabs(m_currentAlt), 0xDF);
+        lcdLine(1,buf);
+    } else {
+        int rah=(int)m_currentRA, ram=(int)((m_currentRA-rah)*60);
+        bool dneg=(m_currentDEC<0); double da=fabs(m_currentDEC);
+        int dd=(int)da, dm=(int)((da-dd)*60);
+        
+        snprintf(buf,21,"RA: %02dh%02dm", rah,ram);
+        lcdLine(0,buf);
+        snprintf(buf,21,"DE: %c%02d%c%02d'", dneg?'-':'+', dd, 0xDF, dm);
+        lcdLine(1,buf);
+    }
 
     if(!m_online){
         lcdLine(1, "OFFLINE");
@@ -1558,50 +1569,94 @@ const char* getCatName(int idx) {
 }
 
 void printCatSelect(){
-    lcdLine(0, isEnglish ? "[ SELECT CATAL.]" : "[ CHOIX CATALOG]");
+    lcdLine(0, isEnglish ? "[ SELECT CATALOG ]" : "[ CHOIX CATALOGUE ]");
     char buf[21];
-    snprintf(buf, 21,">%s %4lu", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
+    snprintf(buf, 21,"> %-15s", getCatName((int)currentCat));
     lcdLine(1,buf);
+    snprintf(buf,21,"  (%lu obj)", getCatalogCount((CatID)currentCat));
+    lcdLine(2,buf);
+    lcdLine(3, isEnglish ? "  [UP/DWN] Select" : "  [HAUT/BAS] Choisir");
 }
 
 void printObjectList(){
     char buf[21];
-    snprintf(buf, 21,"[%s] %4luobj", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
+    snprintf(buf, 21,"[%s] %lu obj", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
     lcdLine(0,buf);
 
     uint32_t total=getCatalogCount(currentCat);
-    if(total==0){ lcdLine(1," Aucun objet"); return; }
+    if(total==0){ 
+        lcdLine(1," Aucun objet"); 
+        lcdLine(2,"");
+        lcdLine(3,"");
+        return; 
+    }
 
     char line[21];
+    float mag = 0;
+    double ra = 0, dec = 0;
+    
     if(currentCat==CAT_BSC){
         StarObject s=getStarFromCatalog((uint32_t)objectIndex);
         char ast = isVisible(s.ra, s.dec) ? '*' : ' ';
-        snprintf(line, 21,">%s%c m%.1f", s.name, ast, s.mag/10.0f);
+        snprintf(line, 21,"> %s%c", s.name, ast);
+        mag = s.mag/10.0f;
+        ra = s.ra; dec = s.dec;
     } else if(currentCat==CAT_SYSSOL){
         char ast = isVisible(sysSolObjs[objectIndex].ra, sysSolObjs[objectIndex].dec) ? '*' : ' ';
-        snprintf(line, 21,">%s%c", sysSolObjs[objectIndex].name, ast);
+        snprintf(line, 21,"> %s%c", sysSolObjs[objectIndex].name, ast);
+        mag = 0; // Not available
+        ra = sysSolObjs[objectIndex].ra; dec = sysSolObjs[objectIndex].dec;
     } else {
         DeepSkyObject o; getObj(currentCat,(uint32_t)objectIndex,o);
         char ast = isVisible(o.ra, o.dec) ? '*' : ' ';
-        snprintf(line, 21,">%s%d%c m%.1f", getCatPrefix(currentCat), o.id, ast, o.mag/10.0f);
+        snprintf(line, 21,"> %s%d%c", getCatPrefix(currentCat), o.id, ast);
+        mag = o.mag/10.0f;
+        ra = o.ra; dec = o.dec;
     }
     lcdLine(1,line);
+    
+    if (currentCat!=CAT_SYSSOL) {
+        snprintf(buf,21,"  Mag: %.1f", mag);
+        lcdLine(2,buf);
+    } else {
+        lcdLine(2,"");
+    }
+    
+    int rah=(int)ra;
+    int ram=(int)((ra-rah)*60);
+    int dd=(int)fabs(dec);
+    snprintf(buf,21,"  %02dh%02d %c%02d%c", rah,ram, dec<0?'-':'+', dd, 0xDF);
+    lcdLine(3,buf);
 }
 
 void printObjectInfo(){
     char buf[21];
+    double ra = 0, dec = 0;
+    
     if (currentCat == CAT_SYSSOL) {
         char ast = isVisible(sysSolObjs[objectIndex].ra, sysSolObjs[objectIndex].dec) ? '*' : ' ';
-        snprintf(buf, 21,">%s%c",sysSolObjs[objectIndex].name, ast);
+        snprintf(buf,21,"OBJET: %s%c",sysSolObjs[objectIndex].name, ast);
+        ra = sysSolObjs[objectIndex].ra; dec = sysSolObjs[objectIndex].dec;
     } else if(selectedIsStar){
         char ast = isVisible(selectedStar.ra, selectedStar.dec) ? '*' : ' ';
-        snprintf(buf, 21,">%s%c",selectedStar.name, ast);
+        snprintf(buf,21,"OBJET: %s%c",selectedStar.name, ast);
+        ra = selectedStar.ra; dec = selectedStar.dec;
     } else {
         char ast = isVisible(selectedObj.ra, selectedObj.dec) ? '*' : ' ';
-        snprintf(buf, 21,">%s%d%c %s", getCatPrefix(currentCat), selectedObj.id, ast, getTypeName(selectedObj.type));
+        snprintf(buf,21,"OBJET: %s%d%c", getCatPrefix(currentCat), selectedObj.id, ast);
+        ra = selectedObj.ra; dec = selectedObj.dec;
     }
     lcdLine(0,buf);
-    lcdLine(1, "E=GOTO  >=SYNC");
+    
+    int rah=(int)ra, ram=(int)((ra-rah)*60);
+    snprintf(buf,21,"RA: %02dh%02dm", rah,ram);
+    lcdLine(1,buf);
+    
+    int dd=(int)fabs(dec), dm=(int)((fabs(dec)-dd)*60);
+    snprintf(buf,21,"DE: %c%02d%c%02d'", dec<0?'-':'+', dd, 0xDF, dm);
+    lcdLine(2,buf);
+    
+    lcdLine(3, "[ENT]=GOTO [>]=SYNC");
 }
 
 void printSlewing(){
