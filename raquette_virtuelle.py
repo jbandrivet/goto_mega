@@ -532,8 +532,8 @@ class VirtualTeensyApp(tk.Tk):
                                 try:
                                     raw_speed = float(parts[3]) / 10.0
                                     ppd = self.cfg.get("gear_ratio_az", 750.0) * self.cfg.get("steps_per_rev_motor", 200) * self.cfg.get("microstep", 125) / 360.0
-                                    # Empirically, the Arduino Mega loop with Serial polling takes ~215us minimum per step
-                                    max_phys_speed = 1000000.0 / (ppd * 215.0) if ppd > 0 else raw_speed
+                                    # Empirically, the Arduino Mega loop overhead is minimal now that serial polling is reduced
+                                    max_phys_speed = 1000000.0 / (ppd * 35.0) if ppd > 0 else raw_speed
                                     self.current_speed = min(raw_speed, max_phys_speed)
                                 except ValueError:
                                     pass
@@ -541,18 +541,20 @@ class VirtualTeensyApp(tk.Tk):
                                     if self.state != self.UI_SLEWING:
                                         self.state = self.UI_SLEWING
                                     # Recouvrer les coordonnées cibles depuis le Mega
-                                    try:
-                                        self.ser.write(b":Gr#")
-                                        t_ra = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
-                                        if t_ra:
-                                            self.target_ra = Astro.parse_ra(t_ra)
-                                        
-                                        self.ser.write(b":Gd#")
-                                        t_dec = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
-                                        if t_dec:
-                                            self.target_dec = Astro.parse_dec(t_dec)
-                                    except Exception:
-                                        pass
+                                    # Recouvrer les coordonnées cibles depuis le Mega seulement si on ne les connait pas
+                                    if getattr(self, 'target_ra', None) is None:
+                                        try:
+                                            self.ser.write(b":Gr#")
+                                            t_ra = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                                            if t_ra:
+                                                self.target_ra = Astro.parse_ra(t_ra)
+                                            
+                                            self.ser.write(b":Gd#")
+                                            t_dec = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                                            if t_dec:
+                                                self.target_dec = Astro.parse_dec(t_dec)
+                                        except Exception:
+                                            pass
                                 elif not self.is_slewing and self.state == self.UI_SLEWING:
                                     if getattr(self, "is_align_workflow", False):
                                         self.state = self.UI_ALIGN_CENTER
@@ -566,7 +568,7 @@ class VirtualTeensyApp(tk.Tk):
                     except Exception as e:
                         pass
                 
-        self.after(100, self.telemetry_loop) # Vitesse de rafraîchissement 100ms pour une réactivité optimale
+        self.after(500, self.telemetry_loop) # Vitesse de rafraîchissement 500ms pour éviter de saturer l'Arduino
         
     def finish_sim_slew(self):
         self.is_slewing = False
