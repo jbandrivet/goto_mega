@@ -1610,11 +1610,13 @@ void printSlewing(){
     char b0[21];
     
     if (isParkingWorkflow) {
-        snprintf(b0, 21, "PARKING %c", anim);
+        snprintf(b0, 21, isEnglish ? "PARKING IN PROG %c" : "PARKING EN COURS %c", anim);
         lcdLine(0, b0);
-        lcdLine(1, isEnglish ? " Please wait... " : " Patientez...   ");
+        lcdLine(1, isEnglish ? "Motors running..." : "Moteurs en route...");
+        lcdLine(2, isEnglish ? "Please wait" : "Veuillez patienter");
+        lcdLine(3, isEnglish ? "[<] Cancel" : "[<] Annuler");
     } else {
-        snprintf(b0, 21, isEnglish ? "SLEWING %c" : "GOTO %c", anim);
+        snprintf(b0, 21, isEnglish ? "SLEWING TO TGT %c" : "GOTO EN COURS... %c", anim);
         lcdLine(0, b0);
         
         double ra  = selectedIsStar?selectedStar.ra  :selectedObj.ra;
@@ -1631,8 +1633,11 @@ void printSlewing(){
         int eta = (int)(dist / speed);
 
         char buf[21];
-        snprintf(buf, 21, "E:%ds D:%.1f%c", eta, dist, 0xDF);
+        snprintf(buf, 21, "Dist restante: %.1f%c", dist, 0xDF);
         lcdLine(1, buf);
+        snprintf(buf, 21, "Temps estime:  %ds", eta);
+        lcdLine(2, buf);
+        lcdLine(3, isEnglish ? "[<] Cancel GOTO" : "[<] Annuler GOTO");
     }
 }
 
