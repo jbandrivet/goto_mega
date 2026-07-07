@@ -1354,7 +1354,10 @@ class Derotator:
                     tgt=(-(self.pa+self.offset))%360
                     if last_pa is None or abs(self.pa-last_pa)>0.1:
                         self.target=tgt
-                        self._send(f"SETPOS:{tgt:.2f}\r\n")
+                        if self.cfg.get("derot_mega_en", False):
+                            self._mount.conn.send_cmd(f":XDa{tgt:.2f}#")
+                        else:
+                            self._send(f"SETPOS:{tgt:.2f}\r\n")
                         last_pa=self.pa
             if self._sim and self.moving:
                 d=(self.target-self.angle+180)%360-180
@@ -1371,7 +1374,10 @@ class Derotator:
 
     def goto_angle(self, a):
         self.target=a%360; self.moving=True
-        self._send(f"SETPOS:{a%360:.2f}\r\n")
+        if self.cfg.get("derot_mega_en", False) and self._mount and self._mount.state.connected:
+            self._mount.conn.send_cmd(f":XDa{a%360:.2f}#")
+        else:
+            self._send(f"SETPOS:{a%360:.2f}\r\n")
 
     def stop(self): self.moving=False; self._send("STOP\r\n")
     def home(self): self.goto_angle(0)

@@ -397,6 +397,25 @@ class ConfigToolApp(tk.Tk):
         self.mount_ctrl_lf.pack(fill="x", pady=5)
         
         mount_ctrl_inner = tk.Frame(self.mount_ctrl_lf, bg="#c0c0c0")
+
+        # Configuration Row - Derotator and Focus Mega
+        row_extra = tk.Frame(form_inner, bg="#c0c0c0")
+        row_extra.pack(fill="x", pady=6)
+        
+        self.derot_mega_var = tk.BooleanVar(value=self.settings.get("derot_mega_en", False))
+        self.chk_derot_mega = tk.Checkbutton(row_extra, text="Dérotateur (Mega) [AltAz uniquement]", variable=self.derot_mega_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white")
+        self.chk_derot_mega.pack(side="left")
+        
+        self.lbl_derot_ppd = tk.Label(row_extra, text="Pas par degré (PPD):", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_derot_ppd.pack(side="left", padx=(10,5))
+        self.derot_ppd_entry = tk.Entry(row_extra, font=f_entry, bg="white", fg="black", width=6, bd=2, relief="sunken")
+        self.derot_ppd_entry.pack(side="left")
+        self.derot_ppd_entry.insert(0, str(self.settings.get("derot_mega_ppd", 100.0)))
+        
+        self.focus_mega_var = tk.BooleanVar(value=self.settings.get("focus_mega_en", False))
+        self.chk_focus_mega = tk.Checkbutton(row_extra, text="Focuseur (Mega)", variable=self.focus_mega_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white")
+        self.chk_focus_mega.pack(side="left", padx=(15,0))
+
         mount_ctrl_inner.pack(padx=15, pady=10, fill="x")
         
         self.park_btn = tk.Button(mount_ctrl_inner, text="Park Mount ⏾", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.park_mount, state="disabled", width=18)

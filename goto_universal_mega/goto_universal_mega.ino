@@ -51,6 +51,14 @@ static double         maxSlewRate   = DEFAULT_SLEW_RATE;
 #define ALT_DIR   6
 #define ALT_EN    7
 
+#define DEROT_STEP 8
+#define DEROT_DIR  9
+#define DEROT_EN   10
+
+#define FOCUS_STEP 11
+#define FOCUS_DIR  12
+#define FOCUS_EN   13
+
 // === LIMITES ===
 #define ALT_MIN  -1.0
 #define ALT_MAX  89.5
@@ -90,6 +98,14 @@ float parkAlt = 90.0;
 float parkAz = 0.0;
 static bool altReversed = false;
 static uint8_t trackRate=0;
+static bool derotEnabled = false;
+static double derotPPD = 100.0;
+static long derotPos = 0;
+static double derotTarget = 0.0;
+
+static bool focusEnabled = false;
+static int focusSpeed = 1000;
+static int8_t focusMove = 0;
 static uint8_t slowSpeed=8;
 static unsigned long lastTrkMs=0;
 static double trkStartLST = 0.0;
@@ -127,6 +143,9 @@ const uint16_t EEPROM_ADDR_REV_AZ     = 48;
 const uint16_t EEPROM_ADDR_REV_ALT    = 49; 
 const uint16_t EEPROM_ADDR_PARK_ALT   = 50;
 const uint16_t EEPROM_ADDR_PARK_AZ    = 54;
+const uint16_t EEPROM_ADDR_DEROT_EN   = 58;
+const uint16_t EEPROM_ADDR_DEROT_PPD  = 59;
+const uint16_t EEPROM_ADDR_FOCUS_EN   = 63;
 const byte     EEPROM_MAGIC         = 0x5E;
 
 template <typename T>
@@ -167,6 +186,9 @@ static void saveStateToEEPROM() {
   EEPROM.update(EEPROM_ADDR_REV_ALT, altReversed ? 1 : 0);
   eepromWrite(EEPROM_ADDR_PARK_ALT, parkAlt);
   eepromWrite(EEPROM_ADDR_PARK_AZ, parkAz);
+  EEPROM.update(EEPROM_ADDR_DEROT_EN, derotEnabled ? 1 : 0);
+  eepromWrite(EEPROM_ADDR_DEROT_PPD, derotPPD);
+  EEPROM.update(EEPROM_ADDR_FOCUS_EN, focusEnabled ? 1 : 0);
 }
 
 static void loadStateFromEEPROM() {
@@ -184,6 +206,10 @@ static void loadStateFromEEPROM() {
     altReversed = (EEPROM.read(EEPROM_ADDR_REV_ALT) == 1);
     eepromRead(EEPROM_ADDR_PARK_ALT, parkAlt);
     eepromRead(EEPROM_ADDR_PARK_AZ, parkAz);
+    derotEnabled = (EEPROM.read(EEPROM_ADDR_DEROT_EN) == 1);
+    eepromRead(EEPROM_ADDR_DEROT_PPD, derotPPD);
+    focusEnabled = (EEPROM.read(EEPROM_ADDR_FOCUS_EN) == 1);
+    if(isnan(derotPPD) || derotPPD < 1.0) derotPPD = 100.0;
     if (isnan(parkAlt) || parkAlt < -90.0 || parkAlt > 90.0) parkAlt = (mountType >= 1) ? 90.0 : 0.0;
     if (isnan(parkAz) || parkAz < 0.0 || parkAz > 360.0) parkAz = 0.0;
     
@@ -220,6 +246,9 @@ static void loadStateFromEEPROM() {
     altReversed = false;
     parkAlt = (mountType >= 1) ? 90.0 : 0.0;
     parkAz = 0.0;
+    derotEnabled = false;
+    derotPPD = 100.0;
+    focusEnabled = false;
     saveStateToEEPROM();
   }
 
@@ -1494,6 +1523,22 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     out.print(F("N/A#")); return;
   }
 
+  
+  // Commands for Derotator and Focus
+  if(c1=='X'&&c2=='D'){
+    if(c3=='e') { derotEnabled=(cmd[4]=='1'); saveStateToEEPROM(); out.write('1'); return; }
+    if(c3=='p') { derotPPD=atof(cmd+4); saveStateToEEPROM(); out.write('1'); return; }
+    if(c3=='a') { derotTarget=atof(cmd+4); out.write('1'); return; }
+  }
+  if(c1=='X'&&c2=='F'){
+    if(c3=='e') { focusEnabled=(cmd[4]=='1'); saveStateToEEPROM(); out.write('1'); return; }
+    if(c3=='s') { focusSpeed=1000; out.write('1'); return; } // Slow
+    if(c3=='f') { focusSpeed=200; out.write('1'); return; } // Fast
+    if(c3=='+') { focusMove=1; digitalWrite(FOCUS_EN,LOW); out.write('1'); return; }
+    if(c3=='-') { focusMove=-1; digitalWrite(FOCUS_EN,LOW); out.write('1'); return; }
+    if(c3=='Q') { focusMove=0; digitalWrite(FOCUS_EN,HIGH); out.write('1'); return; }
+  }
+  
   if(c1=='D'){ if(slewing)out.write(127); out.write('#'); return; }
 
   if(c1=='T'&&c2=='e'){
@@ -1918,6 +1963,10 @@ void setup() {
 
   pinMode(AZ_STEP,OUTPUT); pinMode(AZ_DIR,OUTPUT); pinMode(AZ_EN,OUTPUT);
   pinMode(ALT_STEP,OUTPUT);pinMode(ALT_DIR,OUTPUT);pinMode(ALT_EN,OUTPUT);
+  pinMode(DEROT_STEP,OUTPUT); pinMode(DEROT_DIR,OUTPUT); pinMode(DEROT_EN,OUTPUT);
+  pinMode(FOCUS_STEP,OUTPUT); pinMode(FOCUS_DIR,OUTPUT); pinMode(FOCUS_EN,OUTPUT);
+  digitalWrite(DEROT_EN, HIGH);
+  digitalWrite(FOCUS_EN, HIGH);
   digitalWrite(AZ_STEP,LOW); digitalWrite(ALT_STEP,LOW);
   enableMotors(false);
   pinMode(LED_BUILTIN,OUTPUT);
@@ -2066,9 +2115,37 @@ void loop() {
     }
   }
 
+  
   doTrack();
   updateBuzzer();
 
+  // Handle Derotator
+  if(derotEnabled && mountType == 0) { // Only in Alt-Az
+    long targetPos = (long)(derotTarget * derotPPD);
+    long diff = targetPos - derotPos;
+    if(abs(diff) > 0) {
+      digitalWrite(DEROT_EN, LOW);
+      digitalWrite(DEROT_DIR, diff > 0 ? HIGH : LOW);
+      digitalWrite(DEROT_STEP, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(DEROT_STEP, LOW);
+      derotPos += (diff > 0 ? 1 : -1);
+      delayMicroseconds(200);
+    } else {
+      digitalWrite(DEROT_EN, HIGH);
+    }
+  }
+
+  // Handle Focus
+  if(focusEnabled && focusMove != 0) {
+    digitalWrite(FOCUS_DIR, focusMove > 0 ? HIGH : LOW);
+    digitalWrite(FOCUS_STEP, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(FOCUS_STEP, LOW);
+    delayMicroseconds(focusSpeed);
+  }
+
   serveStream(Serial,  Serial,  cmdUsb, ciUsb);
+
   serveStream(Serial3, Serial3, cmdRj,  ciRj);
 }
