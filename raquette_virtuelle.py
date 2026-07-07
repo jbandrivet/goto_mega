@@ -25,7 +25,7 @@ class VirtualTeensyApp(tk.Tk):
             self.title("Virtual T4.1 Hand Controller")
         else:
             self.title("Raquette T4.1 Virtuelle")
-        self.geometry("380x540")
+        self.geometry("420x620")
         self.configure(bg="#c0c0c0")
         self.resizable(False, False)
         
@@ -203,14 +203,14 @@ class VirtualTeensyApp(tk.Tk):
         self.lcd_frame.pack(fill="both", expand=True)
         
         self.lcd_lines = []
-        for i in range(2):
+        for i in range(4):
             lbl = tk.Label(
                 self.lcd_frame, 
-                text=" "*16, 
+                text=" "*20, 
                 bg="#ff0000", 
                 fg="#000000", 
                 font=f_lcd, 
-                width=16, 
+                width=20, 
                 anchor="w", 
                 padx=2, 
                 pady=1
@@ -680,8 +680,10 @@ class VirtualTeensyApp(tk.Tk):
             self.press_active[btn] = False
 
     def set_msg(self, l0, l1, l2, l3, duration_ms, return_state):
-        self.lcd_lines[0].config(text=f"{l0:<16}"[:16])
-        self.lcd_lines[1].config(text=f"{l1:<16}"[:16])
+        self.lcd_lines[0].config(text=f"{l0:<20}"[:20])
+        self.lcd_lines[1].config(text=f"{l1:<20}"[:20])
+        self.lcd_lines[2].config(text=f"{l2:<20}"[:20])
+        self.lcd_lines[3].config(text=f"{l3:<20}"[:20])
         
         self.state = self.UI_MESSAGE
         self.msg_return_state = return_state
@@ -698,16 +700,16 @@ class VirtualTeensyApp(tk.Tk):
 
         if self.state == self.UI_MESSAGE: return
         
-        l0 = l1 = " "*16
+        l0 = l1 = l2 = l3 = " "*20
         lang = self.cfg.get("language", "fr")
         
         if self.state == self.UI_MAIN:
             ra_short = self.current_ra[:5].replace(':', 'h')
             dec_short = self.current_dec[:6].replace('*', '°')
-            l0 = f"R{ra_short} D{dec_short}"[:16]
+            l0 = f"R{ra_short} D{dec_short}"[:20]
             if self.is_connected:
                 stat = "OK" if not self.sim_mode else "SIMU"
-                l1 = f"MNT {stat} [ENT=MNU]"[:16]
+                l1 = f"MNT {stat} [ENT=MNU]"[:20]
             else:
                 l1 = "OFFLINE         "
             
@@ -719,7 +721,7 @@ class VirtualTeensyApp(tk.Tk):
             if lang == "en":
                 if cat_name == "Systeme Solaire": disp_cat = "Solar Sys"
                 elif cat_name == "Étoiles": disp_cat = "Stars"
-            l1 = f">{disp_cat[:9]:<9}({count})"[:16]
+            l1 = f">{disp_cat[:9]:<9}({count})"[:20]
             
         elif self.state == self.UI_OBJECT_LIST:
             cat_name = self.catalogs[self.cat_idx]
@@ -730,7 +732,7 @@ class VirtualTeensyApp(tk.Tk):
             else:
                 disp_cat = disp_cat[:3]
                 
-            l0 = f"[{disp_cat}] {len(self.obj_list)}obj"[:16]
+            l0 = f"[{disp_cat}] {len(self.obj_list)}obj"[:20]
             
             if len(self.obj_list) == 0:
                 l1 = " Aucun objet    " if lang == "fr" else " No object      "
@@ -740,13 +742,13 @@ class VirtualTeensyApp(tk.Tk):
                 if name == f"{o.get('cat')} {o.get('num')}": name = f"{disp_cat} {o.get('num')}"
                 vis_star = "*" if o.get("visible", False) else ""
                 mag_str = f"m{o.get('mag')}" if o.get('mag') else ""
-                l1 = f">{name[:8]}{vis_star} {mag_str}"[:16]
+                l1 = f">{name[:8]}{vis_star} {mag_str}"[:20]
                 
         elif self.state == self.UI_OBJECT_INFO:
             o = self.obj_list[self.obj_idx]
             name = o.get('name', f"{o.get('cat')} {o.get('num')}")
             vis_star = "*" if o.get("visible", False) else ""
-            l0 = f">{name[:14]:<14}{vis_star}"[:16]
+            l0 = f">{name[:14]:<14}{vis_star}"[:20]
             l1 = "E=GOTO  >=SYNC  "
             
         elif self.state == self.UI_SLEWING:
@@ -791,7 +793,7 @@ class VirtualTeensyApp(tk.Tk):
                             
                         # Show the real great circle distance for D, but use the axis distance for ETA calculation
                         gc_dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
-                        l1 = f"E:{eta}s D:{gc_dist:.1f}°"[:16]
+                        l1 = f"E:{eta}s D:{gc_dist:.1f}°"[:20]
                     except:
                         l1 = " Patientez...   " if lang == "fr" else " Please wait... "
                 else:
@@ -800,8 +802,8 @@ class VirtualTeensyApp(tk.Tk):
         elif self.state == self.UI_ALIGN_CENTER:
             o = self.obj_list[self.obj_idx]
             name = o.get('name', f"{o.get('cat')} {o.get('num')}")
-            l0 = f"Centrez {name[:8]}"[:16].ljust(16) if lang == "fr" else f"Center {name[:9]}"[:16].ljust(16)
-            l1 = "   ENT=SYNC     "[:16]
+            l0 = f"Centrez {name[:8]}"[:20].ljust(20) if lang == "fr" else f"Center {name[:9]}"[:20].ljust(20)
+            l1 = "   ENT=SYNC     "[:20]
             
         elif self.state == self.UI_SETTINGS:
             l0 = "[ MENU ]        " if lang == "fr" else "[ MENU ]        "
@@ -813,47 +815,49 @@ class VirtualTeensyApp(tk.Tk):
                 alt_str = " ALT Ratio" if self.cfg.get("mount_type", "AltAz") == "AltAz" else " DEC Ratio"
                 
             opts = [" Catalogues", " Vitesse", " Bips", " Alignement", " Parking", " Type Monture", az_str, alt_str, " Alim Moteurs", " Langue"] if lang == "fr" else [" Catalogs", " Speed", " Beeps", " Alignment", " Parking", " Mount Type", az_str, alt_str, " Motor Power", " Language"]
-            l1 = f">{opts[self.settings_sel][1:]:15}"[:16]
+            l1 = f">{opts[self.settings_sel][1:]:15}"[:20]
             
         elif self.state == self.UI_SPEED:
             l0 = "[ VITESSE GOTO ]" if lang == "fr" else "[ GOTO SPEED ]  "
-            l1 = f"> {self.temp_speed:.1f} deg/s   "[:16]
+            l1 = f"> {self.temp_speed:.1f} deg/s   "[:20]
             
         elif self.state == self.UI_BEEP:
             l0 = "[ BIP BUZZER ]  " if lang == "fr" else "[ BEEP BUZZER ] "
             state_str = "ON" if self.temp_buzzer_on else "OFF"
-            l1 = f"> {state_str}         "[:16]
+            l1 = f"> {state_str}         "[:20]
             
         elif self.state == self.UI_MOTOR_POWER:
             l0 = "[ ALIM MOTEURS ]" if lang == "fr" else "[ MOTOR POWER ] "
             status = ("ACTIVE" if self.temp_motor_power else "OFF") if lang == "fr" else ("ON" if self.temp_motor_power else "OFF")
-            l1 = f"> {status:<14}"[:16]
+            l1 = f"> {status:<14}"[:20]
                 
         elif self.state == self.UI_LANGUAGE:
             l0 = "[ LANGUE ]      " if lang == "fr" else "[ LANGUAGE ]    "
-            l1 = f">{('FRANCAIS' if self.temp_lang == 'fr' else 'ENGLISH'):15}"[:16]
+            l1 = f">{('FRANCAIS' if self.temp_lang == 'fr' else 'ENGLISH'):15}"[:20]
             
         elif self.state == self.UI_MOUNT:
             l0 = "[ TYPE MONTURE ]" if lang == "fr" else "[ MOUNT TYPE ]  "
             mount_str = "AltAz" if self.temp_mount_type == 0 else ("ForkEq" if self.temp_mount_type == 1 else "GermanEq")
-            l1 = f"> {mount_str:13}"[:16]
+            l1 = f"> {mount_str:13}"[:20]
             
         elif self.state == self.UI_RATIO_AZ:
             is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
             lbl = "RATIO AZ" if is_altaz else "RATIO RA"
             if lang == "en": lbl = "AZ RATIO" if is_altaz else "RA RATIO"
-            l0 = f"[ {lbl} ]"[:16].ljust(16)
-            l1 = f"> {self.temp_ratio_az:.1f}         "[:16]
+            l0 = f"[ {lbl} ]"[:20].ljust(20)
+            l1 = f"> {self.temp_ratio_az:.1f}         "[:20]
             
         elif self.state == self.UI_RATIO_ALT:
             is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
             lbl = "RATIO ALT" if is_altaz else "RATIO DEC"
             if lang == "en": lbl = "ALT RATIO" if is_altaz else "DEC RATIO"
-            l0 = f"[ {lbl} ]"[:16].ljust(16)
-            l1 = f"> {self.temp_ratio_alt:.1f}         "[:16]
+            l0 = f"[ {lbl} ]"[:20].ljust(20)
+            l1 = f"> {self.temp_ratio_alt:.1f}         "[:20]
                 
-        self.lcd_lines[0].config(text=f"{l0:<16}"[:16])
-        self.lcd_lines[1].config(text=f"{l1:<16}"[:16])
+        self.lcd_lines[0].config(text=f"{l0:<20}"[:20])
+        self.lcd_lines[1].config(text=f"{l1:<20}"[:20])
+        self.lcd_lines[2].config(text=f"{l2:<20}"[:20])
+        self.lcd_lines[3].config(text=f"{l3:<20}"[:20])
 
     def get_visible_stars(self):
         try:
@@ -1187,7 +1191,7 @@ class VirtualTeensyApp(tk.Tk):
                 is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
                 lbl = "RATIO AZ" if is_altaz else "RATIO RA"
                 if lang == "en": lbl = "AZ RATIO" if is_altaz else "RA RATIO"
-                self.set_msg(f" {lbl} OK".ljust(16), "", "", "", 1500, self.UI_SETTINGS)
+                self.set_msg(f" {lbl} OK".ljust(20), "", "", "", 1500, self.UI_SETTINGS)
                 
         elif self.state == self.UI_RATIO_ALT:
             if btn == "LEFT":
@@ -1205,7 +1209,7 @@ class VirtualTeensyApp(tk.Tk):
                 is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
                 lbl = "RATIO ALT" if is_altaz else "RATIO DEC"
                 if lang == "en": lbl = "ALT RATIO" if is_altaz else "DEC RATIO"
-                self.set_msg(f" {lbl} OK".ljust(16), "", "", "", 1500, self.UI_SETTINGS)
+                self.set_msg(f" {lbl} OK".ljust(20), "", "", "", 1500, self.UI_SETTINGS)
                 
         self.update_lcd()
 

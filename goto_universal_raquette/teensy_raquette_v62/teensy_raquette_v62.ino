@@ -1089,7 +1089,7 @@ StarObject getStarFromCatalog(uint16_t index) {
 // ============================================================
 // SECTION 2 : OBJETS GLOBAUX
 // ============================================================
-LiquidCrystal_I2C lcd(LCD_ADDR, 16, 2);
+LiquidCrystal_I2C lcd(LCD_ADDR, 20, 4);
 
 // ============================================================
 // SECTION 3 : ÉTAT MONTURE (mis à jour par polling)
@@ -1511,18 +1511,18 @@ void selectCurrentObject(){
 // SECTION 10 : AFFICHAGE LCD
 // ============================================================
 void lcdLine(uint8_t row, const char* str){
-    if (row >= 2) return;
+    if (row >= 4) return;
     lcd.setCursor(0,row);
-    char buf[17]; snprintf(buf,17,"%-16s",str);
+    char buf[21]; snprintf(buf,21,"%-20s",str);
     lcd.print(buf);
 }
 
 void printMain(){
-    char buf[17];
+    char buf[21];
     int rah=(int)m_currentRA, ram=(int)((m_currentRA-rah)*60);
     bool dneg=(m_currentDEC<0); double da=fabs(m_currentDEC);
     int dd=(int)da, dm=(int)((da-dd)*60);
-    snprintf(buf,17,"R%02dh%02d D%c%02d%c%02d", rah,ram, dneg?'-':'+', dd, 0xDF, dm);
+    snprintf(buf, 21,"R%02dh%02d D%c%02d%c%02d", rah,ram, dneg?'-':'+', dd, 0xDF, dm);
     lcdLine(0,buf);
 
     if(!m_online){
@@ -1532,7 +1532,7 @@ void printMain(){
     } else if(m_limitHit){
         lcdLine(1, "!! LIMITE !!");
     } else {
-        snprintf(buf,17,"%cMNT OK %c%s", 
+        snprintf(buf, 21,"%cMNT OK %c%s", 
                  m_isTracking?(char)CHAR_CHECK:'-',
                  (char)CHAR_UP,
                  m_isSlewing?" GOTO":"");
@@ -1559,46 +1559,46 @@ const char* getCatName(int idx) {
 
 void printCatSelect(){
     lcdLine(0, isEnglish ? "[ SELECT CATAL.]" : "[ CHOIX CATALOG]");
-    char buf[17];
-    snprintf(buf,17,">%s %4lu", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
+    char buf[21];
+    snprintf(buf, 21,">%s %4lu", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
     lcdLine(1,buf);
 }
 
 void printObjectList(){
-    char buf[17];
-    snprintf(buf,17,"[%s] %4luobj", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
+    char buf[21];
+    snprintf(buf, 21,"[%s] %4luobj", getCatName((int)currentCat), getCatalogCount((CatID)currentCat));
     lcdLine(0,buf);
 
     uint32_t total=getCatalogCount(currentCat);
     if(total==0){ lcdLine(1," Aucun objet"); return; }
 
-    char line[17];
+    char line[21];
     if(currentCat==CAT_BSC){
         StarObject s=getStarFromCatalog((uint32_t)objectIndex);
         char ast = isVisible(s.ra, s.dec) ? '*' : ' ';
-        snprintf(line,17,">%s%c m%.1f", s.name, ast, s.mag/10.0f);
+        snprintf(line, 21,">%s%c m%.1f", s.name, ast, s.mag/10.0f);
     } else if(currentCat==CAT_SYSSOL){
         char ast = isVisible(sysSolObjs[objectIndex].ra, sysSolObjs[objectIndex].dec) ? '*' : ' ';
-        snprintf(line,17,">%s%c", sysSolObjs[objectIndex].name, ast);
+        snprintf(line, 21,">%s%c", sysSolObjs[objectIndex].name, ast);
     } else {
         DeepSkyObject o; getObj(currentCat,(uint32_t)objectIndex,o);
         char ast = isVisible(o.ra, o.dec) ? '*' : ' ';
-        snprintf(line,17,">%s%d%c m%.1f", getCatPrefix(currentCat), o.id, ast, o.mag/10.0f);
+        snprintf(line, 21,">%s%d%c m%.1f", getCatPrefix(currentCat), o.id, ast, o.mag/10.0f);
     }
     lcdLine(1,line);
 }
 
 void printObjectInfo(){
-    char buf[17];
+    char buf[21];
     if (currentCat == CAT_SYSSOL) {
         char ast = isVisible(sysSolObjs[objectIndex].ra, sysSolObjs[objectIndex].dec) ? '*' : ' ';
-        snprintf(buf,17,">%s%c",sysSolObjs[objectIndex].name, ast);
+        snprintf(buf, 21,">%s%c",sysSolObjs[objectIndex].name, ast);
     } else if(selectedIsStar){
         char ast = isVisible(selectedStar.ra, selectedStar.dec) ? '*' : ' ';
-        snprintf(buf,17,">%s%c",selectedStar.name, ast);
+        snprintf(buf, 21,">%s%c",selectedStar.name, ast);
     } else {
         char ast = isVisible(selectedObj.ra, selectedObj.dec) ? '*' : ' ';
-        snprintf(buf,17,">%s%d%c %s", getCatPrefix(currentCat), selectedObj.id, ast, getTypeName(selectedObj.type));
+        snprintf(buf, 21,">%s%d%c %s", getCatPrefix(currentCat), selectedObj.id, ast, getTypeName(selectedObj.type));
     }
     lcdLine(0,buf);
     lcdLine(1, "E=GOTO  >=SYNC");
@@ -1607,14 +1607,14 @@ void printObjectInfo(){
 void printSlewing(){
     char anim_chars[] = {'*', '+', 'x', '+'};
     char anim = anim_chars[(millis() / 250) % 4];
-    char b0[17];
+    char b0[21];
     
     if (isParkingWorkflow) {
-        snprintf(b0, 17, "PARKING %c", anim);
+        snprintf(b0, 21, "PARKING %c", anim);
         lcdLine(0, b0);
         lcdLine(1, isEnglish ? " Please wait... " : " Patientez...   ");
     } else {
-        snprintf(b0, 17, isEnglish ? "SLEWING %c" : "GOTO %c", anim);
+        snprintf(b0, 21, isEnglish ? "SLEWING %c" : "GOTO %c", anim);
         lcdLine(0, b0);
         
         double ra  = selectedIsStar?selectedStar.ra  :selectedObj.ra;
@@ -1630,16 +1630,16 @@ void printSlewing(){
         if (speed < 0.05) speed = 3.0;
         int eta = (int)(dist / speed);
 
-        char buf[17];
-        snprintf(buf, 17, "E:%ds D:%.1f%c", eta, dist, 0xDF);
+        char buf[21];
+        snprintf(buf, 21, "E:%ds D:%.1f%c", eta, dist, 0xDF);
         lcdLine(1, buf);
     }
 }
 
 void printSpeed(){
-    char buf[17];
+    char buf[21];
     lcdLine(0, isEnglish ? "[ GOTO SPEED ]" : "[ VITESSE GOTO ]");
-    snprintf(buf,17," > %.1f deg/s", temp_slewSpeed);
+    snprintf(buf, 21," > %.1f deg/s", temp_slewSpeed);
     lcdLine(1,buf);
 }
 
@@ -1658,17 +1658,17 @@ void printSettings() {
         isEnglish ? "Motor Power" : "Alim Moteurs", 
         isEnglish ? "Language" : "Langue"
     };
-    char buf[17];
-    snprintf(buf,17,">%s", opts[settingsSel]);
+    char buf[21];
+    snprintf(buf, 21,">%s", opts[settingsSel]);
     lcdLine(1, buf);
 }
 
 void printAlignCenter(){
-    char buf[17];
+    char buf[21];
     if (selectedIsStar) {
-        snprintf(buf, 17, isEnglish ? "Center %s" : "Centrez %s", selectedStar.name);
+        snprintf(buf, 21, isEnglish ? "Center %s" : "Centrez %s", selectedStar.name);
     } else {
-        snprintf(buf, 17, isEnglish ? "Center %s%d" : "Centrez %s%d", getCatPrefix(currentCat), selectedObj.id);
+        snprintf(buf, 21, isEnglish ? "Center %s%d" : "Centrez %s%d", getCatPrefix(currentCat), selectedObj.id);
     }
     lcdLine(0, buf);
     lcdLine(1, "   ENT=SYNC     ");
@@ -1713,25 +1713,25 @@ void refreshLcd(){
         
         case UI_MOUNT: {
             lcdLine(0, "[ TYPE MONTURE ]");
-            char buf[17]; snprintf(buf,17,">%s", temp_mountType == 0 ? "AltAz" : (temp_mountType == 1 ? "ForkEq" : "GermanEq"));
+            char buf[21]; snprintf(buf, 21,">%s", temp_mountType == 0 ? "AltAz" : (temp_mountType == 1 ? "ForkEq" : "GermanEq"));
             lcdLine(1, buf);
             break;
         }
         case UI_RATIO_AZ: {
             lcdLine(0, "[ RATIO AZ/RA ]");
-            char buf[17]; snprintf(buf,17,">%.1f", temp_gearRatioAZ);
+            char buf[21]; snprintf(buf, 21,">%.1f", temp_gearRatioAZ);
             lcdLine(1, buf);
             break;
         }
         case UI_RATIO_ALT: {
             lcdLine(0, "[ RATIO DEC/AL ]");
-            char buf[17]; snprintf(buf,17,">%.1f", temp_gearRatioALT);
+            char buf[21]; snprintf(buf, 21,">%.1f", temp_gearRatioALT);
             lcdLine(1, buf);
             break;
         }
         case UI_BEEP: {
             lcdLine(0, "[ REGLAGE BIP ]");
-            char buf[17]; snprintf(buf,17,"> %s", temp_buzzerOn ? "ACTIF" : "INACTIF");
+            char buf[21]; snprintf(buf, 21,"> %s", temp_buzzerOn ? "ACTIF" : "INACTIF");
             lcdLine(1, buf);
             break;
         }
@@ -1751,13 +1751,13 @@ void refreshLcd(){
         }
         case UI_MOTOR_POWER: {
             lcdLine(0, "[ ALIM MOTEURS ]");
-            char buf[17]; snprintf(buf, 17, " > %s", temp_motorPowerOn ? "ACTIVE" : "DESACTIVE");
+            char buf[21]; snprintf(buf, 21, " > %s", temp_motorPowerOn ? "ACTIVE" : "DESACTIVE");
             lcdLine(1, buf);
             break;
         }
         case UI_LANGUAGE: {
             lcdLine(0, "[ LANGUE ]");
-            char buf[17]; snprintf(buf, 17, " > %s", temp_isEnglish ? "EN" : "FR");
+            char buf[21]; snprintf(buf, 21, " > %s", temp_isEnglish ? "EN" : "FR");
             lcdLine(1, buf);
             break;
         }
