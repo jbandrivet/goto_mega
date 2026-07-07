@@ -541,6 +541,7 @@ class VirtualTeensyApp(tk.Tk):
                                     else:
                                         self.state = self.UI_MAIN
                                         self.is_parking_workflow = False
+                                    self.slew_stopwatch_active = False
                         
                         self.update_lcd()
                     except Exception as e:
@@ -550,6 +551,7 @@ class VirtualTeensyApp(tk.Tk):
         
     def finish_sim_slew(self):
         self.is_slewing = False
+        self.slew_stopwatch_active = False
         if getattr(self, "is_align_workflow", False):
             self.state = self.UI_ALIGN_CENTER
             self.is_align_workflow = False
@@ -609,6 +611,7 @@ class VirtualTeensyApp(tk.Tk):
                     if cmd in (":Q#", ":Qe#"): self.press_active["LEFT"] = False
                     if cmd in (":Q#", ":Qw#"): self.press_active["RIGHT"] = False
                     self.is_slewing = False
+                    self.slew_stopwatch_active = False
             else:
                 try:
                     self.ser.write(cmd.encode('ascii'))
@@ -743,12 +746,19 @@ class VirtualTeensyApp(tk.Tk):
                         v_start = v_max * (35.0 / 500.0)
                         d_ramp = 0.5 * (v_start + v_max) * 5.0
                         
-                        if dist > d_ramp:
-                            eta = 5.0 + (dist - d_ramp) / v_max
-                        else:
-                            eta = 5.0 * math.sqrt(dist / d_ramp) if d_ramp > 0 else 0
+                        # Initialize the stopwatch at the start of the slew
+                        if not getattr(self, "slew_stopwatch_active", False):
+                            self.slew_stopwatch_active = True
+                            self.slew_start_time = time.time()
+                            if dist > d_ramp:
+                                self.initial_eta = 5.0 + (dist - d_ramp) / v_max
+                            else:
+                                self.initial_eta = 5.0 * math.sqrt(dist / d_ramp) if d_ramp > 0 else 0
+                                
+                        elapsed = time.time() - self.slew_start_time
+                        eta = max(0, int(self.initial_eta - elapsed))
                             
-                        l1 = f"E:{int(eta)}s D:{dist:.1f}°"[:16]
+                        l1 = f"E:{eta}s D:{dist:.1f}°"[:16]
                     except:
                         l1 = " Patientez...   " if lang == "fr" else " Please wait... "
                 else:
