@@ -512,7 +512,10 @@ class VirtualTeensyApp(tk.Tk):
                             if len(parts) >= 8:
                                 self.is_slewing = (parts[1] == '1')
                                 try:
-                                    self.current_speed = float(parts[3]) / 10.0
+                                    raw_speed = float(parts[3]) / 10.0
+                                    ppd = self.cfg.get("gear_ratio_az", 750.0) * self.cfg.get("steps_per_rev_motor", 200) * self.cfg.get("microstep", 125) / 360.0
+                                    max_phys_speed = 1000000.0 / (ppd * 35.0) if ppd > 0 else raw_speed
+                                    self.current_speed = min(raw_speed, max_phys_speed)
                                 except ValueError:
                                     pass
                                 if self.is_slewing:
