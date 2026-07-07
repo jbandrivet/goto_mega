@@ -428,11 +428,11 @@ class VirtualTeensyApp(tk.Tk):
                 now = datetime.now()
                 # 1. Date
                 self.ser.write(f":SC{now.month:02d}/{now.day:02d}/{now.year%100:02d}#".encode('ascii'))
-                time.sleep(0.1)
+                self.ser.read_until(b"#")
                 
                 # 2. Time
                 self.ser.write(f":SL{now.hour:02d}:{now.minute:02d}:{now.second:02d}#".encode('ascii'))
-                time.sleep(0.1)
+                self.ser.read_until(b"#")
                 
                 # 3. Timezone
                 utc_offset = -time.timezone / 3600.0
@@ -440,7 +440,7 @@ class VirtualTeensyApp(tk.Tk):
                     utc_offset = -time.altzone / 3600.0
                 sign = '+' if utc_offset >= 0 else '-'
                 self.ser.write(f":SG{sign}{int(abs(utc_offset)):02d}#".encode('ascii'))
-                time.sleep(0.1)
+                self.ser.read_until(b"#")
                 
                 # 4. Slew speed
                 self.ser.write(b":Bv#")
@@ -511,6 +511,10 @@ class VirtualTeensyApp(tk.Tk):
                             parts = resp.split(',')
                             if len(parts) >= 8:
                                 self.is_slewing = (parts[1] == '1')
+                                try:
+                                    self.current_speed = float(parts[3])
+                                except ValueError:
+                                    pass
                                 if self.is_slewing:
                                     if self.state != self.UI_SLEWING:
                                         self.state = self.UI_SLEWING
