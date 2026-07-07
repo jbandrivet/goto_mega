@@ -541,6 +541,16 @@ class VirtualTeensyApp(tk.Tk):
                 
         self.after(100, self.telemetry_loop) # Vitesse de rafraîchissement 100ms pour une réactivité optimale
         
+    def finish_sim_slew(self):
+        self.is_slewing = False
+        if getattr(self, "is_align_workflow", False):
+            self.state = self.UI_ALIGN_CENTER
+            self.is_align_workflow = False
+        else:
+            self.state = self.UI_MAIN
+            self.is_parking_workflow = False
+        self.update_lcd()
+        
     def process_queue(self):
         if not self.is_connected: return
         if self.sim_mode:
@@ -555,16 +565,6 @@ class VirtualTeensyApp(tk.Tk):
             self.update_lcd()
             return
 
-    def finish_sim_slew(self):
-        self.is_slewing = False
-        if getattr(self, "is_align_workflow", False):
-            self.state = self.UI_ALIGN_CENTER
-            self.is_align_workflow = False
-        else:
-            self.state = self.UI_MAIN
-            self.is_parking_workflow = False
-        self.update_lcd()
-            
         if not self.cmd_queue: return
         cmd = self.cmd_queue.pop(0)
         try:
@@ -833,7 +833,10 @@ class VirtualTeensyApp(tk.Tk):
                 body._ra = s['ra'] * math.pi / 12.0
                 body._dec = s['dec'] * math.pi / 180.0
                 body.compute(obs)
-                if (float(body.alt) * 180.0 / math.pi) > self.alt_min:
+                alt_deg = float(body.alt) * 180.0 / math.pi
+                with open("/tmp/rv_debug.txt", "a") as f:
+                    f.write(f"{s.get('name')}: alt={alt_deg:.2f}, min={self.alt_min}\n")
+                if alt_deg > self.alt_min:
                     s_copy['visible'] = True
                 else:
                     s_copy['visible'] = False
@@ -844,6 +847,8 @@ class VirtualTeensyApp(tk.Tk):
                 
             return enriched
         except Exception as e:
+            with open("/tmp/rv_debug.txt", "a") as f:
+                f.write(f"ERROR: {e}\n")
             print(f"ERROR in get_catalog_with_visibility: {e}")
             return self.db_cat.get(cat_name, [])
 
