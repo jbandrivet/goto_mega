@@ -750,10 +750,16 @@ class VirtualTeensyApp(tk.Tk):
                         if not getattr(self, "slew_stopwatch_active", False):
                             self.slew_stopwatch_active = True
                             self.slew_start_time = time.time()
-                            if dist > d_ramp:
-                                self.initial_eta = 5.0 + (dist - d_ramp) / v_max
+                            
+                            # The mount takes 5s to accelerate (covering d_ramp) and 5s to decelerate (covering d_ramp).
+                            if dist >= 2 * d_ramp:
+                                # Coasting phase exists
+                                coasting_dist = dist - 2 * d_ramp
+                                coasting_time = coasting_dist / v_max
+                                self.initial_eta = 10.0 + coasting_time
                             else:
-                                self.initial_eta = 5.0 * math.sqrt(dist / d_ramp) if d_ramp > 0 else 0
+                                # Short slew (triangle profile), never reaches v_max
+                                self.initial_eta = 2.0 * math.sqrt(5.0 * dist / v_max) if v_max > 0 else 0
                                 
                         elapsed = time.time() - self.slew_start_time
                         eta = max(0, int(self.initial_eta - elapsed))
