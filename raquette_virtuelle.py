@@ -532,8 +532,8 @@ class VirtualTeensyApp(tk.Tk):
                                 try:
                                     raw_speed = float(parts[3]) / 10.0
                                     ppd = self.cfg.get("gear_ratio_az", 750.0) * self.cfg.get("steps_per_rev_motor", 200) * self.cfg.get("microstep", 125) / 360.0
-                                    # Empirically, the ATmega2560 CPU takes ~215us minimum per step loop
-                                    max_phys_speed = 1000000.0 / (ppd * 215.0) if ppd > 0 else raw_speed
+                                    # Empirically, the Arduino Mega loop takes ~35us minimum per step when not spammed by serial
+                                    max_phys_speed = 1000000.0 / (ppd * 35.0) if ppd > 0 else raw_speed
                                     self.current_speed = min(raw_speed, max_phys_speed)
                                 except ValueError:
                                     pass
