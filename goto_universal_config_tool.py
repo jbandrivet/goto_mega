@@ -61,6 +61,7 @@ TRANSLATIONS = {
         "test_beep": "Test Beep",
         "time_sync": "Time Synchronization",
         "sync_clock": "Synchronize Arduino with PC clock",
+        "sync_pc_clock": "Sync PC from Arduino (GPS)",
         "clock_not_synced": "PC clock not synced",
         "clock_synced": "PC clock synced",
         "read_config": "Read Config from Arduino",
@@ -111,6 +112,7 @@ TRANSLATIONS = {
         "test_beep": "Tester Bip",
         "time_sync": "Synchronisation de l'Heure",
         "sync_clock": "Synchroniser l'Arduino avec l'heure du PC",
+        "sync_pc_clock": "Synchroniser le PC depuis l'Arduino (GPS)",
         "clock_not_synced": "Horloge PC non synchronisée",
         "clock_synced": "Horloge PC synchronisée",
         "read_config": "Lire la configuration Arduino",
@@ -147,9 +149,9 @@ class ConfigToolApp(tk.Tk):
         lang = self.settings.get("language", "fr")
         t = TRANSLATIONS[lang]
         self.title(t["title"].strip())
-        self.geometry("620x920")
+        self.geometry("640x1050")
         self.configure(bg="#c0c0c0") # Classic Windows 95 grey
-        self.resizable(False, False)
+        self.resizable(False, True)
 
         # Build UI in Windows 95 Style
         self.build_ui()
@@ -381,8 +383,14 @@ class ConfigToolApp(tk.Tk):
         sync_inner = tk.Frame(self.sync_lf, bg="#c0c0c0")
         sync_inner.pack(padx=15, pady=10, fill="x")
 
-        self.sync_btn = tk.Button(sync_inner, text="Synchronize Arduino with PC clock", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.sync_time_date, state="disabled", width=32)
-        self.sync_btn.pack(side="left", padx=5)
+        sync_btn_frame = tk.Frame(sync_inner, bg="#c0c0c0")
+        sync_btn_frame.pack(side="left")
+
+        self.sync_btn = tk.Button(sync_btn_frame, text="Synchronize Arduino with PC clock", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.sync_time_date, state="disabled", width=35)
+        self.sync_btn.pack(pady=2)
+
+        self.sync_pc_btn = tk.Button(sync_btn_frame, text="Sync PC from Arduino (GPS)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.sync_pc_from_arduino, state="disabled", width=35)
+        self.sync_pc_btn.pack(pady=2)
 
         # Sunken label for sync time
         sync_box = tk.Frame(sync_inner, bg="white", bd=2, relief="sunken", width=180, height=22)
@@ -441,14 +449,16 @@ class ConfigToolApp(tk.Tk):
         actions_frame = tk.Frame(main_container, bg="#c0c0c0")
         actions_frame.pack(fill="x", side="bottom", pady=10)
 
-        self.read_btn = tk.Button(actions_frame, text="Read Config from Arduino", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.read_arduino_config, state="disabled")
-        self.read_btn.pack(side="left", padx=5, fill="x", expand=True)
+        f_big_button = ("MS Sans Serif", 10, "bold")
 
-        self.apply_btn = tk.Button(actions_frame, text="Apply & Save to Arduino", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.apply_config_to_arduino, state="disabled")
-        self.apply_btn.pack(side="left", padx=5, fill="x", expand=True)
+        self.read_btn = tk.Button(actions_frame, text="Read Config from Arduino", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.read_arduino_config, state="disabled")
+        self.read_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
 
-        self.launch_pad_btn = tk.Button(actions_frame, text="Virtual Handpad", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.launch_virtual_handpad)
-        self.launch_pad_btn.pack(side="left", padx=5, fill="x", expand=True)
+        self.apply_btn = tk.Button(actions_frame, text="Apply & Save to Arduino", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.apply_config_to_arduino, state="disabled")
+        self.apply_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
+
+        self.launch_pad_btn = tk.Button(actions_frame, text="Virtual Handpad", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.launch_virtual_handpad)
+        self.launch_pad_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
 
         # Signature
         author_lbl = tk.Label(main_container, text="Créé par Andrivet Jean-Baptiste", font=("Helvetica", 8, "italic"), bg="#e0e0e0", fg="#555555")
@@ -537,6 +547,7 @@ class ConfigToolApp(tk.Tk):
         self.rev_alt_chk.config(text=t["rev_alt"])
         self.sync_lf.config(text=t["time_sync"])
         self.sync_btn.config(text=t["sync_clock"])
+        self.sync_pc_btn.config(text=t["sync_pc_clock"])
         
         if self.time_lbl.cget("text") in ("PC clock not synced", "Horloge PC non synchronisée"):
             self.time_lbl.config(text=t["clock_not_synced"])
@@ -671,6 +682,7 @@ class ConfigToolApp(tk.Tk):
             # Enable actions
             self.beep_test_btn.config(state="normal")
             self.sync_btn.config(state="normal")
+            self.sync_pc_btn.config(state="normal")
             self.read_btn.config(state="normal")
             self.apply_btn.config(state="normal")
             self.park_btn.config(state="normal")
@@ -684,6 +696,7 @@ class ConfigToolApp(tk.Tk):
             # Disable actions
             self.beep_test_btn.config(state="disabled")
             self.sync_btn.config(state="disabled")
+            self.sync_pc_btn.config(state="disabled")
             self.read_btn.config(state="disabled")
             self.apply_btn.config(state="disabled")
             self.park_btn.config(state="disabled")
@@ -744,6 +757,35 @@ class ConfigToolApp(tk.Tk):
                 
                 self.time_lbl.config(text=f"Synced: {now.strftime('%H:%M:%S')}")
                 messagebox.showinfo("Synchronization", "PC clock sent to Arduino!")
+            except Exception as e:
+                self.handle_serial_error(e)
+
+    def sync_pc_from_arduino(self):
+        if self.is_connected and self.ser:
+            try:
+                # 1. Date
+                self.ser.write(b":GC#")
+                date_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                # 2. Time
+                self.ser.write(b":GL#")
+                time_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                
+                if len(date_raw) >= 8 and len(time_raw) >= 8:
+                    mm, dd, yy = date_raw.split('/')
+                    # 20YY assumption
+                    full_date = f"20{yy}-{mm}-{dd} {time_raw}"
+                    
+                    import subprocess
+                    import os
+                    # Use pkexec if available to set date
+                    try:
+                        subprocess.run(["pkexec", "date", "-s", full_date], check=True)
+                        messagebox.showinfo("Time Sync", f"PC clock synced successfully to: {full_date}")
+                        self.time_lbl.config(text=f"Synced: {time_raw}")
+                    except Exception as e:
+                        messagebox.showerror("Time Sync Error", f"Failed to set PC time (requires privileges):\n{e}\nCommand: pkexec date -s '{full_date}'")
+                else:
+                    messagebox.showerror("Time Sync Error", "Invalid date/time received from Arduino.")
             except Exception as e:
                 self.handle_serial_error(e)
 
