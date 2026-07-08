@@ -83,7 +83,7 @@ Pour monter votre système GotoUniversal, les composants matériels suivants son
 
 * **Cartes de Contrôle** :
   * **Arduino Mega 2560** (carte principale de la monture).
-  * **Teensy 4.1** (pour la raquette de commande physique).
+  * **Teensy 4.1** (pour la raquette de commande physique - *Optionnelle*).
 * **Drivers de Moteurs** :
   * Drivers standard acceptant des entrées `PUL/DIR` (Impulsion/Direction) comme les modèles **M542**, **DM542**, **TB6600**, **TMC2209**, etc.
 * **Moteurs** :
@@ -96,6 +96,8 @@ Pour monter votre système GotoUniversal, les composants matériels suivants son
   * 5 boutons poussoirs momentanés (Haut, Bas, Gauche, Droite, Validation).
 * **Alerte Sonore** :
   * Un **Buzzer actif 5V**.
+
+*Note concernant la raquette physique : La construction de la raquette matérielle (carte Teensy, écran LCD et boutons) n'est **pas obligatoire**. Si vous utilisez la monture en mode "remote", ou que vous la pilotez exclusivement depuis un PC, un planétarium, ou un boîtier type ASIAIR, l'Arduino Mega suffit à lui seul pour tout gérer via la connexion USB.*
 
 ---
 
