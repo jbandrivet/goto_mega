@@ -12,3 +12,6 @@ test_*.py
 sim_*.py
 revert_*.py
 app_log.txt
+
+# Gemini Agent Configuration
+.gemini/
