@@ -74,10 +74,10 @@ try:
     
     time.sleep(0.2)
     try:
-        c.capture(filename='/tmp/capture_pa.png')
+        c.capture(filename='/tmp/capture_pa.png', timeout=15000)
     except asi.ZWO_CaptureError:
         time.sleep(0.5)
-        c.capture(filename='/tmp/capture_pa.png')
+        c.capture(filename='/tmp/capture_pa.png', timeout=15000)
 except Exception as e:
     sys.stderr.write("Erreur ZWO: " + str(e) + "\\n")
     sys.exit(1)
@@ -244,10 +244,10 @@ try:
     
     time.sleep(0.2)
     try:
-        c.capture(filename='/tmp/capture_pa.png')
+        c.capture(filename='/tmp/capture_pa.png', timeout=15000)
     except asi.ZWO_CaptureError:
         time.sleep(0.5)
-        c.capture(filename='/tmp/capture_pa.png')
+        c.capture(filename='/tmp/capture_pa.png', timeout=15000)
 except Exception as e:
     sys.stderr.write("Erreur ZWO: " + str(e) + "\\n")
     sys.exit(1)

@@ -1472,11 +1472,11 @@ camera.set_control_value(asi.ASI_GAIN, {gain}, auto={auto_gain})
 camera.set_image_type(asi.ASI_IMG_RAW8)
 
 try:
-    camera.capture(filename='/tmp/capture_astro.png')
+    camera.capture(filename='/tmp/capture_astro.png', timeout=15000)
 except asi.ZWO_CaptureError:
     # Fallback to manual gain if auto gain fails on long exposures
     camera.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
-    camera.capture(filename='/tmp/capture_astro.png')
+    camera.capture(filename='/tmp/capture_astro.png', timeout=15000)
 
 # Create preview image
 img = cv2.imread('/tmp/capture_astro.png', cv2.IMREAD_GRAYSCALE)
