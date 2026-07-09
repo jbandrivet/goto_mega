@@ -56,18 +56,24 @@ class PolarAlignmentWindow(tk.Toplevel):
                 gain = int(self.app.gain_entry.get())
                 
                 script = f"""
-import zwoasi as asi
 import sys
-asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
-cams = asi.list_cameras()
-if not cams: sys.exit(1)
-c = asi.Camera({cam_idx})
-ctrl = c.get_controls()
-if 'BandWidth' in ctrl: c.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, ctrl['BandWidth']['MinValue'])
-c.set_control_value(asi.ASI_EXPOSURE, int({exp} * 1000000))
-c.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
-c.set_image_type(asi.ASI_IMG_RAW8)
-c.capture(filename='/tmp/capture_pa.png')
+try:
+    import zwoasi as asi
+    asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
+    cams = asi.list_cameras()
+    if not cams:
+        sys.stderr.write("Erreur: Aucune caméra ZWO détectée par asi.list_cameras().\\n")
+        sys.exit(1)
+    c = asi.Camera({cam_idx})
+    ctrl = c.get_controls()
+    if 'BandWidth' in ctrl: c.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, ctrl['BandWidth']['MinValue'])
+    c.set_control_value(asi.ASI_EXPOSURE, int({exp} * 1000000))
+    c.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
+    c.set_image_type(asi.ASI_IMG_RAW8)
+    c.capture(filename='/tmp/capture_pa.png')
+except Exception as e:
+    sys.stderr.write("Erreur ZWO: " + str(e) + "\\n")
+    sys.exit(1)
 """
                 import subprocess
                 import sys
@@ -213,18 +219,24 @@ c.capture(filename='/tmp/capture_pa.png')
                 gain = int(self.app.gain_entry.get())
                 
                 script = f"""
-import zwoasi as asi
 import sys
-asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
-cams = asi.list_cameras()
-if not cams: sys.exit(1)
-c = asi.Camera({cam_idx})
-ctrl = c.get_controls()
-if 'BandWidth' in ctrl: c.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, ctrl['BandWidth']['MinValue'])
-c.set_control_value(asi.ASI_EXPOSURE, int({exp} * 1000000))
-c.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
-c.set_image_type(asi.ASI_IMG_RAW8)
-c.capture(filename='/tmp/capture_pa.png')
+try:
+    import zwoasi as asi
+    asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
+    cams = asi.list_cameras()
+    if not cams:
+        sys.stderr.write("Erreur: Aucune caméra ZWO détectée par asi.list_cameras().\\n")
+        sys.exit(1)
+    c = asi.Camera({cam_idx})
+    ctrl = c.get_controls()
+    if 'BandWidth' in ctrl: c.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, ctrl['BandWidth']['MinValue'])
+    c.set_control_value(asi.ASI_EXPOSURE, int({exp} * 1000000))
+    c.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
+    c.set_image_type(asi.ASI_IMG_RAW8)
+    c.capture(filename='/tmp/capture_pa.png')
+except Exception as e:
+    sys.stderr.write("Erreur ZWO: " + str(e) + "\\n")
+    sys.exit(1)
 """
                 import subprocess
                 import sys
@@ -232,7 +244,11 @@ c.capture(filename='/tmp/capture_pa.png')
                 from pathlib import Path
                 venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
                 py_exe = venv_python if os.path.exists(venv_python) else sys.executable
-                subprocess.run([py_exe, "-c", script])
+                res = subprocess.run([py_exe, "-c", script], capture_output=True, text=True)
+                if res.returncode != 0:
+                    self.after(0, lambda: messagebox.showerror("Erreur", "Echec capture: " + res.stderr))
+                    self.after(0, lambda: self.btn_action.config(state="normal", text="Actualiser (Live Update)"))
+                    return
                 
                 sf_cmd = ["solve-field", "/tmp/capture_pa.png", "--overwrite", "--no-plots", "--cpulimit", "30"]
                 try:
