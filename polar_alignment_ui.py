@@ -57,6 +57,7 @@ class PolarAlignmentWindow(tk.Toplevel):
                 
                 script = f"""
 import sys
+import time
 try:
     import zwoasi as asi
     asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
@@ -70,7 +71,13 @@ try:
     c.set_control_value(asi.ASI_EXPOSURE, int({exp} * 1000000))
     c.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
     c.set_image_type(asi.ASI_IMG_RAW8)
-    c.capture(filename='/tmp/capture_pa.png')
+    
+    time.sleep(0.2)
+    try:
+        c.capture(filename='/tmp/capture_pa.png')
+    except asi.ZWO_CaptureError:
+        time.sleep(0.5)
+        c.capture(filename='/tmp/capture_pa.png')
 except Exception as e:
     sys.stderr.write("Erreur ZWO: " + str(e) + "\\n")
     sys.exit(1)
@@ -220,6 +227,7 @@ except Exception as e:
                 
                 script = f"""
 import sys
+import time
 try:
     import zwoasi as asi
     asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
@@ -233,7 +241,13 @@ try:
     c.set_control_value(asi.ASI_EXPOSURE, int({exp} * 1000000))
     c.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
     c.set_image_type(asi.ASI_IMG_RAW8)
-    c.capture(filename='/tmp/capture_pa.png')
+    
+    time.sleep(0.2)
+    try:
+        c.capture(filename='/tmp/capture_pa.png')
+    except asi.ZWO_CaptureError:
+        time.sleep(0.5)
+        c.capture(filename='/tmp/capture_pa.png')
 except Exception as e:
     sys.stderr.write("Erreur ZWO: " + str(e) + "\\n")
     sys.exit(1)
