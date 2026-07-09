@@ -1459,9 +1459,6 @@ if num_cameras <= {cam_idx}:
     print("NO_CAMERA")
     sys.exit(1)
 camera = asi.Camera({cam_idx})
-controls = camera.get_controls()
-if 'BandWidth' in controls:
-    camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, controls['BandWidth']['MinValue'])
 props = camera.get_camera_property()
 pixel_size = props['PixelSize']
 with open('/tmp/astro_px_size.txt', 'w') as f_px:
@@ -1472,11 +1469,11 @@ camera.set_control_value(asi.ASI_GAIN, {gain}, auto={auto_gain})
 camera.set_image_type(asi.ASI_IMG_RAW8)
 
 try:
-    camera.capture(filename='/tmp/capture_astro.png', timeout=15000)
+    camera.capture(filename='/tmp/capture_astro.png')
 except asi.ZWO_CaptureError:
     # Fallback to manual gain if auto gain fails on long exposures
     camera.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
-    camera.capture(filename='/tmp/capture_astro.png', timeout=15000)
+    camera.capture(filename='/tmp/capture_astro.png')
 
 # Create preview image
 img = cv2.imread('/tmp/capture_astro.png', cv2.IMREAD_GRAYSCALE)
