@@ -161,6 +161,7 @@ class ConfigToolApp(tk.Tk):
 
         # Build UI in Windows 95 Style
         self.build_ui()
+        self.build_menu()
         self.update_connection_status()
         self.translate_ui()
 
@@ -179,9 +180,42 @@ class ConfigToolApp(tk.Tk):
     def save_local_settings(self):
         try:
             CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-            CONFIG_FILE.write_text(json.dumps(self.settings, indent=2))
+            self.settings["astro_mode"] = self.astro_mode_var.get()
+            self.settings["astro_api_key"] = self.api_key_entry.get().strip()
+            CONFIG_FILE.write_text(json.dumps(self.settings, indent=4))
         except Exception as e:
             print(f"Error saving settings: {e}")
+
+    def build_menu(self):
+        menu_bar = tk.Menu(self)
+        self.config(menu=menu_bar)
+        
+        # Menu Mise à jour
+        update_menu = tk.Menu(menu_bar, tearoff=0)
+        menu_bar.add_cascade(label="Mise à jour", menu=update_menu)
+        update_menu.add_command(label="Mettre à jour le logiciel", command=self.update_software)
+
+    def update_software(self):
+        import sys
+        import os
+        import subprocess
+        
+        if getattr(sys, 'frozen', False):
+            # Le logiciel est compilé (PyInstaller)
+            messagebox.showinfo("Mise à jour", "La mise à jour automatique de la version compilée (.exe) arrivera bientôt !\nPour le moment, veuillez télécharger la nouvelle version sur GitHub Releases.")
+            import webbrowser
+            webbrowser.open("https://github.com/jbandrivet/goto_mega/releases")
+        else:
+            # Le logiciel tourne depuis les sources Python
+            ans = messagebox.askyesno("Mise à jour", "Ceci va télécharger la dernière version depuis GitHub et redémarrer le configurateur.\nContinuer ?")
+            if ans:
+                script_dir = Path(__file__).parent
+                res = subprocess.run(["git", "pull"], cwd=str(script_dir), capture_output=True, text=True)
+                if res.returncode == 0:
+                    messagebox.showinfo("Succès", "Mise à jour réussie. Le logiciel va redémarrer.")
+                    os.execv(sys.executable, ['python3'] + sys.argv)
+                else:
+                    messagebox.showerror("Erreur", f"Erreur lors de la mise à jour:\n{res.stderr}")
 
     def build_ui(self):
         # Fonts
@@ -190,13 +224,36 @@ class ConfigToolApp(tk.Tk):
         f_button = ("MS Sans Serif", 9)
         f_entry = ("Courier New", 9)
 
+        # Canvas and Scrollbar to allow scrolling on smaller screens
+        self.main_canvas = tk.Canvas(self, bg="#c0c0c0", highlightthickness=0)
+        self.main_scrollbar = tk.Scrollbar(self, orient="vertical", command=self.main_canvas.yview)
+        self.main_canvas.configure(yscrollcommand=self.main_scrollbar.set)
 
+        self.main_scrollbar.pack(side="right", fill="y")
+        self.main_canvas.pack(side="left", fill="both", expand=True)
 
         # Main window inner container with a 3D sunken border
-        main_border = tk.Frame(self, bg="#c0c0c0", bd=2, relief="raised")
-        main_border.pack(fill="both", expand=True, padx=4, pady=(0, 4))
+        main_border = tk.Frame(self.main_canvas, bg="#c0c0c0", bd=2, relief="raised")
         main_container = tk.Frame(main_border, bg="#c0c0c0")
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        self.canvas_window = self.main_canvas.create_window((0, 0), window=main_border, anchor="nw")
+
+        def on_configure_container(event):
+            self.main_canvas.configure(scrollregion=self.main_canvas.bbox("all"))
+        
+        def on_configure_canvas(event):
+            # Make the container frame take the full width of the canvas
+            if main_border.winfo_reqwidth() < event.width:
+                self.main_canvas.itemconfigure(self.canvas_window, width=event.width)
+                
+        main_border.bind("<Configure>", on_configure_container)
+        self.main_canvas.bind("<Configure>", on_configure_canvas)
+        
+        # Enable mouse wheel scrolling
+        def _on_mousewheel(event):
+            self.main_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        self.bind_all("<MouseWheel>", _on_mousewheel)
 
         # Language selection row
         row_lang = tk.Frame(main_container, bg="#c0c0c0")
@@ -460,13 +517,8 @@ class ConfigToolApp(tk.Tk):
         
         flash_inner = tk.Frame(self.flash_lf, bg="#c0c0c0")
         flash_inner.pack(padx=15, pady=10, fill="x")
-        
-        self.flash_mega_btn = tk.Button(flash_inner, text="Compile & Flash Arduino Mega 2560", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("mega"), width=25)
-        self.flash_mega_btn.pack(side="left", padx=5, fill="x", expand=True)
-        
-        self.flash_teensy_btn = tk.Button(flash_inner, text="Compile & Flash Teensy 4.1 Raquette", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("teensy"), width=25)
-        self.flash_teensy_btn.pack(side="left", padx=5, fill="x", expand=True)
-
+        self.flash_btn = tk.Button(flash_inner, text="Mettre à jour et flasher le Firmware", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_flash_dialog, width=40)
+        self.flash_btn.pack(side="top", pady=5)
         # 4.8 Astrometry Panel
         self.astro_lf = tk.LabelFrame(main_container, text="Astrométrie ZWO (Centrage)", bg="#c0c0c0", fg="black", font=f_title, relief="groove", bd=2)
         self.astro_lf.pack(fill="x", pady=5)
@@ -475,7 +527,32 @@ class ConfigToolApp(tk.Tk):
         self.astro_chk = tk.Checkbutton(self.astro_lf, text="Activer la fonctionnalité d'Astrométrie ZWO", variable=self.astro_en_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=self.toggle_astrometry_ui)
         self.astro_chk.pack(anchor="w", padx=10, pady=5)
         
+        # Ajout du bouton de téléchargement des index
+        self.astro_dl_btn = tk.Button(self.astro_lf, text="Télécharger les Index Astrométrie", font=f_button, bg="#c0c0c0", command=self.prompt_download_indexes)
+        self.astro_dl_btn.pack(anchor="w", padx=10, pady=(0, 5))
+        
         self.astro_inner = tk.Frame(self.astro_lf, bg="#c0c0c0")
+        
+        # Mode de résolution
+        self.astro_mode_frame = tk.Frame(self.astro_inner, bg="#c0c0c0")
+        self.astro_mode_frame.pack(fill="x", pady=2)
+        
+        self.lbl_astro_mode = tk.Label(self.astro_mode_frame, text="Moteur:", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_astro_mode.pack(side="left")
+        
+        self.astro_mode_var = tk.StringVar(value=self.settings.get("astro_mode", "local"))
+        self.rb_astro_local = tk.Radiobutton(self.astro_mode_frame, text="Local (rapide)", variable=self.astro_mode_var, value="local", bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=self.toggle_astro_api)
+        self.rb_astro_local.pack(side="left", padx=5)
+        self.rb_astro_api = tk.Radiobutton(self.astro_mode_frame, text="En ligne (API Astrometry.net)", variable=self.astro_mode_var, value="api", bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=self.toggle_astro_api)
+        self.rb_astro_api.pack(side="left")
+        
+        self.api_key_frame = tk.Frame(self.astro_inner, bg="#c0c0c0")
+        self.api_key_frame.pack(fill="x", pady=2)
+        self.lbl_api_key = tk.Label(self.api_key_frame, text="Clé API:", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_api_key.pack(side="left")
+        self.api_key_entry = tk.Entry(self.api_key_frame, width=25, font=f_entry, bg="white", fg="black", bd=2, relief="sunken")
+        self.api_key_entry.insert(0, self.settings.get("astro_api_key", ""))
+        self.api_key_entry.pack(side="left", padx=5)
         
         # row 1: exposure, gain, camera index
         self.astro_row1 = tk.Frame(self.astro_inner, bg="#c0c0c0")
@@ -515,7 +592,8 @@ class ConfigToolApp(tk.Tk):
         self.lbl_foc = tk.Label(self.astro_row2, text="Focale (mm):", bg="#c0c0c0", fg="black", font=f_label)
         self.lbl_foc.pack(side="left")
         self.foc_entry = tk.Entry(self.astro_row2, width=6, font=f_entry, bg="white", fg="black", bd=2, relief="sunken")
-        self.foc_entry.insert(0, str(self.settings.get("astro_focal", 400)))
+        foc_val = self.settings.get("astro_focal", "")
+        self.foc_entry.insert(0, str(foc_val) if foc_val else "")
         self.foc_entry.pack(side="left", padx=5)
         
         self.blind_var = tk.BooleanVar(value=self.settings.get("astro_blind", False))
@@ -532,7 +610,10 @@ class ConfigToolApp(tk.Tk):
         self.solve_btn.pack(side="left", fill="x", expand=True, padx=(2, 2))
         
         self.preview_foc_btn = tk.Button(self.astro_btns_frame, text="3. Mode Preview (Focus)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_preview_focuser)
-        self.preview_foc_btn.pack(side="left", fill="x", expand=True, padx=(2, 0))
+        self.preview_foc_btn.pack(side="left", fill="x", expand=True, padx=(2, 2))
+        
+        self.pa_btn = tk.Button(self.astro_btns_frame, text="4. Mise en Station (PA)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_polar_alignment)
+        self.pa_btn.pack(side="left", fill="x", expand=True, padx=(2, 0))
 
         self.toggle_blind_solving()
         self.toggle_auto_gain()
@@ -659,8 +740,7 @@ class ConfigToolApp(tk.Tk):
         self.unpark_btn.config(text=t["unpark_mount"])
         
         self.flash_lf.config(text=t["flash_lf"])
-        self.flash_mega_btn.config(text=t["flash_mega"])
-        self.flash_teensy_btn.config(text=t["flash_teensy"])
+        # (Les textes internes sont gérés autrement)
 
     def auto_detect_gps(self):
         self.gps_btn.config(state="disabled")
@@ -738,7 +818,7 @@ class ConfigToolApp(tk.Tk):
                 if res.returncode == 0:
                     cams = ast.literal_eval(res.stdout.strip())
                     if cams:
-                        self.after(0, lambda: self.update_camera_combo(cams))
+                        self.after(0, lambda: self.update_astro_cam_combo(cams))
                     else:
                         self.after(0, lambda: messagebox.showinfo("ZWO", "Aucune caméra ZWO détectée."))
                 else:
@@ -751,8 +831,202 @@ class ConfigToolApp(tk.Tk):
         import threading
         threading.Thread(target=task, daemon=True).start()
 
-    def update_camera_combo(self, cams):
-        self.cam_combo['values'] = cams
+    def prompt_download_indexes(self):
+        dl_choice = tk.Toplevel(self)
+        dl_choice.title("Choix des Index Astrométrie")
+        dl_choice.geometry("500x250")
+        dl_choice.configure(bg="#c0c0c0")
+        
+        lbl = tk.Label(dl_choice, text="L'astrométrie locale nécessite des index (cartes du ciel).", bg="#c0c0c0", font=("Arial", 11, "bold"))
+        lbl.pack(pady=10)
+        
+        def dl_all():
+            dl_choice.destroy()
+            self.download_astrometry_indexes(range(7, 20))
+            
+        def dl_smart():
+            try:
+                foc = float(self.foc_entry.get())
+                if foc <= 0: raise ValueError
+            except:
+                messagebox.showerror("Erreur", "Veuillez d'abord renseigner une focale valide dans la case 'Focale (mm)'.")
+                return
+                
+            import os
+            if not os.path.exists('/tmp/astro_px_size.txt'):
+                messagebox.showerror("Erreur", "Taille des pixels inconnue.\n\nVeuillez d'abord brancher votre caméra ZWO et faire un clic sur '1. Capturer (Aperçu)'.\nLe logiciel pourra ainsi lire la taille réelle de votre capteur et calculer les index exacts !")
+                return
+                
+            try:
+                px = float(open('/tmp/astro_px_size.txt').read().strip())
+            except:
+                messagebox.showerror("Erreur", "Erreur lors de la lecture des données de la caméra.")
+                return
+            
+            # Calcul FOV approximatif (basé sur un capteur moyen de 2000 pixels sur son petit côté)
+            scale = 206.265 * px / foc
+            fov_arcmin = (scale * 2000) / 60.0
+            
+            target_scales = []
+            INDEX_SCALES = {
+                19: (1400, 2000), 18: (1000, 1400), 17: (680, 1000), 16: (480, 680), 15: (340, 480),
+                14: (240, 340), 13: (170, 240), 12: (120, 170), 11: (85, 120), 10: (60, 85),
+                9: (42, 60), 8: (30, 42), 7: (22, 30)
+            }
+            
+            for sc, (low, high) in INDEX_SCALES.items():
+                # On sélectionne les index qui couvrent entre 10% et 100% du FOV
+                if high >= fov_arcmin * 0.1 and low <= fov_arcmin * 1.2:
+                    target_scales.append(sc)
+                    
+            if not target_scales:
+                target_scales = [7, 8, 9] # fallback si trop petit (très longue focale)
+                
+            min_sc = max(7, min(target_scales) - 1)
+            max_sc = min(19, max(target_scales) + 1)
+            dl_choice.destroy()
+            self.download_astrometry_indexes(range(min_sc, max_sc + 1))
+
+        btn_smart = tk.Button(dl_choice, text="Téléchargement Ciblé (Recommandé)\nCalcule et télécharge uniquement les index nécessaires\npour votre focale actuelle et caméra.", font=("Arial", 10), command=dl_smart, bg="white", relief="raised", bd=2)
+        btn_smart.pack(fill="x", padx=20, pady=10)
+        
+        btn_all = tk.Button(dl_choice, text="Tout télécharger (~32 Go)\nPour être compatible avec tous les télescopes.", font=("Arial", 10), command=dl_all, bg="white", relief="raised", bd=2)
+        btn_all.pack(fill="x", padx=20, pady=10)
+
+    def download_astrometry_indexes(self, scales_range):
+        import threading
+        import urllib.request
+        import os
+        from tkinter import ttk
+
+        data_dir = Path(__file__).parent / "astrometry_data"
+        data_dir.mkdir(exist_ok=True)
+        
+        existing_files = list(data_dir.glob("*.fits"))
+        if existing_files:
+            ans = messagebox.askyesno("Index existants", 
+                "Des fichiers d'index sont déjà présents dans le dossier.\n\n"
+                "Voulez-vous supprimer les anciens fichiers pour libérer de l'espace (Recommandé si vous avez changé de télescope), "
+                "ou 'Non' pour les conserver et juste ajouter les nouveaux ?"
+            )
+            if ans:
+                for f in existing_files:
+                    try:
+                        f.unlink()
+                    except:
+                        pass
+
+        files_to_dl = [f"index-41{i:02d}.fits" for i in scales_range]
+
+        dl_top = tk.Toplevel(self)
+        dl_top.title("Téléchargement")
+        dl_top.geometry("450x200")
+        dl_top.configure(bg="#c0c0c0")
+        
+        lbl = tk.Label(dl_top, text="Téléchargement des index en cours...", bg="#c0c0c0", font=("Arial", 10))
+        lbl.pack(pady=10)
+        
+        progress = ttk.Progressbar(dl_top, orient="horizontal", length=350, mode="determinate")
+        progress.pack(pady=10)
+
+        lbl_file = tk.Label(dl_top, text="", bg="#c0c0c0")
+        lbl_file.pack()
+        
+        lbl_stats = tk.Label(dl_top, text="", bg="#c0c0c0", font=("Arial", 9))
+        lbl_stats.pack()
+        
+        cancel_flag = [False]
+        def cancel_dl():
+            cancel_flag[0] = True
+            lbl_file.config(text="Annulation en cours... Veuillez patienter.")
+            
+        btn_cancel = tk.Button(dl_top, text="Annuler", command=cancel_dl, bg="white")
+        btn_cancel.pack(pady=10)
+
+        def task():
+            try:
+                base_url = "http://data.astrometry.net/4100/"
+                total_files = len(files_to_dl)
+                for idx, fname in enumerate(files_to_dl):
+                    if cancel_flag[0]: break
+                    
+                    target_path = data_dir / fname
+                    if target_path.exists():
+                        # Si le fichier est déjà partiellement téléchargé et annulé, ou complet
+                        # Pour simplifier on suppose que s'il existe on le saute (ou on pourrait vérifier sa taille)
+                        if target_path.stat().st_size > 1000000: # on considère valide si > 1 Mo
+                            continue
+                        else:
+                            target_path.unlink() # remove partial
+                    
+                    url = base_url + fname
+                    self.after(0, lambda f=fname, i=idx: [lbl_file.config(text=f"Fichier {i+1}/{total_files} : {f}"), progress.config(value=(i/total_files)*100)])
+                    
+                    # Téléchargement par morceaux pour pouvoir annuler
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    import time
+                    with urllib.request.urlopen(req) as response, open(target_path, 'wb') as out_file:
+                        try:
+                            total_size = int(response.getheader('Content-Length').strip())
+                        except:
+                            total_size = 0
+                            
+                        chunk_size = 1024 * 1024 # 1 MB
+                        downloaded = 0
+                        start_time = time.time()
+                        last_ui_update = 0
+                        
+                        while True:
+                            if cancel_flag[0]:
+                                break
+                            chunk = response.read(chunk_size)
+                            if not chunk:
+                                break
+                            out_file.write(chunk)
+                            downloaded += len(chunk)
+                            
+                            now = time.time()
+                            if now - last_ui_update > 0.5: # Update UI twice per second
+                                last_ui_update = now
+                                elapsed = now - start_time
+                                speed_bps = downloaded / elapsed if elapsed > 0 else 0
+                                speed_mbps = speed_bps / (1024 * 1024)
+                                
+                                if total_size > 0:
+                                    percent = (downloaded / total_size) * 100
+                                    eta_s = (total_size - downloaded) / speed_bps if speed_bps > 0 else 0
+                                    eta_m = int(eta_s // 60)
+                                    eta_s = int(eta_s % 60)
+                                    
+                                    dl_mb = downloaded / (1024*1024)
+                                    tot_mb = total_size / (1024*1024)
+                                    stat_str = f"{dl_mb:.1f} Mo / {tot_mb:.1f} Mo ({percent:.1f}%) - {speed_mbps:.1f} Mo/s - Reste: {eta_m}m{eta_s:02d}s"
+                                else:
+                                    dl_mb = downloaded / (1024*1024)
+                                    stat_str = f"{dl_mb:.1f} Mo téléchargés - {speed_mbps:.1f} Mo/s"
+                                    
+                                self.after(0, lambda s=stat_str: lbl_stats.config(text=s))
+                    
+                    if cancel_flag[0]:
+                        if target_path.exists():
+                            target_path.unlink() # Delete partial file
+                        break
+                        
+                if cancel_flag[0]:
+                    self.after(0, lambda: messagebox.showinfo("Annulé", "Le téléchargement a été annulé."))
+                else:
+                    self.after(0, lambda: progress.config(value=100))
+                    self.after(0, lambda: messagebox.showinfo("Succès", f"Tous les index ont été téléchargés dans :\n{data_dir}"))
+            except Exception as e:
+                if not cancel_flag[0]:
+                    self.after(0, lambda err=e: messagebox.showerror("Erreur", f"Échec du téléchargement :\n{err}"))
+            finally:
+                self.after(0, dl_top.destroy)
+
+        threading.Thread(target=task, daemon=True).start()
+
+    def update_astro_cam_combo(self, cameras):
+        self.cam_combo['values'] = cameras
         self.cam_combo.current(0)
         
     def get_selected_camera_idx(self):
@@ -1141,6 +1415,85 @@ if img is not None:
         import threading
         threading.Thread(target=task, daemon=True).start()
 
+    def toggle_astro_api(self):
+        if self.astro_mode_var.get() == "api":
+            self.api_key_entry.config(state="normal")
+            self.astro_dl_btn.config(state="disabled")
+        else:
+            self.api_key_entry.config(state="disabled")
+            self.astro_dl_btn.config(state="normal")
+
+    def run_astrometry_api(self, image_path):
+        import requests
+        import time
+        import json
+        
+        api_key = self.api_key_entry.get().strip()
+        if not api_key:
+            return False, "La Clé API est requise pour utiliser le mode en ligne."
+            
+        base_url = "http://nova.astrometry.net/api"
+        
+        # 1. Login
+        try:
+            r = requests.post(f"{base_url}/login", data={'request-json': json.dumps({"apikey": api_key})}, timeout=10)
+            session = r.json().get("session")
+            if not session:
+                return False, "Échec de la connexion API. Vérifiez votre clé."
+        except Exception as e:
+            return False, f"Erreur de réseau: {e}"
+
+        # 2. Upload
+        try:
+            with open(image_path, 'rb') as f:
+                self.after(0, lambda: self.solve_btn.config(text="Upload en cours..."))
+                r = requests.post(f"{base_url}/upload", 
+                    data={'request-json': json.dumps({"session": session})}, 
+                    files={'file': f}, timeout=60)
+            sub_id = r.json().get("subid")
+            if not sub_id:
+                return False, "Échec de l'upload de l'image."
+        except Exception as e:
+            return False, f"Erreur d'upload: {e}"
+            
+        # 3. Wait for job
+        self.after(0, lambda: self.solve_btn.config(text="Résolution en ligne..."))
+        job_id = None
+        for _ in range(30):
+            time.sleep(2)
+            r = requests.get(f"{base_url}/submissions/{sub_id}", timeout=10)
+            jobs = r.json().get("jobs", [])
+            if jobs and jobs[0] is not None:
+                job_id = jobs[0]
+                break
+                
+        if not job_id:
+            return False, "Le serveur n'a pas renvoyé de Job ID à temps."
+
+        # 4. Wait for success
+        for _ in range(60):
+            time.sleep(3)
+            r = requests.get(f"{base_url}/jobs/{job_id}", timeout=10)
+            status = r.json().get("status")
+            if status == "success":
+                r = requests.get(f"{base_url}/jobs/{job_id}/calibration", timeout=10)
+                cal = r.json()
+                return True, cal
+            elif status == "failure":
+                return False, "L'astrométrie en ligne a échoué (échec du job)."
+
+        return False, "Délai d'attente dépassé (timeout)."
+
+    def open_polar_alignment(self):
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from polar_alignment_ui import open_pa_window
+            open_pa_window(self)
+        except Exception as e:
+            messagebox.showerror("Erreur", f"Impossible d'ouvrir l'assistant PA:\n{e}")
+
     def run_solve_only(self):
         if not os.path.exists('/tmp/capture_astro.png'):
             messagebox.showerror("Erreur", "Aucune image capturée. Veuillez d'abord capturer une image.")
@@ -1170,31 +1523,55 @@ if img is not None:
                     scale_high = scale_arcsec * 1.10
                     sf_cmd.extend(["--scale-units", "arcsecperpix", "--scale-low", str(scale_low), "--scale-high", str(scale_high)])
                 
-                res_sf = subprocess.run(sf_cmd, capture_output=True, text=True)
-                
-                import re
-                match = re.search(r"Field center: \(RA,Dec\) = \(\s*([0-9.]+),\s*([0-9.\-]+)\s*\)", res_sf.stdout)
-                if match:
-                    ra_deg = float(match.group(1))
-                    dec_deg = float(match.group(2))
-                    
-                    ra_hours = ra_deg / 15.0
-                    ra_str = self.format_ra_lx(ra_hours)
-                    dec_str = self.format_dec_lx(dec_deg)
-                    
-                    if getattr(self, 'is_connected', False) and getattr(self, 'ser', None):
-                        self.after(0, lambda: self.solve_btn.config(text="Synchronisation Monture..."))
-                        import time
-                        self.ser.write(f":Sr{ra_str}#".encode('ascii'))
-                        time.sleep(0.1)
-                        self.ser.write(f":Sd{dec_str}#".encode('ascii'))
-                        time.sleep(0.1)
-                        self.ser.write(b":CM#")
-                        self.after(0, lambda: messagebox.showinfo("Astrométrie Succès", f"Astrométrie OK!\\nRA: {ra_str}\\nDEC: {dec_str}\\nMonture synchronisée avec succès."))
+                if getattr(self, 'astro_mode_var', None) and self.astro_mode_var.get() == "api":
+                    self.after(0, lambda: self.solve_btn.config(text="Upload API..."))
+                    success, res = self.run_astrometry_api("/tmp/capture_astro.png")
+                    if success:
+                        ra_deg = res.get("ra", 0)
+                        dec_deg = res.get("dec", 0)
+                        ra_hours = ra_deg / 15.0
+                        ra_str = self.format_ra_lx(ra_hours)
+                        dec_str = self.format_dec_lx(dec_deg)
+                        if getattr(self, 'is_connected', False) and getattr(self, 'ser', None):
+                            self.after(0, lambda: self.solve_btn.config(text="Synchronisation Monture..."))
+                            import time
+                            self.ser.write(f":Sr{ra_str}#".encode('ascii'))
+                            time.sleep(0.1)
+                            self.ser.write(f":Sd{dec_str}#".encode('ascii'))
+                            time.sleep(0.1)
+                            self.ser.write(b":CM#")
+                            self.after(0, lambda: messagebox.showinfo("Astrométrie API", f"Astrométrie OK!\\nRA: {ra_str}\\nDEC: {dec_str}\\nMonture synchronisée."))
+                        else:
+                            self.after(0, lambda: messagebox.showinfo("Astrométrie API", f"Astrométrie OK!\\nRA: {ra_str}\\nDEC: {dec_str}\\n(Test: Monture non connectée)"))
                     else:
-                        self.after(0, lambda: messagebox.showinfo("Astrométrie Succès", f"Astrométrie OK!\\nRA: {ra_str}\\nDEC: {dec_str}\\n(Test: Monture non connectée, sync ignorée)"))
+                        self.after(0, lambda: messagebox.showerror("Erreur API", str(res)))
                 else:
-                    self.after(0, lambda: messagebox.showerror("Erreur Astrométrie", "Échec astrométrie (plate solving failed).\\n" + res_sf.stdout[:300]))
+                    self.after(0, lambda: self.solve_btn.config(text="Résolution (solve-field)..."))
+                    res_sf = subprocess.run(sf_cmd, capture_output=True, text=True)
+                    
+                    import re
+                    match = re.search(r"Field center: \(RA,Dec\) = \(\s*([0-9.]+),\s*([0-9.\-]+)\s*\)", res_sf.stdout)
+                    if match:
+                        ra_deg = float(match.group(1))
+                        dec_deg = float(match.group(2))
+                        
+                        ra_hours = ra_deg / 15.0
+                        ra_str = self.format_ra_lx(ra_hours)
+                        dec_str = self.format_dec_lx(dec_deg)
+                        
+                        if getattr(self, 'is_connected', False) and getattr(self, 'ser', None):
+                            self.after(0, lambda: self.solve_btn.config(text="Synchronisation Monture..."))
+                            import time
+                            self.ser.write(f":Sr{ra_str}#".encode('ascii'))
+                            time.sleep(0.1)
+                            self.ser.write(f":Sd{dec_str}#".encode('ascii'))
+                            time.sleep(0.1)
+                            self.ser.write(b":CM#")
+                            self.after(0, lambda: messagebox.showinfo("Astrométrie Succès", f"Astrométrie OK!\\nRA: {ra_str}\\nDEC: {dec_str}\\nMonture synchronisée avec succès."))
+                        else:
+                            self.after(0, lambda: messagebox.showinfo("Astrométrie Succès", f"Astrométrie OK!\\nRA: {ra_str}\\nDEC: {dec_str}\\n(Test: Monture non connectée, sync ignorée)"))
+                    else:
+                        self.after(0, lambda: messagebox.showerror("Erreur Astrométrie", "Échec astrométrie (plate solving failed).\\n" + res_sf.stdout[:300]))
                     
             except Exception as e:
                 self.after(0, lambda err=e: messagebox.showerror("Erreur", str(err)))
@@ -1502,7 +1879,55 @@ finally:
             return str(local_path)
         return None
 
-    def flash_firmware(self, target):
+    def open_flash_dialog(self):
+        flash_top = tk.Toplevel(self)
+        flash_top.title("Mise à jour du Firmware")
+        flash_top.geometry("400x280")
+        flash_top.configure(bg="#c0c0c0")
+        flash_top.resizable(False, False)
+        
+        lbl_port = tk.Label(flash_top, text="1. Choisissez le port série de la carte :", font=("Arial", 11, "bold"), bg="#c0c0c0")
+        lbl_port.pack(pady=(20, 5))
+        
+        from tkinter import ttk
+        import serial.tools.list_ports
+        ports = [p.device for p in serial.tools.list_ports.comports()]
+        port_combo = ttk.Combobox(flash_top, values=ports, state="readonly", width=30)
+        if self.port_var.get() in ports:
+            port_combo.set(self.port_var.get())
+        elif ports:
+            port_combo.set(ports[0])
+        port_combo.pack(pady=5)
+        
+        lbl_carte = tk.Label(flash_top, text="2. Quelle carte souhaitez-vous flasher ?", font=("Arial", 11, "bold"), bg="#c0c0c0")
+        lbl_carte.pack(pady=(20, 10))
+        
+        btn_frame = tk.Frame(flash_top, bg="#c0c0c0")
+        btn_frame.pack(fill="x", pady=10)
+        
+        def choose_mega():
+            selected_port = port_combo.get()
+            if not selected_port:
+                messagebox.showerror("Erreur", "Veuillez sélectionner un port.")
+                return
+            flash_top.destroy()
+            self.flash_firmware("mega", selected_port)
+            
+        def choose_teensy():
+            selected_port = port_combo.get()
+            if not selected_port:
+                messagebox.showerror("Erreur", "Veuillez sélectionner un port.")
+                return
+            flash_top.destroy()
+            self.flash_firmware("teensy", selected_port)
+            
+        btn_m = tk.Button(btn_frame, text="Arduino Mega 2560", font=("Arial", 11), width=18, command=choose_mega)
+        btn_m.pack(side="left", expand=True, padx=10)
+        
+        btn_t = tk.Button(btn_frame, text="Teensy 4.1 (Raquette)", font=("Arial", 11), width=18, command=choose_teensy)
+        btn_t.pack(side="left", expand=True, padx=10)
+
+    def flash_firmware(self, target, flash_port):
         cli = self.find_arduino_cli()
         lang = self.settings.get("language", "fr")
         t = TRANSLATIONS[lang]
@@ -1511,12 +1936,6 @@ finally:
             messagebox.showerror(t["flashing_title"], t["cli_not_found"])
             return
 
-        port = self.port_var.get()
-        if not port:
-            messagebox.showerror("Error", "Please select a serial port first.")
-            return
-
-        # If connected, disconnect first
         if self.is_connected:
             self.toggle_connection()
 
@@ -1532,9 +1951,25 @@ finally:
             fqbn = "teensy:avr:teensy41"
             additional_args = ["--additional-urls", "https://www.pjrc.com/teensy/package_teensy_index.json"]
 
-        # Disable buttons temporarily during flash
-        self.flash_mega_btn.config(state="disabled")
-        self.flash_teensy_btn.config(state="disabled")
+        # Disable button temporarily during flash
+        self.flash_btn.config(state="disabled")
+        
+        # Show waiting window
+        from tkinter import ttk
+        wait_top = tk.Toplevel(self)
+        wait_top.title("Flash en cours...")
+        wait_top.geometry("350x120")
+        wait_top.configure(bg="#c0c0c0")
+        wait_top.resizable(False, False)
+        wait_top.protocol("WM_DELETE_WINDOW", lambda: None) # Prevent closing
+        
+        lbl_w = tk.Label(wait_top, text="Compilation et Flash en cours...\nVeuillez patienter.", font=("Arial", 11), bg="#c0c0c0")
+        lbl_w.pack(pady=15)
+        
+        pb = ttk.Progressbar(wait_top, mode="indeterminate", length=250)
+        pb.pack(pady=5)
+        pb.start(15)
+        
         self.update()
 
         def run_flash():
@@ -1546,24 +1981,24 @@ finally:
                     
                 # 1. Compile
                 compile_cmd = [cli, "compile", "--fqbn", fqbn] + additional_args + [str(sketch_path)]
-                res_comp = subprocess.run(compile_cmd, capture_output=True, text=True, timeout=90)
+                res_comp = subprocess.run(compile_cmd, capture_output=True, text=True, timeout=120)
                 if res_comp.returncode != 0:
-                    self.after(0, lambda err=res_comp.stderr: messagebox.showerror(t["flashing_title"], t["flashing_error"] + err))
+                    self.after(0, lambda err=res_comp.stderr, out=res_comp.stdout: messagebox.showerror(t["flashing_title"], t["flashing_error"] + err + "\n\n" + out))
                     return
 
                 # 2. Upload
-                upload_cmd = [cli, "upload", "-p", port, "--fqbn", fqbn] + additional_args + [str(sketch_path)]
+                upload_cmd = [cli, "upload", "-p", flash_port, "--fqbn", fqbn] + additional_args + [str(sketch_path)]
                 res_upl = subprocess.run(upload_cmd, capture_output=True, text=True, timeout=90)
                 if res_upl.returncode != 0:
-                    self.after(0, lambda err=res_upl.stderr: messagebox.showerror(t["flashing_title"], t["flashing_error"] + err))
+                    self.after(0, lambda err=res_upl.stderr, out=res_upl.stdout: messagebox.showerror(t["flashing_title"], t["flashing_error"] + err + "\n\n" + out))
                     return
 
                 self.after(0, lambda: messagebox.showinfo(t["flashing_title"], t["flashing_success"]))
             except Exception as e:
                 self.after(0, lambda err=str(e): messagebox.showerror(t["flashing_title"], t["flashing_error"] + err))
             finally:
-                self.after(0, lambda: self.flash_mega_btn.config(state="normal"))
-                self.after(0, lambda: self.flash_teensy_btn.config(state="normal"))
+                self.after(0, lambda: wait_top.destroy())
+                self.after(0, lambda: self.flash_btn.config(state="normal"))
 
         import threading
         threading.Thread(target=run_flash, daemon=True).start()

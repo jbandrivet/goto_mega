@@ -15,3 +15,4 @@ app_log.txt
 
 # Gemini Agent Configuration
 .gemini/
+astrometry_data/
