@@ -909,10 +909,8 @@ class ConfigToolApp(tk.Tk):
             self.after(0, lambda: self.detect_cam_btn.config(state="disabled", text="..."))
             script = "import zwoasi as asi\nasi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')\nprint(asi.list_cameras())"
             try:
-                import subprocess, os, ast
-                python_path = "/home/jean-baptiste/astro-cam/venv/bin/python"
-                if not os.path.exists(python_path):
-                    python_path = "python3"
+                import subprocess, os, ast, sys
+                python_path = sys.executable
                 res = subprocess.run([python_path, "-c", script], capture_output=True, text=True)
                 if res.returncode == 0:
                     cams = ast.literal_eval(res.stdout.strip())
@@ -1494,9 +1492,8 @@ if img is not None:
                 with open('/tmp/zwo_capture.py', 'w') as f:
                     f.write(script)
                 
-                python_path = "/home/jean-baptiste/astro-cam/venv/bin/python"
-                if not os.path.exists(python_path):
-                    python_path = "python3"
+                import sys
+                python_path = sys.executable
                 
                 res = subprocess.run([python_path, "/tmp/zwo_capture.py"], capture_output=True, text=True)
                 if res.returncode != 0:
