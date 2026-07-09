@@ -197,6 +197,7 @@ class ConfigToolApp(tk.Tk):
                 self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
                 
             elif local_sha != remote_sha:
+                self.update_available = True
                 self.after(0, lambda: self.update_btn.config(
                     text="🔴 Mise à jour disponible !", 
                     bg="#ffcccc", fg="red", font=("MS Sans Serif", 9, "bold"), state="normal"
@@ -252,7 +253,11 @@ class ConfigToolApp(tk.Tk):
             import webbrowser
             webbrowser.open("https://github.com/jbandrivet/goto_mega/releases")
         else:
-            ans = messagebox.askyesno("Mise à jour", "Ceci va télécharger et installer la dernière version depuis GitHub, puis redémarrer le configurateur.\nContinuer ?")
+            if not getattr(self, 'update_available', False):
+                messagebox.showinfo("Mise à jour", "Aucune nouvelle mise à jour n'est disponible.\nVotre logiciel est déjà à la dernière version !")
+                return
+                
+            ans = messagebox.askyesno("Mise à jour", "Une nouvelle version est disponible ! Ceci va la télécharger et redémarrer le configurateur.\nContinuer ?")
             if ans:
                 script_dir = Path(__file__).parent
                 
