@@ -910,7 +910,9 @@ class ConfigToolApp(tk.Tk):
             script = "import zwoasi as asi\nasi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')\nprint(asi.list_cameras())"
             try:
                 import subprocess, os, ast, sys
-                python_path = sys.executable
+                from pathlib import Path
+                venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                python_path = venv_python if os.path.exists(venv_python) else sys.executable
                 res = subprocess.run([python_path, "-c", script], capture_output=True, text=True)
                 if res.returncode == 0:
                     cams = ast.literal_eval(res.stdout.strip())
@@ -1493,8 +1495,9 @@ if img is not None:
                     f.write(script)
                 
                 import sys
-                python_path = sys.executable
-                
+                from pathlib import Path
+                venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                python_path = venv_python if os.path.exists(venv_python) else sys.executable
                 res = subprocess.run([python_path, "/tmp/zwo_capture.py"], capture_output=True, text=True)
                 if res.returncode != 0:
                     self.after(0, lambda: messagebox.showerror("Erreur ZWO", "Erreur capture ZWO.\\n" + res.stderr))
