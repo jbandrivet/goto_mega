@@ -31,7 +31,7 @@ class PolarAlignmentWindow(tk.Toplevel):
         self.lbl_error.pack(pady=10)
         
         self.step = 1
-        self.update_info("Pointer le télescope grossièrement vers l'étoile polaire.\nCliquez sur Démarrer pour prendre la première image.")
+        self.update_info("Pointez le télescope n'importe où dans le ciel (vers le Sud, l'Est ou l'Ouest si le Nord est caché).\nLa méthode à 3 points calculera le pôle automatiquement.\nCliquez sur Démarrer pour prendre la première image.")
 
     def update_info(self, text):
         self.txt_info.insert(tk.END, text + "\n")
