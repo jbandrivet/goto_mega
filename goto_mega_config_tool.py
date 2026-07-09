@@ -199,6 +199,10 @@ class ConfigToolApp(tk.Tk):
         import sys
         import os
         import subprocess
+        import urllib.request
+        import zipfile
+        import shutil
+        import tempfile
         
         if getattr(sys, 'frozen', False):
             # Le logiciel est compilé (PyInstaller)
@@ -206,16 +210,56 @@ class ConfigToolApp(tk.Tk):
             import webbrowser
             webbrowser.open("https://github.com/jbandrivet/goto_mega/releases")
         else:
-            # Le logiciel tourne depuis les sources Python
-            ans = messagebox.askyesno("Mise à jour", "Ceci va télécharger la dernière version depuis GitHub et redémarrer le configurateur.\nContinuer ?")
+            ans = messagebox.askyesno("Mise à jour", "Ceci va télécharger et installer la dernière version depuis GitHub, puis redémarrer le configurateur.\nContinuer ?")
             if ans:
                 script_dir = Path(__file__).parent
-                res = subprocess.run(["git", "pull"], cwd=str(script_dir), capture_output=True, text=True)
-                if res.returncode == 0:
-                    messagebox.showinfo("Succès", "Mise à jour réussie. Le logiciel va redémarrer.")
+                
+                # Si c'est un dépôt Git (développeur)
+                if (script_dir / ".git").exists():
+                    res = subprocess.run(["git", "pull"], cwd=str(script_dir), capture_output=True, text=True)
+                    if res.returncode == 0:
+                        messagebox.showinfo("Succès", "Mise à jour Git réussie. Le logiciel va redémarrer.")
+                        os.execv(sys.executable, ['python3'] + sys.argv)
+                    else:
+                        messagebox.showerror("Erreur", f"Erreur Git:\n{res.stderr}")
+                    return
+
+                # Sinon (installation via install_linux.py) : téléchargement du ZIP
+                try:
+                    url = "https://github.com/jbandrivet/goto_mega/archive/refs/heads/main.zip"
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
+                        zip_path = tmp.name
+                    
+                    req = urllib.request.Request(url, headers={"User-Agent": "GotoMega-Updater/1.0"})
+                    with urllib.request.urlopen(req) as response, open(zip_path, 'wb') as out_file:
+                        shutil.copyfileobj(response, out_file)
+                        
+                    with tempfile.TemporaryDirectory() as extract_dir:
+                        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                            zip_ref.extractall(extract_dir)
+                            
+                        # Github crée un sous-dossier "goto_mega-main" dans le zip
+                        extracted_items = list(Path(extract_dir).iterdir())
+                        source_dir = extracted_items[0] if extracted_items else None
+                            
+                        if source_dir and source_dir.is_dir():
+                            for item in source_dir.iterdir():
+                                if item.name in ["venv", ".git", "__pycache__", "astrometry_data"]:
+                                    continue
+                                if item.is_file():
+                                    shutil.copy2(item, script_dir / item.name)
+                                elif item.is_dir():
+                                    dest_item = script_dir / item.name
+                                    if dest_item.exists():
+                                        shutil.rmtree(dest_item)
+                                    shutil.copytree(item, dest_item)
+                                    
+                    os.unlink(zip_path)
+                    
+                    messagebox.showinfo("Succès", "Mise à jour réussie avec succès ! Le logiciel va maintenant redémarrer.")
                     os.execv(sys.executable, ['python3'] + sys.argv)
-                else:
-                    messagebox.showerror("Erreur", f"Erreur lors de la mise à jour:\n{res.stderr}")
+                except Exception as e:
+                    messagebox.showerror("Erreur", f"Impossible de mettre à jour:\n{e}")
 
     def build_ui(self):
         # Fonts
