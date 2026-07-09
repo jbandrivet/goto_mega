@@ -190,17 +190,16 @@ class ConfigToolApp(tk.Tk):
                 if version_file.exists():
                     local_sha = version_file.read_text().strip()
                 
-            if local_sha and local_sha != remote_sha:
+            if local_sha == "":
+                # Première exécution depuis le nouvel installateur : on initialise silencieusement le fichier version
+                version_file = Path.home() / ".config" / "goto_mega" / "version.txt"
+                version_file.parent.mkdir(parents=True, exist_ok=True)
+                version_file.write_text(remote_sha)
+                
+            elif local_sha != remote_sha:
                 self.after(0, lambda: self.update_btn.config(
-                    text="🔴 Mise à jour disponible !", 
+                    text="🔴 Mise à jour disponible", 
                     bg="#ffcccc", fg="red", font=("MS Sans Serif", 9, "bold")
-                ))
-                self.remote_sha = remote_sha
-            elif not local_sha:
-                # If neither git nor version.txt exists, we assume it needs an update to create version.txt
-                self.after(0, lambda: self.update_btn.config(
-                    text="🔴 Configurer la Mise à jour", 
-                    bg="#ffffcc", fg="orange", font=("MS Sans Serif", 9, "bold")
                 ))
                 self.remote_sha = remote_sha
         except Exception:
