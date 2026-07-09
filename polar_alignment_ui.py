@@ -51,8 +51,6 @@ class PolarAlignmentWindow(tk.Toplevel):
         self.btn_action.config(state="disabled", text="Capture et Résolution en cours...")
         def task():
             try:
-                # Capture
-                import zwoasi as asi
                 cam_idx = self.app.get_selected_camera_idx()
                 exp = float(self.app.exp_entry.get())
                 gain = int(self.app.gain_entry.get())
@@ -73,7 +71,12 @@ c.capture(filename='/tmp/capture_pa.png')
 """
                 import subprocess
                 import sys
-                res = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
+                import os
+                from pathlib import Path
+                venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                py_exe = venv_python if os.path.exists(venv_python) else sys.executable
+                
+                res = subprocess.run([py_exe, "-c", script], capture_output=True, text=True)
                 if res.returncode != 0:
                     self.after(0, lambda: messagebox.showerror("Erreur", "Echec capture: " + res.stderr))
                     return
@@ -205,7 +208,6 @@ c.capture(filename='/tmp/capture_pa.png')
         def task():
             try:
                 # Capture
-                import zwoasi as asi
                 cam_idx = self.app.get_selected_camera_idx()
                 exp = float(self.app.exp_entry.get())
                 gain = int(self.app.gain_entry.get())
@@ -226,7 +228,11 @@ c.capture(filename='/tmp/capture_pa.png')
 """
                 import subprocess
                 import sys
-                subprocess.run([sys.executable, "-c", script])
+                import os
+                from pathlib import Path
+                venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                py_exe = venv_python if os.path.exists(venv_python) else sys.executable
+                subprocess.run([py_exe, "-c", script])
                 
                 sf_cmd = ["solve-field", "/tmp/capture_pa.png", "--overwrite", "--no-plots", "--cpulimit", "30"]
                 try:
