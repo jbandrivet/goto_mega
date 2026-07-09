@@ -72,7 +72,8 @@ c.set_image_type(asi.ASI_IMG_RAW8)
 c.capture(filename='/tmp/capture_pa.png')
 """
                 import subprocess
-                res = subprocess.run(["python3", "-c", script], capture_output=True, text=True)
+                import sys
+                res = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True)
                 if res.returncode != 0:
                     self.after(0, lambda: messagebox.showerror("Erreur", "Echec capture: " + res.stderr))
                     return
@@ -224,7 +225,8 @@ c.set_image_type(asi.ASI_IMG_RAW8)
 c.capture(filename='/tmp/capture_pa.png')
 """
                 import subprocess
-                subprocess.run(["python3", "-c", script])
+                import sys
+                subprocess.run([sys.executable, "-c", script])
                 
                 sf_cmd = ["solve-field", "/tmp/capture_pa.png", "--overwrite", "--no-plots", "--cpulimit", "30"]
                 try:
