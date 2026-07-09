@@ -2,13 +2,13 @@
 # Auteur : Andrivet Jean-Baptiste
 """
 ╔══════════════════════════════════════════════════════════════╗
-║      GotoUniversal — Contrôleur Universel Linux              ║
+║      GotoMega — Contrôleur Universel Linux              ║
 ║      Contrôleur Multi-Montures · M542 · LX200/OnStep         ║
 ║      v5.1 — Aligné Mega v9.1 + Teensy v6.2                   ║
 ╚══════════════════════════════════════════════════════════════╝
 
 Lancement :
-    python3 goto_universal.py
+    python3 goto_mega.py
 
 Dépendance unique :
     pip3 install pyserial
@@ -65,13 +65,13 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)]
 )
-log = logging.getLogger("goto_universal")
+log = logging.getLogger("goto_mega")
 
 
 # ════════════════════════════════════════════════════════════════
 #  SECTION 1 : PARAMÈTRES PERSISTANTS
 # ════════════════════════════════════════════════════════════════
-CONFIG_FILE = Path.home() / ".config" / "goto_universal" / "settings.json"
+CONFIG_FILE = Path.home() / ".config" / "goto_mega" / "settings.json"
 
 DEFAULTS = {
     "site_name":           "Lyon-Villeurbanne",
@@ -936,7 +936,7 @@ class MountState:
         self.limit_hit=False; self.speed_dps=2.0; self.connected=False
         self.sim_mode=False
         # Champs OnStep
-        self.firmware_name=""    # ex: "On-Step GotoUniversal"
+        self.firmware_name=""    # ex: "On-Step GotoMega"
         self.firmware_ver=""     # ex: "9.1"
         self.is_onstep=False     # True si firmware OnStep détecté
         self.parked=False        # OnStep :GU# flag P
@@ -1047,7 +1047,7 @@ class Mount:
             _,dec=Astro.horiz_to_eq(self._saz,self._salt,lst,lat)
             return Astro.fmt_dec_lx(dec)+"#"
         if cmd==":GS": return Astro.fmt_ra_lx(lst)+"#"
-        # v5.1 : :GBE remplace :GX (format GotoUniversal prive, identique)
+        # v5.1 : :GBE remplace :GX (format GotoMega prive, identique)
         if cmd==":GBE":
             return (f"{int(self._stracking)},{int(self._sslewing)},0,"
                     f"{int(self._sspd*10)},{self._salt:.2f},{self._saz:.2f},"
@@ -1181,7 +1181,7 @@ class Mount:
     def set_tracking(self, on):
         self._cmd(":Te" if on else ":Td", reply=True)
 
-    # v5.1 : :BV (GotoUniversal Velocity, namespace privé) au lieu de :SV (non géré par Mega)
+    # v5.1 : :BV (GotoMega Velocity, namespace privé) au lieu de :SV (non géré par Mega)
     # Le Mega clamp en runtime à [0.5, 25.0] deg/s par sécurité.
     def set_speed(self, dps):
         n = max(5, min(250, int(dps * 10)))
@@ -2122,7 +2122,7 @@ TYPE_NAMES_BILINGUAL = {
 TRANSLATIONS = {
     "en": {
         # App Title
-        "title": "GotoUniversal — Multi-Mount Controller  |  LX200 · OnStep",
+        "title": "GotoMega — Multi-Mount Controller  |  LX200 · OnStep",
         
         # Menu Bar
         "file": "File",
@@ -2242,7 +2242,7 @@ TRANSLATIONS = {
         "btn_save": "Save…",
         
         # Settings Dialog Strings
-        "settings_title": "Parameters — GotoUniversal",
+        "settings_title": "Parameters — GotoMega",
         "tab_site": " Site ",
         "tab_mech": " Mechanics ",
         "tab_conn": " Connection ",
@@ -2289,7 +2289,7 @@ TRANSLATIONS = {
     },
     "fr": {
         # App Title
-        "title": "GotoUniversal — Contrôleur Multi-Montures  |  LX200 · OnStep",
+        "title": "GotoMega — Contrôleur Multi-Montures  |  LX200 · OnStep",
         
         # Menu Bar
         "file": "Fichier",
@@ -2409,7 +2409,7 @@ TRANSLATIONS = {
         "btn_save": "Sauvegarder…",
         
         # Settings Dialog Strings
-        "settings_title": "Paramètres — GotoUniversal",
+        "settings_title": "Paramètres — GotoMega",
         "tab_site": " Site ",
         "tab_mech": " Mécanique ",
         "tab_conn": " Connexion ",
@@ -3127,7 +3127,7 @@ class App(tk.Tk):
             lat, lon = None, None
             # Essai 1 : ip-api.com
             try:
-                req = urllib.request.Request("http://ip-api.com/json/", headers={"User-Agent": "GotoUniversal/1.0"})
+                req = urllib.request.Request("http://ip-api.com/json/", headers={"User-Agent": "GotoMega/1.0"})
                 with urllib.request.urlopen(req, timeout=3.0) as response:
                     data = json.loads(response.read().decode())
                     if data.get("status") == "success":
@@ -3139,7 +3139,7 @@ class App(tk.Tk):
             # Essai 2 (fallback) : ipapi.co
             if lat is None or lon is None:
                 try:
-                    req = urllib.request.Request("https://ipapi.co/json/", headers={"User-Agent": "GotoUniversal/1.0"})
+                    req = urllib.request.Request("https://ipapi.co/json/", headers={"User-Agent": "GotoMega/1.0"})
                     with urllib.request.urlopen(req, timeout=3.0) as response:
                         data = json.loads(response.read().decode())
                         if "latitude" in data and "longitude" in data:

@@ -14,7 +14,7 @@ import threading
 import os
 import re
 
-CONFIG_FILE = Path.home() / ".config" / "goto_universal" / "config_tool_settings.json"
+CONFIG_FILE = Path.home() / ".config" / "goto_mega" / "config_tool_settings.json"
 
 DEFAULTS = {
     "mount_port": "/dev/ttyACM0",
@@ -37,7 +37,7 @@ DEFAULTS = {
 
 TRANSLATIONS = {
     "en": {
-        "title": " GotoUniversal Configuration Utility",
+        "title": " GotoMega Configuration Utility",
         "conn_lf": "Connection Settings",
         "port": "Port:",
         "baud": "Baud:",
@@ -88,7 +88,7 @@ TRANSLATIONS = {
         "cli_not_found": "arduino-cli was not found. Please install it (or copy to ~/.local/bin/arduino-cli) to use this feature."
     },
     "fr": {
-        "title": " Utilitaire de Configuration GotoUniversal",
+        "title": " Utilitaire de Configuration GotoMega",
         "conn_lf": "Paramètres de Connexion",
         "port": "Port :",
         "baud": "Baud :",
@@ -665,7 +665,7 @@ class ConfigToolApp(tk.Tk):
             import sys
             script_path = Path(__file__).parent / "raquette_virtuelle.py"
             if not script_path.exists():
-                script_path = Path("/home/jean-baptiste/goto_universal/raquette_virtuelle.py")
+                script_path = Path("/home/jean-baptiste/goto_mega/raquette_virtuelle.py")
             subprocess.Popen([sys.executable, str(script_path)])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to launch Virtual Handpad:\n{e}")
@@ -751,7 +751,7 @@ class ConfigToolApp(tk.Tk):
         lat, lon = None, None
         # Try 1: ip-api.com
         try:
-            req = urllib.request.Request("http://ip-api.com/json/", headers={"User-Agent": "GotoUniversal/1.0"})
+            req = urllib.request.Request("http://ip-api.com/json/", headers={"User-Agent": "GotoMega/1.0"})
             with urllib.request.urlopen(req, timeout=3.0) as response:
                 data = json.loads(response.read().decode())
                 if data.get("status") == "success":
@@ -763,7 +763,7 @@ class ConfigToolApp(tk.Tk):
         # Try 2 (fallback): ipapi.co
         if lat is None or lon is None:
             try:
-                req = urllib.request.Request("https://ipapi.co/json/", headers={"User-Agent": "GotoUniversal/1.0"})
+                req = urllib.request.Request("https://ipapi.co/json/", headers={"User-Agent": "GotoMega/1.0"})
                 with urllib.request.urlopen(req, timeout=3.0) as response:
                     data = json.loads(response.read().decode())
                     if "latitude" in data and "longitude" in data:
@@ -1102,7 +1102,7 @@ class ConfigToolApp(tk.Tk):
                 else:
                     self.ser.close()
                     self.ser = None
-                    messagebox.showerror("Error", "Device on this port did not respond to GotoUniversal OnStep protocol.")
+                    messagebox.showerror("Error", "Device on this port did not respond to GotoMega OnStep protocol.")
             except Exception as e:
                 if self.ser:
                     self.ser.close()
@@ -1943,11 +1943,11 @@ finally:
         script_dir = Path(__file__).parent
         
         if target == "mega":
-            sketch_path = script_dir / "goto_universal_mega"
+            sketch_path = script_dir / "goto_mega_mega"
             fqbn = "arduino:avr:mega"
             additional_args = []
         else:
-            sketch_path = script_dir / "goto_universal_raquette" / "teensy_raquette_v62"
+            sketch_path = script_dir / "goto_mega_raquette" / "teensy_raquette_v62"
             fqbn = "teensy:avr:teensy41"
             additional_args = ["--additional-urls", "https://www.pjrc.com/teensy/package_teensy_index.json"]
 

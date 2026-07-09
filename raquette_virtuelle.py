@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 # Ajouter le répertoire courant au chemin d'importation
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from goto_universal import ALL_CATALOGS, Astro, Settings
+from goto_mega import ALL_CATALOGS, Astro, Settings
 import ephem
 
 class VirtualTeensyApp(tk.Tk):
@@ -409,7 +409,7 @@ class VirtualTeensyApp(tk.Tk):
                         self.ser.reset_input_buffer()
                         self.ser.write(b":GVP#")
                         resp = self.ser.read_until(b"#").decode('ascii', errors='ignore')
-                        if "OnStep" in resp or "On-Step" in resp or "GotoUniversal" in resp or resp.strip():
+                        if "OnStep" in resp or "On-Step" in resp or "GotoMega" in resp or resp.strip():
                             self.is_connected = True
                             self.sim_mode = False
                             self.port = self.conn_port

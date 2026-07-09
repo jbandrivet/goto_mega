@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Add parent directory to path
 sys.path.append(str(Path(__file__).parent.parent))
-import goto_universal_config_tool as config_tool
+import goto_mega_config_tool as config_tool
 
 def test_saving_configuration():
     port = "/dev/ttyACM0"

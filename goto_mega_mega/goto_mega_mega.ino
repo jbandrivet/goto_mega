@@ -1,5 +1,5 @@
 /*
- * GotoUniversalMega - Controleur de monture Astro Mega 2560 (Protocole OnStep)
+ * GotoMegaMega - Controleur de monture Astro Mega 2560 (Protocole OnStep)
  * Auteur : Andrivet Jean-Baptiste
  * 
  * Cablage :
@@ -2009,10 +2009,10 @@ void setup() {
   }
   lastClkMs=millis(); lastTrkMs=millis();
   updatePos();
-  Serial.println(F("GotoUniversal v9.1 - OnStep ready"));
+  Serial.println(F("GotoMega v9.1 - OnStep ready"));
   Serial.println(F("Site: Default (0.0000N / 0.0000E)"));
   Serial.println(F("USB:38400 + DIN4(Serial3):38400"));
-  Serial3.println(F("GotoUniversal Mega v9.1 ready"));
+  Serial3.println(F("GotoMega Mega v9.1 ready"));
   
   noInterrupts();
   TCCR1A = 0;

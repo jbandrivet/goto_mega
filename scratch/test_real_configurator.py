@@ -5,7 +5,7 @@ from pathlib import Path
 
 # Add directory to sys.path
 sys.path.append(str(Path(__file__).parent.parent))
-import goto_universal_config_tool as config_tool
+import goto_mega_config_tool as config_tool
 
 def test_real_arduino_connection():
     print("Initializing Configurator App...")

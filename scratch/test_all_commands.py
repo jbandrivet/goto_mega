@@ -30,7 +30,7 @@ def test():
             (b":Gg#", "Get Longitude"),
             (b":GW#", "Get Alignment/Mount Status"),
             (b":GU#", "Global Status"),
-            (b":GBE#", "GotoUniversal Extended Status")
+            (b":GBE#", "GotoMega Extended Status")
         ]
         
         for cmd, desc in commands:

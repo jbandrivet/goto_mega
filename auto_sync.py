@@ -11,7 +11,7 @@ def main():
         port = sys.argv[1]
     else:
         # Fallback to config tool port
-        cfg_path = Path.home() / ".config" / "goto_universal" / "settings.json"
+        cfg_path = Path.home() / ".config" / "goto_mega" / "settings.json"
         port = "/dev/ttyACM0"
         if cfg_path.exists():
             try:
