@@ -164,6 +164,47 @@ class ConfigToolApp(tk.Tk):
         self.build_menu()
         self.update_connection_status()
         self.translate_ui()
+        
+        # Check for updates in background
+        threading.Thread(target=self.check_for_updates, daemon=True).start()
+
+    def check_for_updates(self):
+        import urllib.request
+        import json
+        import subprocess
+        try:
+            url = "https://api.github.com/repos/jbandrivet/goto_mega/commits/main"
+            req = urllib.request.Request(url, headers={"User-Agent": "GotoMega-Updater/1.0"})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                data = json.loads(response.read().decode())
+                remote_sha = data["sha"]
+                
+            local_sha = ""
+            script_dir = Path(__file__).parent
+            if (script_dir / ".git").exists():
+                res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(script_dir), capture_output=True, text=True)
+                if res.returncode == 0:
+                    local_sha = res.stdout.strip()
+            else:
+                version_file = Path.home() / ".config" / "goto_mega" / "version.txt"
+                if version_file.exists():
+                    local_sha = version_file.read_text().strip()
+                
+            if local_sha and local_sha != remote_sha:
+                self.after(0, lambda: self.update_btn.config(
+                    text="🔴 Mise à jour disponible !", 
+                    bg="#ffcccc", fg="red", font=("MS Sans Serif", 9, "bold")
+                ))
+                self.remote_sha = remote_sha
+            elif not local_sha:
+                # If neither git nor version.txt exists, we assume it needs an update to create version.txt
+                self.after(0, lambda: self.update_btn.config(
+                    text="🔴 Configurer la Mise à jour", 
+                    bg="#ffffcc", fg="orange", font=("MS Sans Serif", 9, "bold")
+                ))
+                self.remote_sha = remote_sha
+        except Exception:
+            pass
 
     def load_local_settings(self):
         if CONFIG_FILE.exists():
@@ -256,6 +297,11 @@ class ConfigToolApp(tk.Tk):
                                     
                     os.unlink(zip_path)
                     
+                    if hasattr(self, 'remote_sha'):
+                        version_file = Path.home() / ".config" / "goto_mega" / "version.txt"
+                        version_file.parent.mkdir(parents=True, exist_ok=True)
+                        version_file.write_text(self.remote_sha)
+                        
                     messagebox.showinfo("Succès", "Mise à jour réussie avec succès ! Le logiciel va maintenant redémarrer.")
                     os.execv(sys.executable, ['python3'] + sys.argv)
                 except Exception as e:
@@ -310,6 +356,9 @@ class ConfigToolApp(tk.Tk):
         self.lang_menu.config(bg="#c0c0c0", fg="black", font=f_label, relief="raised", bd=2, activebackground="#d9d9d9", highlightthickness=0)
         self.lang_menu["menu"].config(bg="#c0c0c0", fg="black", font=f_label)
         self.lang_menu.pack(side="left", padx=5)
+
+        self.update_btn = tk.Button(row_lang, text="Mettre à jour le logiciel", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.update_software)
+        self.update_btn.pack(side="right", padx=10)
 
         # 2. Connection panel
         self.conn_lf = tk.LabelFrame(main_container, text="Connection Settings", bg="#c0c0c0", fg="black", font=f_title, relief="groove", bd=2)
