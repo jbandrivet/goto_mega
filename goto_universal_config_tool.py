@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Auteur : Andrivet Jean-Baptiste
 import tkinter as tk
+from tkinter import ttk
 from tkinter import messagebox
 import serial
 import serial.tools.list_ports
@@ -8,6 +9,10 @@ import time
 import json
 from pathlib import Path
 from datetime import datetime
+import subprocess
+import threading
+import os
+import re
 
 CONFIG_FILE = Path.home() / ".config" / "goto_universal" / "config_tool_settings.json"
 
@@ -149,7 +154,8 @@ class ConfigToolApp(tk.Tk):
         lang = self.settings.get("language", "fr")
         t = TRANSLATIONS[lang]
         self.title(t["title"].strip())
-        self.geometry("640x1050")
+        self.geometry("700x1100")
+        self.minsize(680, 800)
         self.configure(bg="#c0c0c0") # Classic Windows 95 grey
         self.resizable(False, True)
 
@@ -420,9 +426,25 @@ class ConfigToolApp(tk.Tk):
         self.derot_ppd_entry.pack(side="left")
         self.derot_ppd_entry.insert(0, str(self.settings.get("derot_mega_ppd", 100.0)))
         
+        row_extra2 = tk.Frame(form_inner, bg="#c0c0c0")
+        row_extra2.pack(fill="x", pady=6)
+        
         self.focus_mega_var = tk.BooleanVar(value=self.settings.get("focus_mega_en", False))
-        self.chk_focus_mega = tk.Checkbutton(row_extra, text="Focuseur (Mega)", variable=self.focus_mega_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white")
-        self.chk_focus_mega.pack(side="left", padx=(15,0))
+        self.focus_eaf_var = tk.BooleanVar(value=self.settings.get("focus_eaf_en", False))
+        
+        def toggle_mega():
+            if self.focus_mega_var.get():
+                self.focus_eaf_var.set(False)
+                
+        def toggle_eaf():
+            if self.focus_eaf_var.get():
+                self.focus_mega_var.set(False)
+                
+        self.chk_focus_mega = tk.Checkbutton(row_extra2, text="Focuseur (Mega)", variable=self.focus_mega_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=toggle_mega)
+        self.chk_focus_mega.pack(side="left")
+        
+        self.chk_focus_eaf = tk.Checkbutton(row_extra2, text="Focuseur (ZWO EAF)", variable=self.focus_eaf_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=toggle_eaf)
+        self.chk_focus_eaf.pack(side="left", padx=(20,0))
 
         mount_ctrl_inner.pack(padx=15, pady=10, fill="x")
         
@@ -444,6 +466,77 @@ class ConfigToolApp(tk.Tk):
         
         self.flash_teensy_btn = tk.Button(flash_inner, text="Compile & Flash Teensy 4.1 Raquette", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=lambda: self.flash_firmware("teensy"), width=25)
         self.flash_teensy_btn.pack(side="left", padx=5, fill="x", expand=True)
+
+        # 4.8 Astrometry Panel
+        self.astro_lf = tk.LabelFrame(main_container, text="Astrométrie ZWO (Centrage)", bg="#c0c0c0", fg="black", font=f_title, relief="groove", bd=2)
+        self.astro_lf.pack(fill="x", pady=5)
+        
+        self.astro_en_var = tk.BooleanVar(value=self.settings.get("astrometry_enabled", False))
+        self.astro_chk = tk.Checkbutton(self.astro_lf, text="Activer la fonctionnalité d'Astrométrie ZWO", variable=self.astro_en_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=self.toggle_astrometry_ui)
+        self.astro_chk.pack(anchor="w", padx=10, pady=5)
+        
+        self.astro_inner = tk.Frame(self.astro_lf, bg="#c0c0c0")
+        
+        # row 1: exposure, gain, camera index
+        self.astro_row1 = tk.Frame(self.astro_inner, bg="#c0c0c0")
+        self.astro_row1.pack(fill="x", pady=2)
+        
+        self.lbl_cam = tk.Label(self.astro_row1, text="Caméra:", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_cam.pack(side="left")
+        
+        self.cam_combo = ttk.Combobox(self.astro_row1, width=15, state="readonly", font=f_entry)
+        saved_idx = self.settings.get("astro_cam_idx", 0)
+        self.cam_combo.set(f"Cam {saved_idx}")
+        self.cam_combo.pack(side="left", padx=(5,0))
+        
+        self.detect_cam_btn = tk.Button(self.astro_row1, text="🔄", font=("MS Sans Serif", 8), command=self.detect_zwo_cameras, bg="#c0c0c0")
+        self.detect_cam_btn.pack(side="left", padx=(0,5))
+
+        self.lbl_exp = tk.Label(self.astro_row1, text="Exp (s):", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_exp.pack(side="left", padx=(10,0))
+        self.exp_entry = tk.Entry(self.astro_row1, width=5, font=f_entry, bg="white", fg="black", bd=2, relief="sunken")
+        self.exp_entry.insert(0, str(self.settings.get("astro_exp", 2.0)))
+        self.exp_entry.pack(side="left", padx=5)
+
+        self.lbl_gain = tk.Label(self.astro_row1, text="Gain:", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_gain.pack(side="left", padx=(10,0))
+        self.gain_entry = tk.Entry(self.astro_row1, width=4, font=f_entry, bg="white", fg="black", bd=2, relief="sunken")
+        self.gain_entry.insert(0, str(self.settings.get("astro_gain", 150)))
+        self.gain_entry.pack(side="left", padx=5)
+        
+        self.auto_gain_var = tk.BooleanVar(value=self.settings.get("astro_auto_gain", True))
+        self.auto_gain_chk = tk.Checkbutton(self.astro_row1, text="Auto", variable=self.auto_gain_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=self.toggle_auto_gain)
+        self.auto_gain_chk.pack(side="left")
+        
+        # row 2: Focal length and Blind Solving
+        self.astro_row2 = tk.Frame(self.astro_inner, bg="#c0c0c0")
+        self.astro_row2.pack(fill="x", pady=2)
+        
+        self.lbl_foc = tk.Label(self.astro_row2, text="Focale (mm):", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_foc.pack(side="left")
+        self.foc_entry = tk.Entry(self.astro_row2, width=6, font=f_entry, bg="white", fg="black", bd=2, relief="sunken")
+        self.foc_entry.insert(0, str(self.settings.get("astro_focal", 400)))
+        self.foc_entry.pack(side="left", padx=5)
+        
+        self.blind_var = tk.BooleanVar(value=self.settings.get("astro_blind", False))
+        self.blind_chk = tk.Checkbutton(self.astro_row2, text="Blind Solving", variable=self.blind_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=self.toggle_blind_solving)
+        self.blind_chk.pack(side="left", padx=(10,0))
+        
+        self.astro_btns_frame = tk.Frame(self.astro_inner, bg="#c0c0c0")
+        self.astro_btns_frame.pack(pady=(5,0), fill="x", expand=True)
+        
+        self.capture_btn = tk.Button(self.astro_btns_frame, text="1. Capturer (Aperçu)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.run_capture_only)
+        self.capture_btn.pack(side="left", fill="x", expand=True, padx=(0, 2))
+        
+        self.solve_btn = tk.Button(self.astro_btns_frame, text="2. Résoudre & Sync", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.run_solve_only, state="disabled")
+        self.solve_btn.pack(side="left", fill="x", expand=True, padx=(2, 2))
+        
+        self.preview_foc_btn = tk.Button(self.astro_btns_frame, text="3. Mode Preview (Focus)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_preview_focuser)
+        self.preview_foc_btn.pack(side="left", fill="x", expand=True, padx=(2, 0))
+
+        self.toggle_blind_solving()
+        self.toggle_auto_gain()
+        self.toggle_astrometry_ui()
 
         # 5. Buttons Actions Panel
         actions_frame = tk.Frame(main_container, bg="#c0c0c0")
@@ -620,6 +713,85 @@ class ConfigToolApp(tk.Tk):
     def update_speed_lbl(self, val):
         self.speed_val_lbl.config(text=f"{float(val):.1f} °/s")
 
+    def toggle_blind_solving(self):
+        if self.blind_var.get():
+            self.foc_entry.config(state="disabled")
+        else:
+            self.foc_entry.config(state="normal")
+
+    def toggle_auto_gain(self):
+        if self.auto_gain_var.get():
+            self.gain_entry.config(state="disabled")
+        else:
+            self.gain_entry.config(state="normal")
+
+    def detect_zwo_cameras(self):
+        def task():
+            self.after(0, lambda: self.detect_cam_btn.config(state="disabled", text="..."))
+            script = "import zwoasi as asi\nasi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')\nprint(asi.list_cameras())"
+            try:
+                import subprocess, os, ast
+                python_path = "/home/jean-baptiste/astro-cam/venv/bin/python"
+                if not os.path.exists(python_path):
+                    python_path = "python3"
+                res = subprocess.run([python_path, "-c", script], capture_output=True, text=True)
+                if res.returncode == 0:
+                    cams = ast.literal_eval(res.stdout.strip())
+                    if cams:
+                        self.after(0, lambda: self.update_camera_combo(cams))
+                    else:
+                        self.after(0, lambda: messagebox.showinfo("ZWO", "Aucune caméra ZWO détectée."))
+                else:
+                    self.after(0, lambda: messagebox.showerror("Erreur", "Erreur lors de la détection: " + res.stderr))
+            except Exception as e:
+                self.after(0, lambda: messagebox.showerror("Erreur", str(e)))
+            finally:
+                self.after(0, lambda: self.detect_cam_btn.config(state="normal", text="🔄"))
+        
+        import threading
+        threading.Thread(target=task, daemon=True).start()
+
+    def update_camera_combo(self, cams):
+        self.cam_combo['values'] = cams
+        self.cam_combo.current(0)
+        
+    def get_selected_camera_idx(self):
+        idx = self.cam_combo.current()
+        if idx >= 0:
+            return idx
+        try:
+            val = self.cam_combo.get()
+            if val.startswith("Cam "):
+                return int(val[4:])
+            return self.settings.get("astro_cam_idx", 0)
+        except Exception:
+            return 0
+
+    def show_captured_image(self):
+        try:
+            import os
+            if not os.path.exists('/tmp/capture_astro_preview.png'):
+                return
+            img = tk.PhotoImage(file="/tmp/capture_astro_preview.png")
+            if hasattr(self, 'preview_top') and self.preview_top.winfo_exists():
+                self.preview_lbl.config(image=img)
+                self.preview_lbl.image = img
+                self.preview_top.lift()
+            else:
+                self.preview_top = tk.Toplevel(self)
+                self.preview_top.title("Dernière capture ZWO (Aperçu)")
+                self.preview_lbl = tk.Label(self.preview_top, image=img, bg="black")
+                self.preview_lbl.image = img
+                self.preview_lbl.pack(fill="both", expand=True)
+        except Exception as e:
+            pass
+
+    def toggle_astrometry_ui(self):
+        if self.astro_en_var.get():
+            self.astro_inner.pack(padx=15, pady=5, fill="x")
+        else:
+            self.astro_inner.pack_forget()
+
     def toggle_connection(self):
         if not self.is_connected:
             port = self.port_var.get()
@@ -687,6 +859,8 @@ class ConfigToolApp(tk.Tk):
             self.apply_btn.config(state="normal")
             self.park_btn.config(state="normal")
             self.unpark_btn.config(state="normal")
+            self.beep_test_btn.config(state="normal")
+            self.unpark_btn.config(state="normal")
         else:
             self.status_lbl.config(text=t["disconnected"], fg="red")
             self.conn_btn.config(text=t["connect"])
@@ -700,6 +874,8 @@ class ConfigToolApp(tk.Tk):
             self.read_btn.config(state="disabled")
             self.apply_btn.config(state="disabled")
             self.park_btn.config(state="disabled")
+            self.unpark_btn.config(state="disabled")
+            self.beep_test_btn.config(state="disabled")
             self.unpark_btn.config(state="disabled")
 
     def test_beep(self):
@@ -864,6 +1040,343 @@ class ConfigToolApp(tk.Tk):
         s = int(((val - d) * 60 - m) * 60)
         return f"{sign}{d:03d}*{m:02d}:{s:02d}"
 
+    def format_ra_lx(self, ra_hours):
+        h = int(ra_hours)
+        rem = (ra_hours - h) * 60.0
+        m = int(rem)
+        s = int((rem - m) * 60.0)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    def format_dec_lx(self, dec_deg):
+        sign = "+" if dec_deg >= 0 else "-"
+        d = abs(dec_deg)
+        deg = int(d)
+        rem = (d - deg) * 60.0
+        m = int(rem)
+        s = int((rem - m) * 60.0)
+        return f"{sign}{deg:02d}*{m:02d}:{s:02d}"
+
+    def run_capture_only(self):
+        def task():
+            try:
+                self.after(0, lambda: self.capture_btn.config(state="disabled", text="Capture ZWO..."))
+                try:
+                    exp = float(self.exp_entry.get())
+                    gain = int(self.gain_entry.get())
+                    cam_idx = self.get_selected_camera_idx()
+                except ValueError:
+                    self.after(0, lambda: messagebox.showerror("Erreur", "Valeurs invalides dans les champs astrométrie."))
+                    return
+                auto_gain = self.auto_gain_var.get()
+                
+                script = f"""
+import sys
+import os
+import zwoasi as asi
+import cv2
+import time
+import numpy as np
+asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
+num_cameras = asi.get_num_cameras()
+if num_cameras <= {cam_idx}:
+    print("NO_CAMERA")
+    sys.exit(1)
+camera = asi.Camera({cam_idx})
+controls = camera.get_controls()
+if 'BandWidth' in controls:
+    camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, controls['BandWidth']['MinValue'])
+props = camera.get_camera_property()
+pixel_size = props['PixelSize']
+with open('/tmp/astro_px_size.txt', 'w') as f_px:
+    f_px.write(str(pixel_size))
+
+camera.set_control_value(asi.ASI_EXPOSURE, int({exp} * 1000000))
+camera.set_control_value(asi.ASI_GAIN, {gain}, auto={auto_gain})
+camera.set_image_type(asi.ASI_IMG_RAW8)
+
+try:
+    camera.capture(filename='/tmp/capture_astro.png')
+except asi.ZWO_CaptureError:
+    # Fallback to manual gain if auto gain fails on long exposures
+    camera.set_control_value(asi.ASI_GAIN, {gain}, auto=False)
+    camera.capture(filename='/tmp/capture_astro.png')
+
+# Create preview image
+img = cv2.imread('/tmp/capture_astro.png', cv2.IMREAD_GRAYSCALE)
+if img is not None:
+    h, w = img.shape
+    scale = 640.0 / w
+    if scale < 1.0:
+        img = cv2.resize(img, (int(w*scale), int(h*scale)))
+    p2, p99 = np.percentile(img, (2, 99.5))
+    if p99 > p2:
+        stretched = np.clip((img - p2) / (p99 - p2) * 255.0, 0, 255).astype(np.uint8)
+    else:
+        stretched = img
+    
+    # Convert to BGR so tkinter PhotoImage doesn't load it as black/transparent
+    stretched_bgr = cv2.cvtColor(stretched, cv2.COLOR_GRAY2BGR)
+    cv2.imwrite('/tmp/capture_astro_preview.png', stretched_bgr)
+"""
+                with open('/tmp/zwo_capture.py', 'w') as f:
+                    f.write(script)
+                
+                python_path = "/home/jean-baptiste/astro-cam/venv/bin/python"
+                if not os.path.exists(python_path):
+                    python_path = "python3"
+                
+                res = subprocess.run([python_path, "/tmp/zwo_capture.py"], capture_output=True, text=True)
+                if res.returncode != 0:
+                    self.after(0, lambda: messagebox.showerror("Erreur ZWO", "Erreur capture ZWO.\\n" + res.stderr))
+                    return
+                
+                self.after(0, self.show_captured_image)
+                self.after(0, lambda: self.solve_btn.config(state="normal"))
+                
+            except Exception as e:
+                self.after(0, lambda err=e: messagebox.showerror("Erreur", str(err)))
+            finally:
+                self.after(0, lambda: self.capture_btn.config(state="normal", text="1. Capturer (Aperçu)"))
+
+        import threading
+        threading.Thread(target=task, daemon=True).start()
+
+    def run_solve_only(self):
+        if not os.path.exists('/tmp/capture_astro.png'):
+            messagebox.showerror("Erreur", "Aucune image capturée. Veuillez d'abord capturer une image.")
+            return
+            
+        def task():
+            try:
+                self.after(0, lambda: self.solve_btn.config(state="disabled", text="Résolution (Astrométrie)..."))
+                try:
+                    focal = float(self.foc_entry.get())
+                except ValueError:
+                    self.after(0, lambda: messagebox.showerror("Erreur", "Valeurs invalides (focale)."))
+                    return
+                blind = self.blind_var.get()
+                
+                pixel_size = 3.76
+                if os.path.exists('/tmp/astro_px_size.txt'):
+                    with open('/tmp/astro_px_size.txt', 'r') as f_px:
+                        try: pixel_size = float(f_px.read().strip())
+                        except: pass
+                
+                sf_cmd = ["solve-field", "/tmp/capture_astro.png", "--overwrite", "--no-plots", "--cpulimit", "30"]
+                
+                if not blind and focal > 0:
+                    scale_arcsec = 206.265 * pixel_size / focal
+                    scale_low = scale_arcsec * 0.90
+                    scale_high = scale_arcsec * 1.10
+                    sf_cmd.extend(["--scale-units", "arcsecperpix", "--scale-low", str(scale_low), "--scale-high", str(scale_high)])
+                
+                res_sf = subprocess.run(sf_cmd, capture_output=True, text=True)
+                
+                import re
+                match = re.search(r"Field center: \(RA,Dec\) = \(\s*([0-9.]+),\s*([0-9.\-]+)\s*\)", res_sf.stdout)
+                if match:
+                    ra_deg = float(match.group(1))
+                    dec_deg = float(match.group(2))
+                    
+                    ra_hours = ra_deg / 15.0
+                    ra_str = self.format_ra_lx(ra_hours)
+                    dec_str = self.format_dec_lx(dec_deg)
+                    
+                    if getattr(self, 'is_connected', False) and getattr(self, 'ser', None):
+                        self.after(0, lambda: self.solve_btn.config(text="Synchronisation Monture..."))
+                        import time
+                        self.ser.write(f":Sr{ra_str}#".encode('ascii'))
+                        time.sleep(0.1)
+                        self.ser.write(f":Sd{dec_str}#".encode('ascii'))
+                        time.sleep(0.1)
+                        self.ser.write(b":CM#")
+                        self.after(0, lambda: messagebox.showinfo("Astrométrie Succès", f"Astrométrie OK!\\nRA: {ra_str}\\nDEC: {dec_str}\\nMonture synchronisée avec succès."))
+                    else:
+                        self.after(0, lambda: messagebox.showinfo("Astrométrie Succès", f"Astrométrie OK!\\nRA: {ra_str}\\nDEC: {dec_str}\\n(Test: Monture non connectée, sync ignorée)"))
+                else:
+                    self.after(0, lambda: messagebox.showerror("Erreur Astrométrie", "Échec astrométrie (plate solving failed).\\n" + res_sf.stdout[:300]))
+                    
+            except Exception as e:
+                self.after(0, lambda err=e: messagebox.showerror("Erreur", str(err)))
+            finally:
+                self.after(0, lambda: self.solve_btn.config(state="normal", text="2. Résoudre & Sync"))
+
+        import threading
+        threading.Thread(target=task, daemon=True).start()
+
+    def open_preview_focuser(self):
+        if hasattr(self, 'preview_top') and self.preview_top.winfo_exists():
+            self.preview_top.focus()
+            return
+            
+        try:
+            cam_idx = self.get_selected_camera_idx()
+            gain = int(self.gain_entry.get())
+        except ValueError:
+            messagebox.showerror("Erreur", "Valeur gain invalide.")
+            return
+
+        script = f"""
+import sys, os, time
+import zwoasi as asi
+import cv2
+import numpy as np
+
+try:
+    asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
+    camera = asi.Camera({cam_idx})
+    controls = camera.get_controls()
+    if 'BandWidth' in controls:
+        camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, controls['BandWidth']['MinValue'])
+    camera.set_control_value(asi.ASI_EXPOSURE, 200000)
+    camera.set_control_value(asi.ASI_GAIN, {gain}, auto=True)
+    camera.set_image_type(asi.ASI_IMG_RAW8)
+    camera.start_video_capture()
+    while True:
+        frame = camera.capture_video_frame(timeout=5000)
+        h, w = frame.shape
+        scale = 640.0 / w
+        if scale < 1.0:
+            frame = cv2.resize(frame, (int(w*scale), int(h*scale)))
+        p2, p99 = np.percentile(frame, (2, 99.5))
+        if p99 > p2:
+            frame = np.clip((frame - p2) / (p99 - p2) * 255.0, 0, 255).astype(np.uint8)
+        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+        cv2.imwrite('/tmp/capture_astro_stream_tmp.ppm', frame_bgr)
+        os.rename('/tmp/capture_astro_stream_tmp.ppm', '/tmp/capture_astro_stream.ppm')
+except KeyboardInterrupt:
+    pass
+except Exception as e:
+    with open('/tmp/zwo_stream_err.txt', 'w') as f:
+        f.write(str(e))
+finally:
+    try: camera.stop_video_capture()
+    except: pass
+"""
+        with open('/tmp/zwo_preview_stream.py', 'w') as f:
+            f.write(script)
+            
+        python_path = "/home/jean-baptiste/astro-cam/venv/bin/python"
+        if not os.path.exists(python_path):
+            python_path = "python3"
+            
+        import subprocess
+        self.stream_proc = subprocess.Popen([python_path, "/tmp/zwo_preview_stream.py"])
+        
+        self.preview_top = tk.Toplevel(self)
+        self.preview_top.title("Mise au Point (Preview ZWO)")
+        self.preview_top.protocol("WM_DELETE_WINDOW", self.close_preview_focuser)
+        
+        self.preview_lbl = tk.Label(self.preview_top, bg="black", width=640, height=480)
+        self.preview_lbl.pack(padx=10, pady=10)
+        
+        foc_frame = tk.Frame(self.preview_top, bg="#c0c0c0")
+        foc_frame.pack(fill="x", padx=10, pady=(0,10))
+        
+        lbl = tk.Label(foc_frame, text="Contrôle du Focuseur:", bg="#c0c0c0", font=("Arial", 12, "bold"))
+        lbl.pack(pady=5)
+        
+        btn_frame = tk.Frame(foc_frame, bg="#c0c0c0")
+        btn_frame.pack()
+        
+        def foc_in_mega(event=None):
+            if getattr(self, 'is_connected', False) and getattr(self, 'ser', None) and self.focus_mega_var.get():
+                self.ser.write(b":F+#")
+                
+        def foc_out_mega(event=None):
+            if getattr(self, 'is_connected', False) and getattr(self, 'ser', None) and self.focus_mega_var.get():
+                self.ser.write(b":F-#")
+                
+        def foc_stop_mega(event=None):
+            if getattr(self, 'is_connected', False) and getattr(self, 'ser', None) and self.focus_mega_var.get():
+                self.ser.write(b":FQ#")
+                
+        def foc_move_eaf(steps):
+            if not getattr(self, 'focus_eaf_var', None) or not self.focus_eaf_var.get():
+                return
+            if not getattr(self, 'eaf_lib', None):
+                import ctypes
+                ctypes.CDLL('libudev.so.1', mode=ctypes.RTLD_GLOBAL)
+                try:
+                    self.eaf_lib = ctypes.cdll.LoadLibrary('/usr/lib/x86_64-linux-gnu/libEAFFocuser.so')
+                    self.eaf_lib.EAFGetNum.restype = ctypes.c_int
+                    self.eaf_lib.EAFGetID.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
+                    self.eaf_lib.EAFOpen.argtypes = [ctypes.c_int]
+                    self.eaf_lib.EAFInit.argtypes = [ctypes.c_int]
+                    self.eaf_lib.EAFGetPosition.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
+                    self.eaf_lib.EAFMove.argtypes = [ctypes.c_int, ctypes.c_int]
+                    self.eaf_id = -1
+                    if self.eaf_lib.EAFGetNum() > 0:
+                        _id = ctypes.c_int()
+                        self.eaf_lib.EAFGetID(0, ctypes.byref(_id))
+                        self.eaf_id = _id.value
+                        self.eaf_lib.EAFOpen(self.eaf_id)
+                        self.eaf_lib.EAFInit(self.eaf_id)
+                except Exception:
+                    self.eaf_lib = None
+            if getattr(self, 'eaf_lib', None) and self.eaf_id >= 0:
+                import ctypes
+                pos = ctypes.c_int()
+                self.eaf_lib.EAFGetPosition(self.eaf_id, ctypes.byref(pos))
+                self.eaf_lib.EAFMove(self.eaf_id, pos.value + steps)
+
+        def btn_in_press(event): foc_in_mega()
+        def btn_in_release(event):
+            foc_stop_mega()
+            foc_move_eaf(-100)
+            
+        def btn_in_fast_release(event): foc_move_eaf(-500)
+            
+        def btn_out_press(event): foc_out_mega()
+        def btn_out_release(event):
+            foc_stop_mega()
+            foc_move_eaf(100)
+            
+        def btn_out_fast_release(event): foc_move_eaf(500)
+
+        btn_in_fast = tk.Button(btn_frame, text="<<< IN", font=("Arial", 12), width=6)
+        btn_in_fast.bind("<ButtonRelease-1>", btn_in_fast_release)
+        btn_in_fast.pack(side="left", padx=5)
+
+        btn_in = tk.Button(btn_frame, text="< IN", font=("Arial", 12), width=6)
+        btn_in.bind("<ButtonPress-1>", btn_in_press)
+        btn_in.bind("<ButtonRelease-1>", btn_in_release)
+        btn_in.pack(side="left", padx=5)
+        
+        btn_out = tk.Button(btn_frame, text="OUT >", font=("Arial", 12), width=6)
+        btn_out.bind("<ButtonPress-1>", btn_out_press)
+        btn_out.bind("<ButtonRelease-1>", btn_out_release)
+        btn_out.pack(side="left", padx=5)
+        
+        btn_out_fast = tk.Button(btn_frame, text="OUT >>>", font=("Arial", 12), width=6)
+        btn_out_fast.bind("<ButtonRelease-1>", btn_out_fast_release)
+        btn_out_fast.pack(side="left", padx=5)
+        
+        self.update_preview_stream()
+
+    def close_preview_focuser(self):
+        if hasattr(self, 'stream_proc'):
+            try:
+                self.stream_proc.terminate()
+            except Exception:
+                pass
+        self.preview_top.destroy()
+        
+    def update_preview_stream(self):
+        if not hasattr(self, 'preview_top') or not self.preview_top.winfo_exists():
+            return
+        try:
+            import os
+            if os.path.exists('/tmp/capture_astro_stream.ppm'):
+                if not hasattr(self, 'preview_photo'):
+                    self.preview_photo = tk.PhotoImage(file='/tmp/capture_astro_stream.ppm')
+                    self.preview_lbl.config(image=self.preview_photo)
+                else:
+                    self.preview_photo.configure(file='/tmp/capture_astro_stream.ppm')
+        except Exception:
+            pass
+        self.after(100, self.update_preview_stream)
+
     def apply_config_to_arduino(self):
         if not self.is_connected or not self.ser:
             return
@@ -950,6 +1463,18 @@ class ConfigToolApp(tk.Tk):
             self.settings["buzzer_on"] = buzzer
             self.settings["rev_az"] = rev_az
             self.settings["rev_alt"] = rev_alt
+            self.settings["focus_mega_en"] = self.focus_mega_var.get()
+            self.settings["focus_eaf_en"] = self.focus_eaf_var.get()
+            self.settings["astrometry_enabled"] = self.astro_en_var.get()
+            try:
+                self.settings["astro_cam_idx"] = self.get_selected_camera_idx()
+                self.settings["astro_exp"] = float(self.exp_entry.get())
+                self.settings["astro_gain"] = int(self.gain_entry.get())
+                self.settings["astro_focal"] = float(self.foc_entry.get())
+                self.settings["astro_blind"] = self.blind_var.get()
+                self.settings["astro_auto_gain"] = self.auto_gain_var.get()
+            except ValueError:
+                pass
             self.save_local_settings()
 
             messagebox.showinfo("Apply Config", "Configuration successfully saved to Arduino Mega!")
