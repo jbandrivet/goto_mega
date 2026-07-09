@@ -191,19 +191,21 @@ class ConfigToolApp(tk.Tk):
                     local_sha = version_file.read_text().strip()
                 
             if local_sha == "":
-                # Première exécution depuis le nouvel installateur : on initialise silencieusement le fichier version
                 version_file = Path.home() / ".config" / "goto_mega" / "version.txt"
                 version_file.parent.mkdir(parents=True, exist_ok=True)
                 version_file.write_text(remote_sha)
+                self.after(0, lambda: self.update_btn.config(text="Aucune mise à jour disponible", state="disabled"))
                 
             elif local_sha != remote_sha:
                 self.after(0, lambda: self.update_btn.config(
-                    text="🔴 Mise à jour disponible", 
-                    bg="#ffcccc", fg="red", font=("MS Sans Serif", 9, "bold")
+                    text="🔴 Mise à jour disponible !", 
+                    bg="#ffcccc", fg="red", font=("MS Sans Serif", 9, "bold"), state="normal"
                 ))
                 self.remote_sha = remote_sha
+            else:
+                self.after(0, lambda: self.update_btn.config(text="Aucune mise à jour disponible", state="disabled"))
         except Exception:
-            pass
+            self.after(0, lambda: self.update_btn.config(text="Mise à jour (Hors ligne)", state="disabled"))
 
     def load_local_settings(self):
         if CONFIG_FILE.exists():
@@ -356,7 +358,7 @@ class ConfigToolApp(tk.Tk):
         self.lang_menu["menu"].config(bg="#c0c0c0", fg="black", font=f_label)
         self.lang_menu.pack(side="left", padx=5)
 
-        self.update_btn = tk.Button(row_lang, text="Mettre à jour le logiciel", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.update_software)
+        self.update_btn = tk.Button(row_lang, text="Vérification des mises à jour...", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.update_software, state="disabled")
         self.update_btn.pack(side="right", padx=10)
 
         # 2. Connection panel
