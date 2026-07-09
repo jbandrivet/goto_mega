@@ -57,7 +57,7 @@ class InstallerApp(tk.Tk):
             pip_exe = venv_dir / "bin" / "pip"
             subprocess.run([str(pip_exe), "install", "--upgrade", "pip"], check=True)
             
-            reqs = ["pyserial", "pillow", "zwoasi", "numpy", "requests"]
+            reqs = ["pyserial", "pillow", "zwoasi", "numpy", "requests", "ephem"]
             for i, req in enumerate(reqs):
                 self.update_status(f"Installation de {req}...", 30 + (i * 10))
                 subprocess.run([str(pip_exe), "install", req], check=True)

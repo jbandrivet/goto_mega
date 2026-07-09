@@ -762,10 +762,14 @@ class ConfigToolApp(tk.Tk):
         try:
             import subprocess
             import sys
+            import os
+            from pathlib import Path
             script_path = Path(__file__).parent / "raquette_virtuelle.py"
             if not script_path.exists():
                 script_path = Path("/home/jean-baptiste/goto_mega/raquette_virtuelle.py")
-            subprocess.Popen([sys.executable, str(script_path)])
+            venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+            py_exe = venv_python if os.path.exists(venv_python) else sys.executable
+            subprocess.Popen([py_exe, str(script_path)])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to launch Virtual Handpad:\n{e}")
 
