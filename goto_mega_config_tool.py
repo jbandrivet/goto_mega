@@ -194,7 +194,7 @@ class ConfigToolApp(tk.Tk):
                 version_file = Path.home() / ".config" / "goto_mega" / "version.txt"
                 version_file.parent.mkdir(parents=True, exist_ok=True)
                 version_file.write_text(remote_sha)
-                self.after(0, lambda: self.update_btn.config(text="Aucune mise à jour disponible", state="disabled"))
+                self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
                 
             elif local_sha != remote_sha:
                 self.after(0, lambda: self.update_btn.config(
@@ -203,9 +203,9 @@ class ConfigToolApp(tk.Tk):
                 ))
                 self.remote_sha = remote_sha
             else:
-                self.after(0, lambda: self.update_btn.config(text="Aucune mise à jour disponible", state="disabled"))
+                self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
         except Exception:
-            self.after(0, lambda: self.update_btn.config(text="Mise à jour (Hors ligne)", state="disabled"))
+            self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
 
     def load_local_settings(self):
         if CONFIG_FILE.exists():
@@ -358,7 +358,7 @@ class ConfigToolApp(tk.Tk):
         self.lang_menu["menu"].config(bg="#c0c0c0", fg="black", font=f_label)
         self.lang_menu.pack(side="left", padx=5)
 
-        self.update_btn = tk.Button(row_lang, text="Vérification des mises à jour...", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.update_software, state="disabled")
+        self.update_btn = tk.Button(row_lang, text="Vérifier les mises à jour", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.update_software, state="normal")
         self.update_btn.pack(side="right", padx=10)
 
         # 2. Connection panel
