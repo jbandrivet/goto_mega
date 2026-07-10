@@ -652,6 +652,7 @@ class ConfigToolApp(tk.Tk):
         self.api_key_entry = tk.Entry(self.api_key_frame, width=25, font=f_entry, bg="white", fg="black", bd=2, relief="sunken")
         self.api_key_entry.insert(0, self.settings.get("astro_api_key", ""))
         self.api_key_entry.pack(side="left", padx=5)
+        self.toggle_astro_api()
         
         # row 1: exposure, gain, camera index
         self.astro_row1 = tk.Frame(self.astro_inner, bg="#c0c0c0")
@@ -1517,10 +1518,10 @@ if img is not None:
 
     def toggle_astro_api(self):
         if self.astro_mode_var.get() == "api":
-            self.api_key_entry.config(state="normal")
+            self.api_key_frame.pack(fill="x", pady=2, after=self.astro_mode_frame)
             self.astro_dl_btn.config(state="disabled")
         else:
-            self.api_key_entry.config(state="disabled")
+            self.api_key_frame.pack_forget()
             self.astro_dl_btn.config(state="normal")
 
     def run_astrometry_api(self, image_path):
