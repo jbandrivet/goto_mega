@@ -1333,25 +1333,37 @@ class ConfigToolApp(tk.Tk):
 
     def download_iss_tle(self):
         def task():
-            try:
-                import urllib.request
-                from pathlib import Path
-                url = "https://celestrak.org/NORAD/elements/stations.txt"
-                req = urllib.request.Request(url, headers={'User-Agent': 'GotoMegaConfigTool/1.0'})
-                with urllib.request.urlopen(req) as response:
-                    data = response.read().decode('utf-8')
-                
-                lines = data.splitlines()
-                iss_lines = []
-                for i, line in enumerate(lines):
-                    if line.startswith("ISS (ZARYA)"):
-                        iss_lines = lines[i:i+3]
+            import urllib.request
+            from pathlib import Path
+            urls = [
+                "https://www.amsat.org/tle/current/nasa.all",
+                "https://celestrak.org/NORAD/elements/stations.txt"
+            ]
+            iss_lines = []
+            last_err = None
+            for url in urls:
+                try:
+                    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                    with urllib.request.urlopen(req, timeout=5) as response:
+                        data = response.read().decode('utf-8', errors='ignore')
+                    
+                    lines = data.splitlines()
+                    for i, line in enumerate(lines):
+                        if line.strip().upper() in ("ISS", "ISS (ZARYA)"):
+                            iss_lines = [lines[i].strip(), lines[i+1].strip(), lines[i+2].strip()]
+                            break
+                    if iss_lines:
                         break
-                
-                if not iss_lines:
-                    self.after(0, lambda: messagebox.showerror("Erreur", "ISS (ZARYA) introuvable dans le fichier Celestrak."))
-                    return
-                
+                except Exception as e:
+                    last_err = e
+                    continue
+            
+            if not iss_lines:
+                err_msg = f"Erreur de connexion: {last_err}" if last_err else "ISS introuvable dans les catalogues."
+                self.after(0, lambda: messagebox.showerror("Erreur", err_msg))
+                return
+            
+            try:
                 tle_str = "\n".join(iss_lines)
                 tle_path = Path.home() / ".goto_mega" / "iss.tle"
                 with open(tle_path, "w", encoding="utf-8") as f:
@@ -1359,7 +1371,7 @@ class ConfigToolApp(tk.Tk):
                     
                 self.after(0, lambda: messagebox.showinfo("Succès", f"TLE de l'ISS téléchargé et sauvegardé dans:\n{tle_path}\n(Il sera automatiquement supprimé dans 24h)\n\n{tle_str}"))
             except Exception as e:
-                self.after(0, lambda err=e: messagebox.showerror("Erreur de téléchargement", f"Impossible de télécharger le TLE:\n{err}"))
+                self.after(0, lambda err=e: messagebox.showerror("Erreur", f"Erreur d'écriture:\n{err}"))
         
         import threading
         threading.Thread(target=task, daemon=True).start()
