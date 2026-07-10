@@ -554,6 +554,9 @@ class ConfigToolApp(tk.Tk):
         self.sync_pc_btn = tk.Button(sync_btn_frame, text="Sync PC from Arduino (GPS)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.sync_pc_from_arduino, state="disabled", width=35)
         self.sync_pc_btn.pack(pady=2)
 
+        self.tle_btn = tk.Button(sync_btn_frame, text="Télécharger TLE ISS (Celestrak)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.download_iss_tle, width=35)
+        self.tle_btn.pack(pady=2)
+
         # Sunken label for sync time
         sync_box = tk.Frame(sync_inner, bg="white", bd=2, relief="sunken", width=180, height=22)
         sync_box.pack(side="left", padx=15)
@@ -1313,6 +1316,39 @@ class ConfigToolApp(tk.Tk):
                 messagebox.showinfo("Synchronization", "PC clock sent to Arduino!")
             except Exception as e:
                 self.handle_serial_error(e)
+
+    def download_iss_tle(self):
+        def task():
+            try:
+                import urllib.request
+                from pathlib import Path
+                url = "https://celestrak.org/NORAD/elements/stations.txt"
+                req = urllib.request.Request(url, headers={'User-Agent': 'GotoMegaConfigTool/1.0'})
+                with urllib.request.urlopen(req) as response:
+                    data = response.read().decode('utf-8')
+                
+                lines = data.splitlines()
+                iss_lines = []
+                for i, line in enumerate(lines):
+                    if line.startswith("ISS (ZARYA)"):
+                        iss_lines = lines[i:i+3]
+                        break
+                
+                if not iss_lines:
+                    self.after(0, lambda: messagebox.showerror("Erreur", "ISS (ZARYA) introuvable dans le fichier Celestrak."))
+                    return
+                
+                tle_str = "\n".join(iss_lines)
+                tle_path = Path.home() / ".goto_mega" / "iss.tle"
+                with open(tle_path, "w", encoding="utf-8") as f:
+                    f.write(tle_str)
+                    
+                self.after(0, lambda: messagebox.showinfo("Succès", f"TLE de l'ISS téléchargé et sauvegardé dans:\n{tle_path}\n\n{tle_str}"))
+            except Exception as e:
+                self.after(0, lambda err=e: messagebox.showerror("Erreur de téléchargement", f"Impossible de télécharger le TLE:\n{err}"))
+        
+        import threading
+        threading.Thread(target=task, daemon=True).start()
 
     def sync_pc_from_arduino(self):
         if self.is_connected and self.ser:
