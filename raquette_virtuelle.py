@@ -89,7 +89,7 @@ class VirtualTeensyApp(tk.Tk):
         self.is_align_workflow = False
         self.is_parking_workflow = False
         
-        self.catalogs = ["Messier", "NGC", "IC", "Caldwell", "Systeme Solaire", "Étoiles"]
+        self.catalogs = ["Messier", "NGC", "IC", "Caldwell", "Systeme Solaire", "Étoiles", "ISS"]
         self.cat_idx = 0
         
         self.obj_list = []
@@ -998,6 +998,37 @@ class VirtualTeensyApp(tk.Tk):
                     stars = self.get_visible_stars()
                     for s in stars: s['visible'] = True
                     self.obj_list = stars
+                elif cat_name == "ISS":
+                    self.obj_list = []
+                    lang = self.cfg.get("language", "fr")
+                    import time, math
+                    from pathlib import Path
+                    tle_path = Path.home() / ".goto_mega" / "iss.tle"
+                    if tle_path.exists() and (time.time() - tle_path.stat().st_mtime < 86400):
+                        try:
+                            import ephem
+                            with open(tle_path, 'r') as f:
+                                lines = f.read().splitlines()
+                            iss = ephem.readtle(lines[0], lines[1], lines[2])
+                            
+                            # Use observer location if connected to get apparent RA/DEC and visibility
+                            if self.is_connected:
+                                self.sync_clock() # Basic sync to ensure observer is setup
+                            obs = ephem.Observer()
+                            obs.lat = str(self.cfg.get('latitude', 45.0))
+                            obs.lon = str(self.cfg.get('longitude', 0.0))
+                            obs.elevation = self.cfg.get('elevation', 100)
+                            iss.compute(obs)
+                            
+                            visible = float(iss.alt) > 0
+                            self.obj_list = [{'name': 'ISS (ZARYA)', 'type': 'S', 'mag': -2.0, 'ra': float(iss.ra)*12.0/math.pi, 'dec': float(iss.dec)*180.0/math.pi, 'const': 'LEO', 'visible': visible}]
+                            self.set_msg(" TLE BON ! " if lang=="fr" else " TLE GOOD! ", "                ", "", "", 1500, self.UI_OBJECT_LIST)
+                        except Exception:
+                            self.set_msg(" TLE CORROMPU ! " if lang=="fr" else " TLE CORRUPTED! ", "                ", "", "", 2000, self.UI_CAT_SELECT)
+                            return
+                    else:
+                        self.set_msg(" TLE ABSENT/PERIME " if lang=="fr" else " TLE MISSING/OLD ", " Utiliser Config. " if lang=="fr" else " Use Config Tool ", "", "", 2000, self.UI_CAT_SELECT)
+                        return
                 else:
                     self.obj_list = self.get_catalog_with_visibility(cat_name)
                 self.obj_idx = 0
