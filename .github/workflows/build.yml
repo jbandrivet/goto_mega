@@ -28,10 +28,10 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --onedir --windowed --add-data "goto_universal_mega:goto_universal_mega" --add-data "goto_universal_raquette:goto_universal_raquette" goto_universal_config_tool.py
+        pyinstaller --noconfirm --onedir --windowed --add-data "goto_mega_mega:goto_mega_mega" --add-data "goto_mega_raquette:goto_mega_raquette" goto_mega_config_tool.py
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v3
       with:
-        name: GotoUniversaleConfig_${{ matrix.os }}
-        path: dist/goto_universal_config_tool
+        name: GotoMegaConfig_${{ matrix.os }}
+        path: dist/goto_mega_config_tool
