@@ -766,7 +766,7 @@ class ConfigToolApp(tk.Tk):
             from pathlib import Path
             script_path = Path(__file__).parent / "raquette_virtuelle.py"
             if not script_path.exists():
-                script_path = Path("/home/jean-baptiste/goto_mega/raquette_virtuelle.py")
+                script_path = Path.home() / ".goto_mega" / "raquette_virtuelle.py"
             venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
             py_exe = venv_python if os.path.exists(venv_python) else sys.executable
             subprocess.Popen([py_exe, str(script_path)])
@@ -1733,10 +1733,10 @@ finally:
         with open('/tmp/zwo_preview_stream.py', 'w') as f:
             f.write(script)
             
-        python_path = "/home/jean-baptiste/astro-cam/venv/bin/python"
-        if not os.path.exists(python_path):
-            python_path = "python3"
-            
+        import sys
+        venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+        python_path = venv_python if os.path.exists(venv_python) else sys.executable
+
         import subprocess
         self.stream_proc = subprocess.Popen([python_path, "/tmp/zwo_preview_stream.py"])
         
