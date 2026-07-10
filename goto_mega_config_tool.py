@@ -165,8 +165,22 @@ class ConfigToolApp(tk.Tk):
         self.update_connection_status()
         self.translate_ui()
         
+        # TLE cleanup (older than 24h)
+        self.cleanup_old_tle()
+        
         # Check for updates in background
         threading.Thread(target=self.check_for_updates, daemon=True).start()
+
+    def cleanup_old_tle(self):
+        import time
+        from pathlib import Path
+        tle_path = Path.home() / ".goto_mega" / "iss.tle"
+        if tle_path.exists():
+            if time.time() - tle_path.stat().st_mtime > 86400:
+                try:
+                    tle_path.unlink()
+                except:
+                    pass
 
     def check_for_updates(self):
         import urllib.request
@@ -554,7 +568,7 @@ class ConfigToolApp(tk.Tk):
         self.sync_pc_btn = tk.Button(sync_btn_frame, text="Sync PC from Arduino (GPS)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.sync_pc_from_arduino, state="disabled", width=35)
         self.sync_pc_btn.pack(pady=2)
 
-        self.tle_btn = tk.Button(sync_btn_frame, text="Télécharger TLE ISS (Celestrak)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.download_iss_tle, width=35)
+        self.tle_btn = tk.Button(sync_btn_frame, text="Télécharger TLE ISS (Valable 24h)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.download_iss_tle, width=35)
         self.tle_btn.pack(pady=2)
 
         # Sunken label for sync time
@@ -1343,7 +1357,7 @@ class ConfigToolApp(tk.Tk):
                 with open(tle_path, "w", encoding="utf-8") as f:
                     f.write(tle_str)
                     
-                self.after(0, lambda: messagebox.showinfo("Succès", f"TLE de l'ISS téléchargé et sauvegardé dans:\n{tle_path}\n\n{tle_str}"))
+                self.after(0, lambda: messagebox.showinfo("Succès", f"TLE de l'ISS téléchargé et sauvegardé dans:\n{tle_path}\n(Il sera automatiquement supprimé dans 24h)\n\n{tle_str}"))
             except Exception as e:
                 self.after(0, lambda err=e: messagebox.showerror("Erreur de téléchargement", f"Impossible de télécharger le TLE:\n{err}"))
         
