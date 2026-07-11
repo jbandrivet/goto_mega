@@ -492,6 +492,33 @@ class VirtualTeensyApp(tk.Tk):
 
     def telemetry_loop(self):
         if self.is_connected:
+            import time
+            import math
+            import ephem
+            if getattr(self, 'pending_iss_track_time', 0) > 0 and time.time() >= self.pending_iss_track_time:
+                self.pending_iss_track_time = 0
+                self.iss_tracking_active = True
+                lang = self.cfg.get("language", "fr")
+                self.set_msg(" SUIVI ISS... " if lang=="fr" else " TRACKING ISS... ", "", "", "", 2000, self.UI_MAIN)
+            if getattr(self, 'iss_tracking_active', False) and getattr(self, 'iss_obj', None) and getattr(self, 'iss_obs', None):
+                self.iss_obs.date = ephem.now()
+                self.iss_obj.compute(self.iss_obs)
+                if float(self.iss_obj.alt) > 0:
+                    t_ra = float(self.iss_obj.ra) * 12.0 / math.pi
+                    t_dec = float(self.iss_obj.dec) * 180.0 / math.pi
+                    if not self.sim_mode:
+                        try:
+                            self.ser.write(f":Sr{Astro.fmt_ra_lx(t_ra)}#".encode())
+                            self.ser.write(f":Sd{Astro.fmt_dec_lx(t_dec)}#".encode())
+                            self.ser.write(b":MS#")
+                        except: pass
+                    else:
+                        self.target_ra = t_ra
+                        self.target_dec = t_dec
+                        self.is_slewing = True
+                else:
+                    self.iss_tracking_active = False
+            
             if self.sim_mode:
                 # Boucle de simulation locale de la monture
                 if self.is_slewing and self.target_ra is not None:
@@ -1022,14 +1049,24 @@ class VirtualTeensyApp(tk.Tk):
                             
                             visible = float(iss.alt) > 0
                             next_pass = ""
+                            rise_ra = 0
+                            rise_dec = 0
+                            rise_time = 0
                             if not visible:
                                 try:
                                     pass_info = obs.next_pass(iss)
                                     rise_dt = ephem.localtime(pass_info[0])
                                     next_pass = rise_dt.strftime("%d/%m %H:%M")
+                                    obs.date = pass_info[0]
+                                    iss.compute(obs)
+                                    rise_ra = float(iss.ra) * 12.0 / math.pi
+                                    rise_dec = float(iss.dec) * 180.0 / math.pi
+                                    rise_time = pass_info[0]
                                 except Exception:
                                     pass
-                            self.obj_list = [{'name': 'ISS (ZARYA)', 'type': 'S', 'mag': -2.0, 'ra': float(iss.ra)*12.0/math.pi, 'dec': float(iss.dec)*180.0/math.pi, 'const': 'LEO', 'visible': visible, 'next_pass': next_pass}]
+                            self.iss_obj = iss
+                            self.iss_obs = obs
+                            self.obj_list = [{'name': 'ISS (ZARYA)', 'type': 'S', 'mag': -2.0, 'ra': float(iss.ra)*12.0/math.pi, 'dec': float(iss.dec)*180.0/math.pi, 'const': 'LEO', 'visible': visible, 'next_pass': next_pass, 'rise_ra': rise_ra, 'rise_dec': rise_dec, 'rise_time': rise_time}]
                             self.set_msg(" TLE BON ! " if lang=="fr" else " TLE GOOD! ", "                ", "", "", 1500, self.UI_OBJECT_LIST)
                         except Exception:
                             self.set_msg(" TLE CORROMPU ! " if lang=="fr" else " TLE CORRUPTED! ", "                ", "", "", 2000, self.UI_CAT_SELECT)
@@ -1097,12 +1134,25 @@ class VirtualTeensyApp(tk.Tk):
                 if self.is_connected:
                     o = self.obj_list[self.obj_idx]
                     if not o.get('visible', False):
-                        lang = self.cfg.get("language", "fr")
-                        msg2 = "                "
-                        if o.get('name') == 'ISS (ZARYA)' and o.get('next_pass'):
-                            msg2 = f"PASS: {o['next_pass']}"[:16].ljust(16)
-                        self.set_msg(" SOUS HORIZON ! " if lang=="fr" else " BELOW HORIZON! ", msg2, "", "", 3000, self.UI_OBJECT_INFO)
-                        return
+                        if o.get('name') == 'ISS (ZARYA)' and o.get('rise_time'):
+                            self.target_ra = o['rise_ra']
+                            self.target_dec = o['rise_dec']
+                            ra_str = Astro.fmt_ra_lx(o['rise_ra'])
+                            dec_str = Astro.fmt_dec_lx(o['rise_dec'])
+                            self.cmd_queue = [f":Sr{ra_str}#", f":Sd{dec_str}#", ":MS#"]
+                            self.process_queue()
+                            import ephem
+                            self.pending_iss_track_time = ephem.localtime(o['rise_time']).timestamp()
+                            lang = self.cfg.get("language", "fr")
+                            self.set_msg(" ATTENTE ISS... " if lang=="fr" else " WAITING ISS... ", f" {o.get('next_pass','')} "[:16].ljust(16), "", "", 3000, self.UI_MAIN)
+                            return
+                        else:
+                            lang = self.cfg.get("language", "fr")
+                            msg2 = "                "
+                            if o.get('name') == 'ISS (ZARYA)' and o.get('next_pass'):
+                                msg2 = f"PASS: {o['next_pass']}"[:16].ljust(16)
+                            self.set_msg(" SOUS HORIZON ! " if lang=="fr" else " BELOW HORIZON! ", msg2, "", "", 3000, self.UI_OBJECT_INFO)
+                            return
                         
                     self.target_ra = o['ra']
                     self.target_dec = o['dec']
