@@ -1021,7 +1021,15 @@ class VirtualTeensyApp(tk.Tk):
                             iss.compute(obs)
                             
                             visible = float(iss.alt) > 0
-                            self.obj_list = [{'name': 'ISS (ZARYA)', 'type': 'S', 'mag': -2.0, 'ra': float(iss.ra)*12.0/math.pi, 'dec': float(iss.dec)*180.0/math.pi, 'const': 'LEO', 'visible': visible}]
+                            next_pass = ""
+                            if not visible:
+                                try:
+                                    pass_info = obs.next_pass(iss)
+                                    rise_dt = ephem.localtime(pass_info[0])
+                                    next_pass = rise_dt.strftime("%d/%m %H:%M")
+                                except Exception:
+                                    pass
+                            self.obj_list = [{'name': 'ISS (ZARYA)', 'type': 'S', 'mag': -2.0, 'ra': float(iss.ra)*12.0/math.pi, 'dec': float(iss.dec)*180.0/math.pi, 'const': 'LEO', 'visible': visible, 'next_pass': next_pass}]
                             self.set_msg(" TLE BON ! " if lang=="fr" else " TLE GOOD! ", "                ", "", "", 1500, self.UI_OBJECT_LIST)
                         except Exception:
                             self.set_msg(" TLE CORROMPU ! " if lang=="fr" else " TLE CORRUPTED! ", "                ", "", "", 2000, self.UI_CAT_SELECT)
@@ -1059,7 +1067,10 @@ class VirtualTeensyApp(tk.Tk):
                     o = self.obj_list[self.obj_idx]
                     if not o.get('visible', False):
                         lang = self.cfg.get("language", "fr")
-                        self.set_msg(" SOUS HORIZON ! " if lang=="fr" else " BELOW HORIZON! ", "                ", "", "", 2000, self.UI_OBJECT_INFO)
+                        msg2 = "                "
+                        if o.get('name') == 'ISS (ZARYA)' and o.get('next_pass'):
+                            msg2 = f"PASS: {o['next_pass']}"[:16].ljust(16)
+                        self.set_msg(" SOUS HORIZON ! " if lang=="fr" else " BELOW HORIZON! ", msg2, "", "", 3000, self.UI_OBJECT_INFO)
                         return
                         
                     self.target_ra = o['ra']
@@ -1087,7 +1098,10 @@ class VirtualTeensyApp(tk.Tk):
                     o = self.obj_list[self.obj_idx]
                     if not o.get('visible', False):
                         lang = self.cfg.get("language", "fr")
-                        self.set_msg(" SOUS HORIZON ! " if lang=="fr" else " BELOW HORIZON! ", "                ", "", "", 2000, self.UI_OBJECT_INFO)
+                        msg2 = "                "
+                        if o.get('name') == 'ISS (ZARYA)' and o.get('next_pass'):
+                            msg2 = f"PASS: {o['next_pass']}"[:16].ljust(16)
+                        self.set_msg(" SOUS HORIZON ! " if lang=="fr" else " BELOW HORIZON! ", msg2, "", "", 3000, self.UI_OBJECT_INFO)
                         return
                         
                     self.target_ra = o['ra']
