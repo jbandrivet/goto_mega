@@ -1336,6 +1336,7 @@ class ConfigToolApp(tk.Tk):
             import urllib.request
             from pathlib import Path
             urls = [
+                "https://live.ariss.org/iss.txt",
                 "https://www.amsat.org/tle/current/nasa.all",
                 "https://celestrak.org/NORAD/elements/stations.txt"
             ]
