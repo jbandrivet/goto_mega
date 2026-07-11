@@ -769,6 +769,19 @@ class VirtualTeensyApp(tk.Tk):
                             l3 = f"Cible dist: {dist:.1f}°"[:20]
                 except:
                     pass
+                
+                import time
+                if getattr(self, 'pending_iss_track_time', 0) > 0:
+                    rem = int(self.pending_iss_track_time - time.time())
+                    if rem > 0:
+                        mins, secs = divmod(rem, 60)
+                        hrs, mins = divmod(mins, 60)
+                        if hrs > 0:
+                            l3 = f"ISS:-{hrs}h{mins:02d}m{secs:02d}s".ljust(20)
+                        else:
+                            l3 = f"ISS:-{mins}m{secs:02d}s".ljust(20)
+                elif getattr(self, 'iss_tracking_active', False):
+                    l3 = ">>> SUIVI ISS <<<".ljust(20)
             else:
                 l2 = "ETAT: HORS LIGNE"[:20]
                 l3 = ""[:20]
