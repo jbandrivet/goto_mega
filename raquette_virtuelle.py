@@ -769,8 +769,6 @@ class VirtualTeensyApp(tk.Tk):
                             l3 = f"Cible dist: {dist:.1f}°"[:20]
                 except:
                     pass
-                
-                import time
                 if getattr(self, 'pending_iss_track_time', 0) > 0:
                     rem = int(self.pending_iss_track_time - time.time())
                     if rem > 0:
