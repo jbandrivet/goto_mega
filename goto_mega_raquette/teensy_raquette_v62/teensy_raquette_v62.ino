@@ -1129,7 +1129,7 @@ bool    temp_buzzerOn = true;
 
 void loadEEPROM() {
     if(EEPROM.read(0) == 42) {
-        mountType = EEPROM.read(1);
+        // mountType read disabled, from Mega now
         EEPROM.get(2, gearRatioAZ);
         EEPROM.get(6, gearRatioALT);
         buzzerOn = EEPROM.read(10) > 0;
@@ -1148,7 +1148,7 @@ void loadEEPROM() {
 }
 
 void saveEEPROM() {
-    EEPROM.write(1, mountType);
+    // mountType write disabled, handled by Mega
     EEPROM.put(2, gearRatioAZ);
     EEPROM.put(6, gearRatioALT);
     EEPROM.write(10, buzzerOn);
@@ -1328,6 +1328,11 @@ void pollMega(){
     String ra=mega_cmd(":GR"), dec=mega_cmd(":GD");
     if(ra.length() >=8) m_currentRA =parseRA(ra);
     if(dec.length()>=5) m_currentDEC=parseDEC_r(dec);
+    
+    String gm = mega_cmd(":GM");
+    if (gm.startsWith("AltAz")) mountType = 0;
+    else if (gm.startsWith("ForkEq")) mountType = 1;
+    else if (gm.startsWith("GermanEq")) mountType = 2;
 }
 
 // ============================================================
@@ -1523,34 +1528,53 @@ void printMain(){
     char buf[21];
     
     if (mountType == 0) {
-        snprintf(buf,21,"AZ: %05.1f%c", m_currentAz, 0xDF);
+        long az_sec = round(fabs(m_currentAz) * 3600.0);
+        int az_d = az_sec / 3600;
+        int az_m = (az_sec % 3600) / 60;
+        int az_s = az_sec % 60;
+        
+        bool alt_neg = (m_currentAlt < 0);
+        long alt_sec = round(fabs(m_currentAlt) * 3600.0);
+        int alt_d = alt_sec / 3600;
+        int alt_m = (alt_sec % 3600) / 60;
+        int alt_s = alt_sec % 60;
+
+        snprintf(buf,21,"AZ: %03d%c%02d'%02d\"", az_d, 0xDF, az_m, az_s);
         lcdLine(0,buf);
-        snprintf(buf,21,"AL: %c%04.1f%c", m_currentAlt<0?'-':'+', fabs(m_currentAlt), 0xDF);
+        snprintf(buf,21,"AL: %c%02d%c%02d'%02d\"", alt_neg?'-':'+', alt_d, 0xDF, alt_m, alt_s);
         lcdLine(1,buf);
     } else {
-        int rah=(int)m_currentRA, ram=(int)((m_currentRA-rah)*60);
-        bool dneg=(m_currentDEC<0); double da=fabs(m_currentDEC);
-        int dd=(int)da, dm=(int)((da-dd)*60);
+        long ra_sec = round(m_currentRA * 3600.0);
+        int rah = ra_sec / 3600;
+        int ram = (ra_sec % 3600) / 60;
+        int ras = ra_sec % 60;
+
+        bool dneg = (m_currentDEC < 0);
+        long dec_sec = round(fabs(m_currentDEC) * 3600.0);
+        int dd = dec_sec / 3600;
+        int dm = (dec_sec % 3600) / 60;
+        int ds = dec_sec % 60;
         
-        snprintf(buf,21,"RA: %02dh%02dm", rah,ram);
+        snprintf(buf,21,"RA: %02dh%02dm%02ds", rah, ram, ras);
         lcdLine(0,buf);
-        snprintf(buf,21,"DE: %c%02d%c%02d'", dneg?'-':'+', dd, 0xDF, dm);
+        snprintf(buf,21,"DE: %c%02d%c%02d'%02d\"", dneg?'-':'+', dd, 0xDF, dm, ds);
         lcdLine(1,buf);
     }
 
     if(!m_online){
-        lcdLine(1, "OFFLINE");
+        lcdLine(2, isEnglish ? "STATE: NO CONNECTION" : "Etat: Non connectee");
     } else if(m_isPaused){
-        lcdLine(1, "* EN PAUSE *");
+        lcdLine(2, "* EN PAUSE *");
     } else if(m_limitHit){
-        lcdLine(1, "!! LIMITE !!");
+        lcdLine(2, "!! LIMITE !!");
     } else {
-        snprintf(buf, 21,"%cMNT OK %c%s", 
+        snprintf(buf, 21,"ETAT: %cMNT OK %s", 
                  m_isTracking?(char)CHAR_CHECK:'-',
-                 (char)CHAR_UP,
-                 m_isSlewing?" GOTO":"");
-        lcdLine(1,buf);
+                 m_isSlewing?"GOTO":"");
+        lcdLine(2,buf);
     }
+    
+    lcdLine(3, isEnglish ? "[ENT] = Menu        " : "[ENT] = Menu        ");
 }
 
 void printMessage(){
@@ -2100,11 +2124,9 @@ void handleButtons(){
                 temp_mountType = (temp_mountType + 1) % 3;
             }
             if(enter) {
-                mountType = temp_mountType;
-                if (mountType == 0) Serial1.print(":BMa#");
-                else if (mountType == 1) Serial1.print(":BMe#");
+                if (temp_mountType == 0) Serial1.print(":BMa#");
+                else if (temp_mountType == 1) Serial1.print(":BMe#");
                 else Serial1.print(":BMg#");
-                saveEEPROM();
                 showMessage(" MONTURE REGLEE   ", "                    ", 1200, UI_SETTINGS);
             }
             break;
@@ -2262,9 +2284,7 @@ void setup(){
 
     Serial1.begin(MEGA_BAUD);
     delay(500);
-    if (mountType == 0) Serial1.print(":BMa#");
-    else if (mountType == 1) Serial1.print(":BMe#");
-    else Serial1.print(":BMg#");
+    // :BMa# logic removed, wait for Mega
     Serial1.print(":BGa"); Serial1.print(gearRatioAZ); Serial1.print("#");
     Serial1.print(":BGe"); Serial1.print(gearRatioALT); Serial1.print("#");
     if (buzzerOn) Serial1.print(":Bb1#"); else Serial1.print(":Bb0#");
@@ -2273,14 +2293,39 @@ void setup(){
     for(int i=0;i<5;i++) pinMode(BTN_PINS[i],INPUT_PULLUP);
 
     Wire.begin();
-    lcd.begin(16, 2);
+    lcd.init();
+    lcd.backlight();
     initCustomChars();
 
     lcd.clear();
-    lcdLine(0,"  GoTo Mega v6.3 ");
-    lcdLine(1,"  Raquette T4.1    ");
-    lcdLine(2,"  Connexion RJ11...");
     char buf[21];
+    
+    // Animation d'etoiles
+    for(int i=0; i<20; i++) {
+        char anim_buf1[21] = "                    ";
+        char anim_buf2[21] = "                    ";
+        anim_buf1[i] = '*';
+        anim_buf2[19-i] = '*';
+        lcdLine(0, anim_buf1);
+        lcdLine(3, anim_buf2);
+        delay(40);
+    }
+    
+    lcdLine(1,"   * GoTo Mega *    ");
+    lcdLine(2,"   Raquette v6.3    ");
+    
+    for(int i=19; i>=0; i--) {
+        char anim_buf1[21] = "                    ";
+        char anim_buf2[21] = "                    ";
+        anim_buf1[i] = '*';
+        anim_buf2[19-i] = '*';
+        lcdLine(0, anim_buf1);
+        lcdLine(3, anim_buf2);
+        delay(40);
+    }
+    delay(500);
+    
+    lcdLine(0,"  Connexion RJ11... ");
     snprintf(buf,21," M%d NGC%d IC%d C%d  ",
              MESSIER_COUNT, NGC_COUNT, IC_COUNT, CALDWELL_COUNT);
     lcdLine(3,buf);
@@ -2300,7 +2345,7 @@ void setup(){
         if(sv.length()>0) m_slewSpeed=sv.toInt()/10.0;
         delay(900);
     } else {
-        lcdLine(2,"  MONTURE OFFLINE  ");
+        lcdLine(2,"  NON CONNECTEE    ");
         lcdLine(3,"  Verif RJ11/baud  ");
         delay(3000);
     }
