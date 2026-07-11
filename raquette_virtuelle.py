@@ -486,6 +486,20 @@ class VirtualTeensyApp(tk.Tk):
                 # Vider le tampon de réception
                 if self.ser.in_waiting:
                     self.ser.read(self.ser.in_waiting)
+                    
+                # 5. Sync Mount Type
+                self.ser.write(b":GM#")
+                time.sleep(0.1)
+                if self.ser.in_waiting:
+                    gm = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                    if "AltAz" in gm:
+                        self.cfg["mount_type"] = "AltAz"
+                    elif "ForkEq" in gm:
+                        self.cfg["mount_type"] = "ForkEq"
+                    elif "GermanEq" in gm:
+                        self.cfg["mount_type"] = "GermanEq"
+                    self.save_config()
+
                 print("PC clock synchronized with Arduino OnStep.")
             except Exception as e:
                 print(f"Error synchronizing clock: {e}")
@@ -748,13 +762,29 @@ class VirtualTeensyApp(tk.Tk):
         if self.state == self.UI_MAIN:
             is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
             if is_altaz and hasattr(self, 'current_alt') and hasattr(self, 'current_az'):
-                l0 = f"AZ: {self.current_az:05.1f}°"[:20]
-                l1 = f"AL: {self.current_alt:+05.1f}°"[:20]
+                az = abs(self.current_az)
+                az_d = int(az)
+                az_m = int((az - az_d) * 60)
+                az_s = int((az - az_d - az_m/60.0) * 3600.0)
+                
+                alt = abs(self.current_alt)
+                alt_d = int(alt)
+                alt_m = int((alt - alt_d) * 60)
+                alt_s = int((alt - alt_d - alt_m/60.0) * 3600.0)
+                
+                l0 = f"AZ: {az_d:03d}°{az_m:02d}'{az_s:02d}\""[:20]
+                sign = '-' if self.current_alt < 0 else '+'
+                l1 = f"AL: {sign}{alt_d:02d}°{alt_m:02d}'{alt_s:02d}\""[:20]
             else:
-                ra_short = self.current_ra[:8].replace(':', 'h')
-                dec_short = self.current_dec[:9].replace('*', '°')
-                l0 = f"RA: {ra_short}"[:20]
-                l1 = f"DE: {dec_short}"[:20]
+                ra_parts = self.current_ra.split(':')
+                if len(ra_parts) >= 3:
+                    ra_str = f"{ra_parts[0]}h{ra_parts[1]}m{ra_parts[2]}s"
+                else:
+                    ra_str = self.current_ra
+                
+                dec_str = self.current_dec.replace('*', '°').replace(':', '\'') + '"'
+                l0 = f"RA: {ra_str}"[:20]
+                l1 = f"DE: {dec_str}"[:20]
             if self.is_connected:
                 stat = "EN LIGNE" if not self.sim_mode else "SIMULATEUR"
                 l2 = f"ETAT: {stat}"[:20]

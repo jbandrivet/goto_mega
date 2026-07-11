@@ -3,9 +3,9 @@
  * Auteur : Andrivet Jean-Baptiste
  * Firmware UI (LCD + boutons)
  * 
- * Cablage DIN 4 broches (Teensy raquette <-> Mega) :
+ * Cablage RJ11 (Teensy raquette <-> Mega) :
  *
- *   Pin DIN    Signal                    Connexion
+ *   Pin RJ11   Signal                    Connexion
  *   -------    ------                    ---------
  *     1        GND                       Mega GND  <-> Teensy GND
  *     2        5V  (alim Teensy)         Mega 5V    -> Teensy VIN
