@@ -197,7 +197,7 @@ class VirtualTeensyApp(tk.Tk):
         conn_frame = tk.Frame(main_container, bg="white", bd=2, relief="sunken", height=24)
         conn_frame.pack(fill="x", pady=(0, 5))
         conn_frame.pack_propagate(False)
-        self.conn_lbl = tk.Label(conn_frame, text="Recherche port USB...", bg="white", fg="red", font=f_label, anchor="w", padx=5)
+        self.conn_lbl = tk.Label(conn_frame, text="Connexion monture", bg="white", fg="red", font=f_label, anchor="w", padx=5)
         self.conn_lbl.pack(fill="both", expand=True)
         
         # Boîtier de l'écran LCD (sunken border)
@@ -493,12 +493,12 @@ class VirtualTeensyApp(tk.Tk):
                 if self.ser.in_waiting:
                     gm = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
                     if "AltAz" in gm:
-                        self.cfg["mount_type"] = "AltAz"
+                        self.cfg.set("mount_type", "AltAz")
                     elif "ForkEq" in gm:
-                        self.cfg["mount_type"] = "ForkEq"
+                        self.cfg.set("mount_type", "ForkEq")
                     elif "GermanEq" in gm:
-                        self.cfg["mount_type"] = "GermanEq"
-                    self.save_config()
+                        self.cfg.set("mount_type", "GermanEq")
+                    self.cfg.save()
 
                 print("PC clock synchronized with Arduino OnStep.")
             except Exception as e:
@@ -677,6 +677,11 @@ class VirtualTeensyApp(tk.Tk):
 
     def send_cmd(self, cmd):
         if self.is_connected:
+            try:
+                while self.ser.in_waiting:
+                    self.ser.read()
+            except:
+                pass
             if self.sim_mode:
                 # Traiter les commandes manuelles du simulateur
                 if cmd == ":Mn#": self.press_active["UP"] = True
@@ -786,7 +791,12 @@ class VirtualTeensyApp(tk.Tk):
                 l0 = f"RA: {ra_str}"[:20]
                 l1 = f"DE: {dec_str}"[:20]
             if self.is_connected:
-                stat = "EN LIGNE" if not self.sim_mode else "SIMULATEUR"
+                mnt_type = self.cfg.get("mount_type", "AltAz")
+                if mnt_type == "AltAz": mnt_str = "ALTAZ"
+                elif mnt_type == "ForkEq": mnt_str = "FORK EQ"
+                else: mnt_str = "GERM EQ"
+                
+                stat = f"{mnt_str} - OK" if not self.sim_mode else f"{mnt_str} - SIMULATEUR"
                 l2 = f"ETAT: {stat}"[:20]
                 l3 = "[ENT] = Menu   "[:20]
                 
@@ -908,7 +918,7 @@ class VirtualTeensyApp(tk.Tk):
             if lang == "en":
                 az_str = "AZ Ratio" if self.cfg.get("mount_type", "AltAz") == "AltAz" else "RA Ratio"
                 alt_str = "ALT Ratio" if self.cfg.get("mount_type", "AltAz") == "AltAz" else "DEC Ratio"
-            opts = ["Catalogues", "Vitesse", "Bips", "Alignement", "Parking", "Type Monture", az_str, alt_str, "Alim Moteurs", "Date/Heure", "Lieu Obs.", "Langue", "GPS Auto"] if lang == "fr" else ["Catalogs", "Speed", "Beeps", "Alignment", "Parking", "Mount Type", az_str, alt_str, "Motor Power", "Date/Time", "Location", "Language", "GPS Auto"]
+            opts = ["Catalogues", "Pause Moteurs", "Vitesse", "Bips", "Alignement", "Parking", "Type Monture", az_str, alt_str, "Alim Moteurs", "Date/Heure", "Lieu Obs.", "Langue", "GPS Auto"] if lang == "fr" else ["Catalogs", "Pause Motors", "Speed", "Beeps", "Alignment", "Parking", "Mount Type", az_str, alt_str, "Motor Power", "Date/Time", "Location", "Language", "GPS Auto"]
             l1 = f"> {opts[self.settings_sel]}"[:20]
             l2 = "  " + (opts[self.settings_sel+1] if self.settings_sel+1 < len(opts) else "")[:18]
             l3 = "  [HAUT/BAS] Choisir" if lang == "fr" else "  [UP/DOWN] Select"
@@ -933,6 +943,7 @@ class VirtualTeensyApp(tk.Tk):
             l2 = "Coupe le courant" if lang == "fr" else "Cuts motor power"
             l3 = "[ENT] Valider" if lang == "fr" else "[ENT] Confirm"
                 
+
         elif self.state == self.UI_LANGUAGE:
             l0 = "[ LANGUE / LANG ]"
             l1 = f"> {'FRANCAIS' if self.temp_lang == 'fr' else 'ENGLISH'}"[:20]
@@ -1249,21 +1260,49 @@ class VirtualTeensyApp(tk.Tk):
             if btn == "LEFT":
                 self.state = self.UI_MAIN
             elif btn == "UP":
-                self.settings_sel = (self.settings_sel - 1) % 13
+                self.settings_sel = (self.settings_sel - 1) % 14
             elif btn == "DOWN":
-                self.settings_sel = (self.settings_sel + 1) % 13
+                self.settings_sel = (self.settings_sel + 1) % 14
             elif btn in ("ENTER", "RIGHT"):
                 lang = self.cfg.get("language", "fr")
                 if self.settings_sel == 0:
                     self.cat_idx = 0
                     self.state = self.UI_CAT_SELECT
                 elif self.settings_sel == 1:
+                    is_paused = getattr(self, 'iss_tracking_active', False)
+                    if not is_paused:
+                        self.send_cmd(":Td#")
+                        self.iss_tracking_active = True
+                        if lang == "en":
+                            self.set_msg(" MOTORS PAUSED  ", "                ", "", "", 1500, self.UI_MAIN)
+                        else:
+                            self.set_msg(" MOTEURS EN PAUSE ", "                ", "", "", 1500, self.UI_MAIN)
+                    else:
+                        if hasattr(self, 'target_ra') and hasattr(self, 'target_dec') and self.target_ra >= 0 and self.target_dec >= -90:
+                            ra_str = Astro.fmt_ra_lx(self.target_ra)
+                            dec_str = Astro.fmt_dec_lx(self.target_dec)
+                            self.send_cmd(f":Sr{ra_str}#")
+                            self.send_cmd(f":Sd{dec_str}#")
+                            self.send_cmd(":MS#")
+                            self.iss_tracking_active = False
+                            if lang == "en":
+                                self.set_msg(" RESUMING TRACK ", "                ", "", "", 1500, self.UI_SLEWING)
+                            else:
+                                self.set_msg(" REPRISE SUIVI... ", "                ", "", "", 1500, self.UI_SLEWING)
+                        else:
+                            self.send_cmd(":Te#")
+                            self.iss_tracking_active = False
+                            if lang == "en":
+                                self.set_msg(" RESUMING TRACK ", " No Target...   ", "", "", 1500, self.UI_MAIN)
+                            else:
+                                self.set_msg(" REPRISE SUIVI... ", " Sans cible...  ", "", "", 1500, self.UI_MAIN)
+                elif self.settings_sel == 2:
                     self.temp_speed = self.current_speed
                     self.state = self.UI_SPEED
-                elif self.settings_sel == 2:
+                elif self.settings_sel == 3:
                     self.temp_buzzer_on = self.buzzer_on
                     self.state = self.UI_BEEP
-                elif self.settings_sel == 3:
+                elif self.settings_sel == 4:
                     # Alignment: Propose best star
                     stars = self.get_visible_stars()
                     if stars:
@@ -1275,27 +1314,31 @@ class VirtualTeensyApp(tk.Tk):
                     else:
                         lang = self.cfg.get("language", "fr")
                         self.set_msg(" AUCUNE ETOILE  " if lang=="fr" else " NO STAR FOUND  ", " VISIBLE        ", "", "", 1500, self.UI_SETTINGS)
-                elif self.settings_sel == 4:
+                elif self.settings_sel == 5:
                     self.is_parking_workflow = True
                     self.cmd_queue.append(":hP#")
                     self.process_queue()
-                elif self.settings_sel == 5:
-                    self.state = self.UI_MOUNT
                 elif self.settings_sel == 6:
-                    self.state = self.UI_RATIO_AZ
+                    mt = self.cfg.get("mount_type", "AltAz")
+                    self.temp_mount_type = 0 if mt == "AltAz" else (1 if mt == "ForkEq" else 2)
+                    self.state = self.UI_MOUNT
                 elif self.settings_sel == 7:
-                    self.state = self.UI_RATIO_ALT
+                    self.temp_ratio_az = float(self.cfg.get("gear_ratio_az", 2000.0))
+                    self.state = self.UI_RATIO_AZ
                 elif self.settings_sel == 8:
+                    self.temp_ratio_alt = float(self.cfg.get("gear_ratio_alt", 2000.0))
+                    self.state = self.UI_RATIO_ALT
+                elif self.settings_sel == 9:
                     self.temp_motor_power = getattr(self, "motor_power", True)
                     self.state = self.UI_MOTOR_POWER
-                elif self.settings_sel == 9:
-                    self.state = self.UI_EDIT_TIME
                 elif self.settings_sel == 10:
-                    self.state = self.UI_EDIT_LOCATION
+                    self.state = self.UI_EDIT_TIME
                 elif self.settings_sel == 11:
+                    self.state = self.UI_EDIT_LOCATION
+                elif self.settings_sel == 12:
                     self.temp_lang = lang
                     self.state = self.UI_LANGUAGE
-                elif self.settings_sel == 12:
+                elif self.settings_sel == 13:
                     self.temp_gps_enabled = self.cfg.get("gps_enabled", True)
                     self.state = self.UI_GPS
                     
@@ -1316,6 +1359,62 @@ class VirtualTeensyApp(tk.Tk):
                     self.set_msg("  SPEED ADJUSTED ", f"   {self.current_speed:.1f} deg/s OK  ", "", "", 1200, self.UI_SETTINGS)
                 else:
                     self.set_msg("  VITESSE REGL.  ", f"   {self.current_speed:.1f} deg/s OK  ", "", "", 1200, self.UI_SETTINGS)
+                
+        elif self.state == self.UI_MOUNT:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn in ("UP", "DOWN"):
+                self.temp_mount_type = (self.temp_mount_type + 1) % 3
+            elif btn == "ENTER":
+                mt = "AltAz" if self.temp_mount_type == 0 else ("ForkEq" if self.temp_mount_type == 1 else "GermanEq")
+                self.cfg.set("mount_type", mt)
+                self.cfg.save()
+                if mt == "AltAz": self.send_cmd(":BMa#")
+                elif mt == "ForkEq": self.send_cmd(":BMe#")
+                else: self.send_cmd(":BMg#")
+                lang = self.cfg.get("language", "fr")
+                if lang == "en":
+                    self.set_msg(" MOUNT TYPE SET  ", "", "", "", 1200, self.UI_SETTINGS)
+                else:
+                    self.set_msg(" MONTURE REGLEE  ", "", "", "", 1200, self.UI_SETTINGS)
+
+        elif self.state == self.UI_RATIO_AZ:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn == "UP":
+                self.temp_ratio_az += 10.0
+            elif btn == "DOWN":
+                self.temp_ratio_az -= 10.0
+                if self.temp_ratio_az < 10.0: self.temp_ratio_az = 10.0
+            elif btn == "ENTER":
+                self.cfg.set("gear_ratio_az", self.temp_ratio_az)
+                self.cfg.save()
+                self.send_cmd(f":BGa{self.temp_ratio_az}#")
+                lang = self.cfg.get("language", "fr")
+                is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
+                if lang == "en":
+                    self.set_msg("  AZ RATIO SET   " if is_altaz else "  RA RATIO SET   ", "", "", "", 1200, self.UI_SETTINGS)
+                else:
+                    self.set_msg(" RATIO AZ REGLE  " if is_altaz else " RATIO RA REGLE  ", "", "", "", 1200, self.UI_SETTINGS)
+
+        elif self.state == self.UI_RATIO_ALT:
+            if btn == "LEFT":
+                self.state = self.UI_SETTINGS
+            elif btn == "UP":
+                self.temp_ratio_alt += 10.0
+            elif btn == "DOWN":
+                self.temp_ratio_alt -= 10.0
+                if self.temp_ratio_alt < 10.0: self.temp_ratio_alt = 10.0
+            elif btn == "ENTER":
+                self.cfg.set("gear_ratio_alt", self.temp_ratio_alt)
+                self.cfg.save()
+                self.send_cmd(f":BGb{self.temp_ratio_alt}#")
+                lang = self.cfg.get("language", "fr")
+                is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
+                if lang == "en":
+                    self.set_msg("  ALT RATIO SET  " if is_altaz else "  DEC RATIO SET  ", "", "", "", 1200, self.UI_SETTINGS)
+                else:
+                    self.set_msg(" RATIO ALT REGLE " if is_altaz else " RATIO DEC REGLE ", "", "", "", 1200, self.UI_SETTINGS)
                 
         elif self.state == self.UI_BEEP:
             if btn == "LEFT":

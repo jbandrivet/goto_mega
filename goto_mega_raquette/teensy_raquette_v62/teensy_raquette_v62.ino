@@ -1112,6 +1112,7 @@ double  targetRA      = -1.0;
 double  targetDEC     = -1.0;
 
 uint8_t mountType = 0;
+String global_gm = "";
 float   gearRatioAZ = 750.0;
 float   gearRatioALT = 750.0;
 bool    buzzerOn = true;
@@ -1252,6 +1253,7 @@ uint8_t getTypeChar(uint8_t t){
 // SECTION 7 : COMMUNICATION
 // ============================================================
 String mega_cmd(const String &cmd, bool needsReply=true){
+    while(Serial1.available()) Serial1.read(); // Flush out-of-sync data
     Serial1.print(cmd);
     Serial1.print('#');
     if(!needsReply) return "";
@@ -1262,9 +1264,14 @@ String mega_cmd(const String &cmd, bool needsReply=true){
             char c=(char)Serial1.read();
             if(c=='#') return resp;
             resp+=c;
+            if (cmd.startsWith(":S") && !cmd.startsWith(":SC") && !cmd.startsWith(":SL") && !cmd.startsWith(":SG") && resp.length() == 1) {
+                if (resp[0] == '0' || resp[0] == '1') return resp;
+            }
+            if (cmd == ":MS" && resp == "0") return resp;
+            if (cmd == ":Q" && resp == "0") return resp;
         }
     }
-    return "";
+    return resp; // Return whatever we received instead of ""!
 }
 
 String formatRA(double ra_h){
@@ -1330,6 +1337,7 @@ void pollMega(){
     if(dec.length()>=5) m_currentDEC=parseDEC_r(dec);
     
     String gm = mega_cmd(":GM");
+    global_gm = gm;
     if (gm.startsWith("AltAz")) mountType = 0;
     else if (gm.startsWith("ForkEq")) mountType = 1;
     else if (gm.startsWith("GermanEq")) mountType = 2;
@@ -1544,23 +1552,16 @@ void printMain(){
         snprintf(buf,21,"AL: %c%02d%c%02d'%02d\"", alt_neg?'-':'+', alt_d, 0xDF, alt_m, alt_s);
         lcdLine(1,buf);
     } else {
-        long ra_sec = round(m_currentRA * 3600.0);
-        int rah = ra_sec / 3600;
-        int ram = (ra_sec % 3600) / 60;
-        int ras = ra_sec % 60;
+        bool dneg=(m_currentDEC<0); double adec=fabs(m_currentDEC);
+        int dd=(int)adec, dm=(int)((adec-dd)*60.0), ds=(int)(((adec-dd)*60.0-dm)*60.0);
+        int rh=(int)m_currentRA, rm=(int)((m_currentRA-rh)*60.0), rs=(int)(((m_currentRA-rh)*60.0-rm)*60.0);
 
-        bool dneg = (m_currentDEC < 0);
-        long dec_sec = round(fabs(m_currentDEC) * 3600.0);
-        int dd = dec_sec / 3600;
-        int dm = (dec_sec % 3600) / 60;
-        int ds = dec_sec % 60;
-        
-        snprintf(buf,21,"RA: %02dh%02dm%02ds", rah, ram, ras);
+        snprintf(buf,21,"RA: %02dh%02dm%02ds", rh, rm, rs);
         lcdLine(0,buf);
         snprintf(buf,21,"DE: %c%02d%c%02d'%02d\"", dneg?'-':'+', dd, 0xDF, dm, ds);
         lcdLine(1,buf);
     }
-
+    
     if(!m_online){
         lcdLine(2, isEnglish ? "STATE: NO CONNECTION" : "Etat: Non connectee");
     } else if(m_isPaused){
@@ -1568,12 +1569,13 @@ void printMain(){
     } else if(m_limitHit){
         lcdLine(2, "!! LIMITE !!");
     } else {
-        snprintf(buf, 21,"ETAT: %cMNT OK %s", 
+        const char* mnt_str = (mountType == 0) ? "ALTAZ" : ((mountType == 1) ? "FORK EQ" : "GERM EQ");
+        snprintf(buf, 21,"ETAT: %s %c %s", 
+                 mnt_str,
                  m_isTracking?(char)CHAR_CHECK:'-',
-                 m_isSlewing?"GOTO":"");
+                 m_isSlewing?"GOTO":"OK");
         lcdLine(2,buf);
     }
-    
     lcdLine(3, isEnglish ? "[ENT] = Menu        " : "[ENT] = Menu        ");
 }
 
@@ -1732,22 +1734,33 @@ void printSpeed(){
 void printSettings() {
     lcdLine(0, isEnglish ? "[ SETTINGS ]" : "[ REGLAGES ]");
     const char* opts[] = {
+        "Catalogues",
+        m_isPaused ? (isEnglish ? "Resume Track" : "Reprendre Suivi") : (isEnglish ? "Pause Motors" : "Pause Moteurs"),
         isEnglish ? "GoTo Speed" : "Vitesse GoTo", 
+        "Buzzer", 
         isEnglish ? "Sync/Align" : "Synchroniser", 
         isEnglish ? "Parking" : "Parking", 
         isEnglish ? "Mount Type" : "Type Monture",
         (mountType == 0) ? "Ratio AZ" : "Ratio RA",
         (mountType == 0) ? "Ratio ALT" : "Ratio DEC",
-        "Buzzer", 
+        isEnglish ? "Motor Power" : "Alim Moteurs", 
         isEnglish ? "Date/Time" : "Date/Heure", 
         isEnglish ? "Location" : "Lieu Obs.", 
-        isEnglish ? "Motor Power" : "Alim Moteurs", 
         isEnglish ? "Language" : "Langue",
         "GPS Auto"
     };
-    char buf[21];
-    snprintf(buf, 21,">%s", opts[settingsSel]);
-    lcdLine(1, buf);
+    
+    char b1[21], b2[21], b3[21];
+    int start = settingsSel;
+    if (start > 14 - 3) start = 14 - 3;
+    
+    snprintf(b1, 21, "%c %s", (settingsSel == start) ? '>' : ' ', opts[start]);
+    snprintf(b2, 21, "%c %s", (settingsSel == start + 1) ? '>' : ' ', opts[start + 1]);
+    snprintf(b3, 21, "%c %s", (settingsSel == start + 2) ? '>' : ' ', opts[start + 2]);
+    
+    lcdLine(1, b1);
+    lcdLine(2, b2);
+    lcdLine(3, b3);
 }
 
 void printAlignCenter(){
@@ -1850,17 +1863,24 @@ void refreshLcd(){
         case UI_GPS: {
             lcdLine(0, "[ GPS ]");
             lcdLine(1, temp_gpsEnabled ? (isEnglish ? "> Auto enabled  " : "> Auto active   ") : (isEnglish ? "> Disabled      " : "> Desactive     "));
+            lcdLine(2, "");
+            lcdLine(3, "");
             break;
         }
         case UI_MENU_SELECT: {
             lcdLine(0, "[ MENU ]");
-            char b[17];
             const char* opt0 = "Catalogues";
             const char* opt1 = m_isPaused ? "Reprendre Suivi" : "Pause Moteurs";
             const char* opt2 = "Reglages";
-            const char* name = (menuSel == 0) ? opt0 : ((menuSel == 1) ? opt1 : opt2);
-            snprintf(b, 17, " > %-13s", name);
-            lcdLine(1, b);
+            
+            char b1[21], b2[21], b3[21];
+            snprintf(b1, 21, "%c %s", (menuSel == 0) ? '>' : ' ', opt0);
+            snprintf(b2, 21, "%c %s", (menuSel == 1) ? '>' : ' ', opt1);
+            snprintf(b3, 21, "%c %s", (menuSel == 2) ? '>' : ' ', opt2);
+            
+            lcdLine(1, b1);
+            lcdLine(2, b2);
+            lcdLine(3, b3);
             break;
         }
         default: break;
@@ -1943,42 +1963,12 @@ void handleButtons(){
             if(down)  { mega_cmd(":Ms", false); }
             if(left)  { mega_cmd(":Me", false); }
             if(right) { mega_cmd(":Mw", false); }
-            if(enter) { menuSel=0; uiState=UI_MENU_SELECT; }
+            if(enter) { settingsSel=0; uiState=UI_SETTINGS; }
             break;
 
         case UI_MENU_SELECT:
-            if(up)         { menuSel = (menuSel - 1 + 3) % 3; }
-            if(down)       { menuSel = (menuSel + 1) % 3; }
-            if(left)       { mega_cmd(":Q", false); uiState=UI_MAIN; }
-            if(right||enter){
-                mega_cmd(":Q", false);
-                if(menuSel==0) { currentCat=CAT_MESSIER; objectIndex=0; uiState=UI_CAT_SELECT; }
-                else if(menuSel==1) {
-                    if (!m_isPaused) {
-                        mega_cmd(":Td", false);
-                        m_isPaused = true;
-                        showMessage(" MOTEURS EN PAUSE ", "  Calculs gardes   ", 1500, UI_MAIN);
-                    } else {
-                        if (targetRA >= 0 && targetDEC >= -90) {
-                            mega_cmd(":Sr" + formatRA(targetRA));
-                            mega_cmd(":Sd" + formatDEC(targetDEC));
-                            String resp = mega_cmd(":MS");
-                            m_isPaused = false;
-                            if (resp.startsWith("0")) {
-                                showMessage(" REPRISE SUIVI... ", " Recalcul & Point. ", 1500, UI_SLEWING);
-                            } else {
-                                char buf[21]; snprintf(buf, 21, "%-20s", resp.c_str());
-                                showMessage("  !! IMPOSSIBLE !!  ", buf, 2500, UI_MAIN);
-                            }
-                        } else {
-                            mega_cmd(":Te", false);
-                            m_isPaused = false;
-                            showMessage(" REPRISE SUIVI... ", "  Sans cible...    ", 1500, UI_MAIN);
-                        }
-                    }
-                }
-                else if(menuSel==2) { settingsSel=0; uiState=UI_SETTINGS; }
-            }
+            // Obsolete state, kept to avoid compilation errors if referenced elsewhere
+            uiState=UI_MAIN;
             break;
 
         case UI_CAT_SELECT:
@@ -2037,22 +2027,48 @@ void handleButtons(){
             if(enter||left){ cmd_stop(); uiState=UI_MAIN; isParkingWorkflow=false; }
             break;
         case UI_SETTINGS:
-            if(left)       { uiState=UI_MENU_SELECT; }
-            if(up)         { settingsSel=(settingsSel-1+12)%12; }
-            if(down)       { settingsSel=(settingsSel+1)%12; }
+            if(left)       { mega_cmd(":Q", false); uiState=UI_MAIN; }
+            if(up)         { settingsSel=(settingsSel-1+14)%14; }
+            if(down)       { settingsSel=(settingsSel+1)%14; }
             if(right||enter){
-                if(settingsSel==0) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
-                if(settingsSel==1) uiState=UI_ALIGN;
-                if(settingsSel==2) uiState=UI_PARKING;
-                if(settingsSel==3) { temp_mountType = mountType; uiState=UI_MOUNT; }
-                if(settingsSel==4) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
-                if(settingsSel==5) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
-                if(settingsSel==6) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
-                if(settingsSel==7) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_TIME; }
-                if(settingsSel==8) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
+                if(settingsSel==0) { mega_cmd(":Q", false); currentCat=CAT_MESSIER; objectIndex=0; uiState=UI_CAT_SELECT; }
+                if(settingsSel==1) {
+                    mega_cmd(":Q", false);
+                    if (!m_isPaused) {
+                        mega_cmd(":Td", false);
+                        m_isPaused = true;
+                        showMessage(isEnglish ? " MOTORS PAUSED  " : " MOTEURS EN PAUSE ", isEnglish ? "  Math preserved   " : "  Calculs gardes   ", 1500, UI_MAIN);
+                    } else {
+                        if (targetRA >= 0 && targetDEC >= -90) {
+                            mega_cmd(":Sr" + formatRA(targetRA));
+                            mega_cmd(":Sd" + formatDEC(targetDEC));
+                            String resp = mega_cmd(":MS");
+                            m_isPaused = false;
+                            if (resp.startsWith("0")) {
+                                showMessage(isEnglish ? " RESUMING TRACK " : " REPRISE SUIVI... ", isEnglish ? " Calc & Point. " : " Recalcul & Point. ", 1500, UI_SLEWING);
+                            } else {
+                                char buf[21]; snprintf(buf, 21, "%-20s", resp.c_str());
+                                showMessage(isEnglish ? "  !! IMPOSSIBLE !!  " : "  !! IMPOSSIBLE !!  ", buf, 2500, UI_MAIN);
+                            }
+                        } else {
+                            mega_cmd(":Te", false);
+                            m_isPaused = false;
+                            showMessage(isEnglish ? " RESUMING TRACK " : " REPRISE SUIVI... ", isEnglish ? "  No target...     " : "  Sans cible...    ", 1500, UI_MAIN);
+                        }
+                    }
+                }
+                if(settingsSel==2) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
+                if(settingsSel==3) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
+                if(settingsSel==4) uiState=UI_ALIGN;
+                if(settingsSel==5) uiState=UI_PARKING;
+                if(settingsSel==6) { temp_mountType = mountType; uiState=UI_MOUNT; }
+                if(settingsSel==7) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
+                if(settingsSel==8) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
                 if(settingsSel==9) { temp_motorPowerOn = motorPowerOn; uiState=UI_MOTOR_POWER; }
-                if(settingsSel==10) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
-                if(settingsSel==11) { temp_gpsEnabled = gpsEnabled; uiState=UI_GPS; }
+                if(settingsSel==10) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_TIME; }
+                if(settingsSel==11) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
+                if(settingsSel==12) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
+                if(settingsSel==13) { temp_gpsEnabled = gpsEnabled; uiState=UI_GPS; }
             }
             break;
 
@@ -2325,7 +2341,7 @@ void setup(){
     }
     delay(500);
     
-    lcdLine(0,"  Connexion RJ11... ");
+    lcdLine(0,"  Connexion serie...");
     snprintf(buf,21," M%d NGC%d IC%d C%d  ",
              MESSIER_COUNT, NGC_COUNT, IC_COUNT, CALDWELL_COUNT);
     lcdLine(3,buf);
@@ -2346,7 +2362,7 @@ void setup(){
         delay(900);
     } else {
         lcdLine(2,"  NON CONNECTEE    ");
-        lcdLine(3,"  Verif RJ11/baud  ");
+        lcdLine(3,"  Verif cable/baud ");
         delay(3000);
     }
 
