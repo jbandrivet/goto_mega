@@ -498,6 +498,9 @@ class VirtualTeensyApp(tk.Tk):
             if getattr(self, 'pending_iss_track_time', 0) > 0 and time.time() >= self.pending_iss_track_time:
                 self.pending_iss_track_time = 0
                 self.iss_tracking_active = True
+                if not self.sim_mode:
+                    try: self.ser.write(b":Te#")
+                    except: pass
                 lang = self.cfg.get("language", "fr")
                 self.set_msg(" SUIVI ISS... " if lang=="fr" else " TRACKING ISS... ", "", "", "", 2000, self.UI_MAIN)
             if getattr(self, 'iss_tracking_active', False) and getattr(self, 'iss_obj', None) and getattr(self, 'iss_obs', None):
@@ -1135,13 +1138,19 @@ class VirtualTeensyApp(tk.Tk):
                     o = self.obj_list[self.obj_idx]
                     if not o.get('visible', False):
                         if o.get('name') == 'ISS (ZARYA)' and o.get('rise_time'):
-                            self.target_ra = o['rise_ra']
-                            self.target_dec = o['rise_dec']
-                            ra_str = Astro.fmt_ra_lx(o['rise_ra'])
-                            dec_str = Astro.fmt_dec_lx(o['rise_dec'])
-                            self.cmd_queue = [f":Sr{ra_str}#", f":Sd{dec_str}#", ":MS#"]
-                            self.process_queue()
                             import ephem
+                            import math
+                            pass_info = self.iss_obs.next_pass(self.iss_obj)
+                            self.iss_obs.date = ephem.now()
+                            cur_ra, cur_dec = self.iss_obs.radec_of(pass_info[1], 0)
+                            
+                            self.target_ra = float(cur_ra) * 12.0 / math.pi
+                            self.target_dec = float(cur_dec) * 180.0 / math.pi
+                            ra_str = Astro.fmt_ra_lx(self.target_ra)
+                            dec_str = Astro.fmt_dec_lx(self.target_dec)
+                            self.cmd_queue = [f":Sr{ra_str}#", f":Sd{dec_str}#", ":MS#", ":Td#"]
+                            self.process_queue()
+                            
                             self.pending_iss_track_time = ephem.localtime(o['rise_time']).timestamp()
                             lang = self.cfg.get("language", "fr")
                             self.set_msg(" ATTENTE ISS... " if lang=="fr" else " WAITING ISS... ", f" {o.get('next_pass','')} "[:16].ljust(16), "", "", 3000, self.UI_MAIN)
