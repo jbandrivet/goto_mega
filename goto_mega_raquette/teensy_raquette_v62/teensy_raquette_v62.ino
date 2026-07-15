@@ -27,8 +27,8 @@
 
 enum CatID { CAT_MESSIER=0, CAT_NGC, CAT_IC, CAT_PK, CAT_CALDWELL, CAT_BSC, CAT_SYSSOL, CAT_COUNT };
 bool isEnglish = false;
-bool displayRaDec = false;
-bool temp_displayRaDec = false;
+bool displayRaDec = true;
+bool temp_displayRaDec = true;
 #define CHAR_LEFT  0x7F
 #define CHAR_RIGHT 0x7E
 
