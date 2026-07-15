@@ -27,6 +27,8 @@
 
 enum CatID { CAT_MESSIER=0, CAT_NGC, CAT_IC, CAT_PK, CAT_CALDWELL, CAT_BSC, CAT_SYSSOL, CAT_COUNT };
 bool isEnglish = false;
+bool displayRaDec = false;
+bool temp_displayRaDec = false;
 #define CHAR_LEFT  0x7F
 #define CHAR_RIGHT 0x7E
 
@@ -1137,6 +1139,7 @@ void loadEEPROM() {
         EEPROM.get(11, m_slewSpeed);
         if(m_slewSpeed < 0.5 || m_slewSpeed > 6.0) m_slewSpeed = 2.0;
         isEnglish = EEPROM.read(15) > 0;
+        displayRaDec = EEPROM.read(16) > 0;
     } else {
         EEPROM.write(0, 42);
         EEPROM.write(1, mountType);
@@ -1145,6 +1148,7 @@ void loadEEPROM() {
         EEPROM.write(10, buzzerOn);
         EEPROM.put(11, m_slewSpeed);
         EEPROM.write(15, isEnglish);
+        EEPROM.write(16, displayRaDec);
     }
 }
 
@@ -1155,6 +1159,7 @@ void saveEEPROM() {
     EEPROM.write(10, buzzerOn);
     EEPROM.put(11, m_slewSpeed);
     EEPROM.write(15, isEnglish);
+    EEPROM.write(16, displayRaDec);
 }
 
 char           uiMsgL0[21] = "";
@@ -1170,7 +1175,7 @@ enum UIState {
     UI_SLEWING, UI_SETTINGS, UI_SPEED, UI_ALIGN, UI_PARKING,
     UI_MOUNT, UI_RATIO_AZ, UI_RATIO_ALT, UI_BEEP, UI_OFFLINE,
     UI_MESSAGE, UI_EDIT_TIME, UI_EDIT_LOCATION, UI_MENU_SELECT,
-    UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER, UI_GPS
+    UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER, UI_GPS, UI_COORD_MODE
 };
 UIState uiState = UI_MAIN;
 bool isAlignWorkflow = false;
@@ -1535,7 +1540,7 @@ void lcdLine(uint8_t row, const char* str){
 void printMain(){
     char buf[21];
     
-    if (mountType == 0) {
+    if (mountType == 0 && !displayRaDec) {
         long az_sec = round(fabs(m_currentAz) * 3600.0);
         int az_d = az_sec / 3600;
         int az_m = (az_sec % 3600) / 60;
@@ -1747,12 +1752,13 @@ void printSettings() {
         isEnglish ? "Date/Time" : "Date/Heure", 
         isEnglish ? "Location" : "Lieu Obs.", 
         isEnglish ? "Language" : "Langue",
-        "GPS Auto"
+        "GPS Auto",
+        isEnglish ? "Coord Display" : "Affichage Coord"
     };
     
     char b1[21], b2[21], b3[21];
     int start = settingsSel;
-    if (start > 14 - 3) start = 14 - 3;
+    if (start > 15 - 3) start = 15 - 3;
     
     snprintf(b1, 21, "%c %s", (settingsSel == start) ? '>' : ' ', opts[start]);
     snprintf(b2, 21, "%c %s", (settingsSel == start + 1) ? '>' : ' ', opts[start + 1]);
@@ -1865,6 +1871,11 @@ void refreshLcd(){
             lcdLine(1, temp_gpsEnabled ? (isEnglish ? "> Auto enabled  " : "> Auto active   ") : (isEnglish ? "> Disabled      " : "> Desactive     "));
             lcdLine(2, "");
             lcdLine(3, "");
+            break;
+        }
+        case UI_COORD_MODE: {
+            lcdLine(0, isEnglish ? "[ COORD MODE ]" : "[ AFFICHAGE ]");
+            lcdLine(1, temp_displayRaDec ? "> RA/DEC        " : "> ALT/AZ        ");
             break;
         }
         case UI_MENU_SELECT: {
@@ -2028,8 +2039,8 @@ void handleButtons(){
             break;
         case UI_SETTINGS:
             if(left)       { mega_cmd(":Q", false); uiState=UI_MAIN; }
-            if(up)         { settingsSel=(settingsSel-1+14)%14; }
-            if(down)       { settingsSel=(settingsSel+1)%14; }
+            if(up)         { settingsSel=(settingsSel-1+15)%15; }
+            if(down)       { settingsSel=(settingsSel+1)%15; }
             if(right||enter){
                 if(settingsSel==0) { mega_cmd(":Q", false); currentCat=CAT_MESSIER; objectIndex=0; uiState=UI_CAT_SELECT; }
                 if(settingsSel==1) {
@@ -2069,6 +2080,7 @@ void handleButtons(){
                 if(settingsSel==11) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
                 if(settingsSel==12) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
                 if(settingsSel==13) { temp_gpsEnabled = gpsEnabled; uiState=UI_GPS; }
+                if(settingsSel==14) { temp_displayRaDec = displayRaDec; uiState=UI_COORD_MODE; }
             }
             break;
 
@@ -2278,6 +2290,18 @@ void handleButtons(){
                 gpsEnabled = temp_gpsEnabled;
                 Serial1.print(gpsEnabled ? ":bg1#" : ":bg0#");
                 showMessage(" GPS REGLE        ", "                    ", 1200, UI_SETTINGS);
+            }
+            break;
+
+        case UI_COORD_MODE:
+            if(left)  { uiState=UI_SETTINGS; }
+            if(up||down) {
+                temp_displayRaDec = !temp_displayRaDec;
+            }
+            if(enter||right) {
+                displayRaDec = temp_displayRaDec;
+                saveEEPROM();
+                showMessage(isEnglish ? " SAVED          " : " ENREGISTRE     ", "                    ", 1200, UI_SETTINGS);
             }
             break;
 
