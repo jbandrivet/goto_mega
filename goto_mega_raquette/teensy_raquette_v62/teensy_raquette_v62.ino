@@ -1734,6 +1734,8 @@ void printSpeed(){
     lcdLine(0, isEnglish ? "[ GOTO SPEED ]" : "[ VITESSE GOTO ]");
     snprintf(buf, 21," > %.1f deg/s", temp_slewSpeed);
     lcdLine(1,buf);
+    lcdLine(2,"");
+    lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
 }
 
 void printSettings() {
@@ -1778,16 +1780,22 @@ void printAlignCenter(){
     }
     lcdLine(0, buf);
     lcdLine(1, "   ENT=SYNC     ");
+    lcdLine(2, "");
+    lcdLine(3, "");
 }
 
 void printAlign(){
     lcdLine(0, "SYNCHRONISATION");
     lcdLine(1, "ENT=OK  <=RET");
+    lcdLine(2, "");
+    lcdLine(3, "");
 }
 
 void printParking(){
     lcdLine(0, "PARKING");
     lcdLine(1, "ENT=OK  <=RET");
+    lcdLine(2, "");
+    lcdLine(3, "");
 }
 
 void sendLocationToMega() {
