@@ -1819,26 +1819,32 @@ void refreshLcd(){
         
         case UI_MOUNT: {
             lcdLine(0, "[ TYPE MONTURE ]");
-            char buf[21]; snprintf(buf, 21,">%s", temp_mountType == 0 ? "AltAz" : (temp_mountType == 1 ? "ForkEq" : "GermanEq"));
-            lcdLine(1, buf);
+            lcdLine(1, temp_mountType == 0 ? "> AltAz         " : "  AltAz         ");
+            lcdLine(2, temp_mountType == 1 ? "> ForkEq        " : "  ForkEq        ");
+            lcdLine(3, temp_mountType == 2 ? "> GermanEq      " : "  GermanEq      ");
             break;
         }
         case UI_RATIO_AZ: {
             lcdLine(0, "[ RATIO AZ/RA ]");
             char buf[21]; snprintf(buf, 21,">%.1f", temp_gearRatioAZ);
             lcdLine(1, buf);
+            lcdLine(2, "");
+            lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
             break;
         }
         case UI_RATIO_ALT: {
             lcdLine(0, "[ RATIO DEC/AL ]");
             char buf[21]; snprintf(buf, 21,">%.1f", temp_gearRatioALT);
             lcdLine(1, buf);
+            lcdLine(2, "");
+            lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
             break;
         }
         case UI_BEEP: {
             lcdLine(0, "[ REGLAGE BIP ]");
-            char buf[21]; snprintf(buf, 21,"> %s", temp_buzzerOn ? "ACTIF" : "INACTIF");
-            lcdLine(1, buf);
+            lcdLine(1, temp_buzzerOn ? "> ACTIF         " : "  ACTIF         ");
+            lcdLine(2, temp_buzzerOn ? "  INACTIF       " : "> INACTIF       ");
+            lcdLine(3, isEnglish ? "[UP/DWN] Select" : "[HAUT/BAS] Choisir");
             break;
         }
         case UI_EDIT_TIME: {
@@ -1846,6 +1852,8 @@ void refreshLcd(){
             char b[17];
             snprintf(b,17,"%02d/%02d %02d:%02d", dt_d, dt_m, dt_hr, dt_min);
             lcdLine(1,b);
+            lcdLine(2, "");
+            lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
             break;
         }
         case UI_EDIT_LOCATION: {
@@ -1853,6 +1861,8 @@ void refreshLcd(){
             char b[17];
             snprintf(b,17,"La:%.1f Lo:%.1f", obs_lat, obs_lon);
             lcdLine(1,b);
+            lcdLine(2, "");
+            lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
             break;
         }
         case UI_MOTOR_POWER: {
@@ -1871,9 +1881,9 @@ void refreshLcd(){
         }
         case UI_GPS: {
             lcdLine(0, "[ GPS ]");
-            lcdLine(1, temp_gpsEnabled ? (isEnglish ? "> Auto enabled  " : "> Auto active   ") : (isEnglish ? "> Disabled      " : "> Desactive     "));
-            lcdLine(2, "");
-            lcdLine(3, "");
+            lcdLine(1, temp_gpsEnabled ? (isEnglish ? "> Auto enabled  " : "> Auto active   ") : (isEnglish ? "  Auto enabled  " : "  Auto active   "));
+            lcdLine(2, temp_gpsEnabled ? (isEnglish ? "  Disabled      " : "  Desactive     ") : (isEnglish ? "> Disabled      " : "> Desactive     "));
+            lcdLine(3, isEnglish ? "[UP/DWN] Select" : "[HAUT/BAS] Choisir");
             break;
         }
         case UI_COORD_MODE: {
