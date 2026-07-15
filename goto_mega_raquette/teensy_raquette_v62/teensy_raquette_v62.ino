@@ -1857,13 +1857,16 @@ void refreshLcd(){
         }
         case UI_MOTOR_POWER: {
             lcdLine(0, "[ ALIM MOTEURS ]");
-            char buf[21]; snprintf(buf, 21, " > %s", temp_motorPowerOn ? "ACTIVE" : "DESACTIVE");
-            lcdLine(1, buf);
+            lcdLine(1, temp_motorPowerOn ? "> ACTIVE        " : "  ACTIVE        ");
+            lcdLine(2, temp_motorPowerOn ? "  DESACTIVE     " : "> DESACTIVE     ");
+            lcdLine(3, "[HAUT/BAS] Choisir");
             break;
         }
         case UI_LANGUAGE: {
             lcdLine(0, isEnglish ? "[ LANGUAGE ]" : "[ LANGUE ]");
-            lcdLine(1, temp_isEnglish ? "> English       " : "> Francais      ");
+            lcdLine(1, temp_isEnglish ? "> English       " : "  English       ");
+            lcdLine(2, temp_isEnglish ? "  Francais      " : "> Francais      ");
+            lcdLine(3, temp_isEnglish ? "[UP/DWN] Select" : "[HAUT/BAS] Choisir");
             break;
         }
         case UI_GPS: {
@@ -1875,7 +1878,9 @@ void refreshLcd(){
         }
         case UI_COORD_MODE: {
             lcdLine(0, isEnglish ? "[ COORD MODE ]" : "[ AFFICHAGE ]");
-            lcdLine(1, temp_displayRaDec ? "> RA/DEC        " : "> ALT/AZ        ");
+            lcdLine(1, temp_displayRaDec ? "> RA/DEC        " : "  RA/DEC        ");
+            lcdLine(2, temp_displayRaDec ? "  ALT/AZ        " : "> ALT/AZ        ");
+            lcdLine(3, isEnglish ? "[UP/DWN] Select" : "[HAUT/BAS] Choisir");
             break;
         }
         case UI_MENU_SELECT: {
