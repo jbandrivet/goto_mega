@@ -1084,7 +1084,7 @@ StarObject getStarFromCatalog(uint16_t index) {
 #define MEGA_BAUD         38400
 #define POLL_INTERVAL_MS   250    
 #define TEENSY_TIMEOUT_MS  500    
-#define DEBOUNCE_MS         50
+#define DEBOUNCE_MS         10
 #define FAST_SCROLL_DELAY  150    
 #define FAST_SCROLL_STEP    10    
 
@@ -1977,10 +1977,18 @@ void handleButtons(){
         scrollDelta+=fastScroll(BTN_IDX_UP,   -1);
         scrollDelta+=fastScroll(BTN_IDX_DOWN, +1);
     }
-    if(scrollDelta!=0){ scrollList(scrollDelta); lcdNeedsRefresh=true; return; }
+    if(scrollDelta!=0){ 
+        scrollList(scrollDelta); 
+        lcdNeedsRefresh=true; 
+        extern unsigned long lastLcd;
+        lastLcd = 0;
+        return; 
+    }
 
     if(!up&&!down&&!left&&!right&&!enter) return;
     lcdNeedsRefresh=true;
+    extern unsigned long lastLcd;
+    lastLcd = 0; // Force immediate refresh
 
     switch(uiState){
 
@@ -2412,6 +2420,8 @@ void setup(){
 // ============================================================
 // SECTION 13 : LOOP
 // ============================================================
+unsigned long lastLcd = 0;
+
 void loop(){
 
     handleButtons();
@@ -2433,7 +2443,6 @@ void loop(){
         lcdNeedsRefresh=true;
     }
 
-    static unsigned long lastLcd=0;
     if(lcdNeedsRefresh && millis()-lastLcd>=200){
         refreshLcd();
         lastLcd=millis();
