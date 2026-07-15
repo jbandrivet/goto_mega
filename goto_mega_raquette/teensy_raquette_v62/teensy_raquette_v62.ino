@@ -1554,7 +1554,7 @@ void printMain(){
 
         snprintf(buf,21,"AZ: %03d%c%02d'%02d\"", az_d, 0xDF, az_m, az_s);
         lcdLine(0,buf);
-        snprintf(buf,21,"AL: %c%02d%c%02d'%02d\"", alt_neg?'-':'+', alt_d, 0xDF, alt_m, alt_s);
+        snprintf(buf,21,"ALT: %c%02d%c%02d'%02d\"", alt_neg?'-':'+', alt_d, 0xDF, alt_m, alt_s);
         lcdLine(1,buf);
     } else {
         bool dneg=(m_currentDEC<0); double adec=fabs(m_currentDEC);
