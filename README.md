@@ -77,6 +77,28 @@ Câblez votre carte Arduino Mega 2560 en suivant ce schéma de connexion :
 
 *Note : Les signaux de masse négatifs (`PUL-`, `DIR-`, `ENB-` des drivers, GND du buzzer, du GPS et de la Teensy) doivent tous être connectés à une broche **GND** de l'Arduino Mega.*
 
+### 4.1 Schéma de Câblage de la Raquette (Teensy 4.1)
+
+Si vous fabriquez la raquette physique avec un Teensy 4.1, voici le câblage à effectuer :
+
+| Composant | Broche Teensy 4.1 | Connexion / Signal |
+| :--- | :--- | :--- |
+| **Écran LCD (I2C)** | **Pin 18 (SDA0)** | `SDA` de l'écran LCD |
+| | **Pin 19 (SCL0)** | `SCL` de l'écran LCD |
+| | **VIN** | `VCC` (5V) de l'écran LCD |
+| | **GND** | `GND` de l'écran LCD |
+| **Boutons Poussoirs** | **Pin 6** | Bouton **Haut (UP)** (vers GND) |
+| | **Pin 7** | Bouton **Bas (DOWN)** (vers GND) |
+| | **Pin 8** | Bouton **Gauche (LEFT)** (vers GND) |
+| | **Pin 9** | Bouton **Droite (RIGHT)** (vers GND) |
+| | **Pin 10** | Bouton **Validation (ENTER)** (vers GND) |
+| **Câble RJ11 (vers Mega)**| **GND** | Pin 1 RJ11 (`GND` du Mega) |
+| | **VIN** | Pin 2 RJ11 (`5V` du Mega) |
+| | **Pin 1 (TX1)** | Pin 3 RJ11 (vers `RX3` Pin 15 du Mega) |
+| | **Pin 0 (RX1)** | Pin 4 RJ11 (vers `TX3` Pin 14 du Mega) |
+
+*ATTENTION : Le Teensy est alimenté par la pin 5V du Mega via VIN. Ne pas brancher l'USB du Teensy en même temps, sauf si le pad VUSB a été coupé au préalable.*
+
 ### 5. Matériel Compatible
 
 Pour monter votre système GotoMega, les composants matériels suivants sont compatibles et recommandés :
