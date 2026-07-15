@@ -1563,7 +1563,7 @@ void printMain(){
 
         snprintf(buf,21,"RA: %02dh%02dm%02ds", rh, rm, rs);
         lcdLine(0,buf);
-        snprintf(buf,21,"DE: %c%02d%c%02d'%02d\"", dneg?'-':'+', dd, 0xDF, dm, ds);
+        snprintf(buf,21,"DEC: %c%02d%c%02d'%02d\"", dneg?'-':'+', dd, 0xDF, dm, ds);
         lcdLine(1,buf);
     }
     
@@ -1686,7 +1686,7 @@ void printObjectInfo(){
     lcdLine(1,buf);
     
     int dd=(int)fabs(dec), dm=(int)((fabs(dec)-dd)*60);
-    snprintf(buf,21,"DE: %c%02d%c%02d'", dec<0?'-':'+', dd, 0xDF, dm);
+    snprintf(buf,21,"DEC: %c%02d%c%02d'", dec<0?'-':'+', dd, 0xDF, dm);
     lcdLine(2,buf);
     
     lcdLine(3, "[ENT]=GOTO [>]=SYNC");
