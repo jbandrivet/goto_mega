@@ -576,8 +576,8 @@ class VirtualTeensyApp(tk.Tk):
                             self.state = self.UI_MAIN
                     else:
                         ratio = step_deg / axis_max
-                        self.sim_ra += (dra_deg * ratio) / 15.0
-                        self.sim_dec += (ddec_deg * ratio)
+                        self.sim_ra = (self.sim_ra + (dra_deg * ratio) / 15.0) % 24.0
+                        self.sim_dec = max(-90.0, min(90.0, self.sim_dec + (ddec_deg * ratio)))
                 
                 # Déplacement manuel continu simulé
                 man_step = 0.5 # Degrés par pas de 100ms
