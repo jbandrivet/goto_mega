@@ -559,22 +559,25 @@ class VirtualTeensyApp(tk.Tk):
             if self.sim_mode:
                 # Boucle de simulation locale de la monture
                 if self.is_slewing and self.target_ra is not None:
-                    # Rapprocher le télescope simulé de la cible
-                    dist_ra = self.target_ra - self.sim_ra
-                    dist_dec = self.target_dec - self.sim_dec
-                    step_size = self.current_speed * 0.1 # Vitesse par pas de 100ms
+                    # Distances par axe, en DEGRÉS (AD ×15), les 2 axes bougent en parallèle
+                    dra_deg = (self.target_ra - self.sim_ra) * 15.0
+                    if dra_deg > 180.0: dra_deg -= 360.0
+                    elif dra_deg < -180.0: dra_deg += 360.0
+                    ddec_deg = self.target_dec - self.sim_dec
                     
-                    # Déplacement angulaire 2D
-                    dist = math.hypot(dist_ra, dist_dec)
-                    if dist <= step_size:
+                    step_deg = self.current_speed * 0.5   # tick réel = 500ms
+                    axis_max = max(abs(dra_deg), abs(ddec_deg))  # axe le plus long = facteur limitant
+                    
+                    if axis_max <= step_deg:
                         self.sim_ra = self.target_ra
                         self.sim_dec = self.target_dec
                         self.is_slewing = False
                         if self.state == self.UI_SLEWING:
                             self.state = self.UI_MAIN
                     else:
-                        self.sim_ra += (dist_ra / dist) * step_size
-                        self.sim_dec += (dist_dec / dist) * step_size
+                        ratio = step_deg / axis_max
+                        self.sim_ra += (dra_deg * ratio) / 15.0
+                        self.sim_dec += (ddec_deg * ratio)
                 
                 # Déplacement manuel continu simulé
                 man_step = 0.5 # Degrés par pas de 100ms
