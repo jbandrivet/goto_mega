@@ -1162,6 +1162,9 @@ enum UIState {
     UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER, UI_GPS, UI_COORD_MODE
 };
 UIState uiState = UI_MAIN;
+
+float ratioStep = 1.0;
+
 bool isAlignWorkflow = false;
 bool isParkingWorkflow = false;
 
@@ -1249,6 +1252,7 @@ String mega_cmd(const String &cmd, bool needsReply=true){
     String resp="";
     unsigned long t0=millis();
     while(millis()-t0 < TEENSY_TIMEOUT_MS){
+        readButtons(); // Keep scanning buttons while waiting!
         while(Serial1.available()){
             char c=(char)Serial1.read();
             if(c=='#') return resp;
@@ -1558,11 +1562,14 @@ void printMain(){
     } else if(m_limitHit){
         lcdLine(2, "!! LIMITE !!");
     } else {
-        const char* mnt_str = (mountType == 0) ? "ALTAZ" : ((mountType == 1) ? "FORK EQ" : "GERM EQ");
-        snprintf(buf, 21,"ETAT: %s %c %s", 
-                 mnt_str,
-                 m_isTracking?(char)CHAR_CHECK:'-',
-                 m_isSlewing?"GOTO":"OK");
+        const char* mnt_str = (mountType == 0) ? "ALTZ" : ((mountType == 1) ? "FORK" : "GERM");
+        const char* stat_str;
+        if (!motorPowerOn) stat_str = isEnglish ? "MOT.OFF" : "MOT.OFF";
+        else if (m_isSlewing) stat_str = "GOTO";
+        else if (m_isTracking) stat_str = isEnglish ? "TRACK" : "SUIVI";
+        else stat_str = "STOP";
+
+        snprintf(buf, 21,"ETAT: %s - %s", mnt_str, stat_str);
         lcdLine(2,buf);
     }
     lcdLine(3, isEnglish ? "[ENT] = Menu        " : "[ENT] = Menu        ");
@@ -1831,10 +1838,12 @@ void refreshLcd(){
         case UI_RATIO_AZ: {
             lcdLine(0, "[ RATIO AZ/RA ]");
             if(m_online) {
-                char buf[21]; snprintf(buf, 21,">%.1f", temp_gearRatioAZ);
+                char buf[21]; snprintf(buf, 21," 1:%.0f", temp_gearRatioAZ);
                 lcdLine(1, buf);
-                lcdLine(2, "");
-                lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
+                extern float ratioStep;
+                snprintf(buf, 21," Pas: %.0f", ratioStep);
+                lcdLine(2, buf);
+                lcdLine(3, isEnglish ? "[<>]=Pas [^v]=Modif" : "[<>]=Pas [^v]=Modif");
             } else {
                 lcdLine(1, "> ---");
                 lcdLine(2, "");
@@ -1845,10 +1854,12 @@ void refreshLcd(){
         case UI_RATIO_ALT: {
             lcdLine(0, "[ RATIO DEC/AL ]");
             if(m_online) {
-                char buf[21]; snprintf(buf, 21,">%.1f", temp_gearRatioALT);
+                char buf[21]; snprintf(buf, 21," 1:%.0f", temp_gearRatioALT);
                 lcdLine(1, buf);
-                lcdLine(2, "");
-                lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
+                extern float ratioStep;
+                snprintf(buf, 21," Pas: %.0f", ratioStep);
+                lcdLine(2, buf);
+                lcdLine(3, isEnglish ? "[<>]=Pas [^v]=Modif" : "[<>]=Pas [^v]=Modif");
             } else {
                 lcdLine(1, "> ---");
                 lcdLine(2, "");
@@ -1936,13 +1947,25 @@ void refreshLcd(){
     lcdNeedsRefresh=false;
 }
 
+bool btnLatched[5] = {false, false, false, false, false};
+bool btnReleaseLatched[5] = {false, false, false, false, false};
+bool btnReleased[5] = {false, false, false, false, false};
+
 void readButtons(){
     unsigned long now=millis();
     for(int i=0;i<5;i++){
         bool raw=(digitalRead(BTN_PINS[i])==LOW);
         if(raw!=btnPrev[i]) btnTime[i]=now;
         bool newState=(now-btnTime[i]>DEBOUNCE_MS)?raw:btnState[i];
-        if(newState && !btnState[i]) btnHoldTime[i]=now;
+        
+        if(newState && !btnState[i]) {
+            btnHoldTime[i]=now;
+            btnLatched[i]=true;
+        }
+        if(!newState && btnState[i]) {
+            btnReleaseLatched[i]=true;
+        }
+        
         btnState[i]=newState;
         btnPrev[i]=raw;
     }
@@ -1950,7 +1973,12 @@ void readButtons(){
 
 void detectPresses(){
     for(int i=0;i<5;i++){
-        btnPressed[i]=(btnState[i]&&!btnWas[i]);
+        btnPressed[i] = btnLatched[i];
+        btnLatched[i] = false;
+        
+        btnReleased[i] = btnReleaseLatched[i];
+        btnReleaseLatched[i] = false;
+        
         btnWas[i]=btnState[i];
     }
 }
@@ -1987,7 +2015,7 @@ void handleButtons(){
     if(uiState == UI_MAIN) {
         for(int i=0; i<5; i++) {
             if(i != BTN_IDX_ENTER) {
-                if(!btnState[i] && btnWas[i]) {
+                if(btnReleased[i]) {
                     mega_cmd(":Q", false);
                 }
             }
@@ -2049,8 +2077,11 @@ void handleButtons(){
             if(down)  { objectIndex=(objectIndex<total-1)?objectIndex+1:0;
                         selectCurrentObject(); }
             if(right) {
-                double ra =selectedIsStar?selectedStar.ra  :selectedObj.ra;
-                double dec=selectedIsStar?selectedStar.dec :selectedObj.dec;
+                double ra = 0, dec = 0;
+                if(currentCat == CAT_SYSSOL) { ra = sysSolObjs[objectIndex].ra; dec = sysSolObjs[objectIndex].dec; }
+                else if(selectedIsStar) { ra = selectedStar.ra; dec = selectedStar.dec; }
+                else { ra = selectedObj.ra; dec = selectedObj.dec; }
+                
                 if (!isVisible(ra, dec)) {
                     showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_OBJECT_INFO);
                     return;
@@ -2065,8 +2096,11 @@ void handleButtons(){
                 showMessage(isEnglish ? "  SYNCHRONIZED  " : "  SYNCHRONISE   ", "                ", 1500, UI_MAIN);
             }
             if(enter) {
-                double ra =selectedIsStar?selectedStar.ra  :selectedObj.ra;
-                double dec=selectedIsStar?selectedStar.dec :selectedObj.dec;
+                double ra = 0, dec = 0;
+                if(currentCat == CAT_SYSSOL) { ra = sysSolObjs[objectIndex].ra; dec = sysSolObjs[objectIndex].dec; }
+                else if(selectedIsStar) { ra = selectedStar.ra; dec = selectedStar.dec; }
+                else { ra = selectedObj.ra; dec = selectedObj.dec; }
+                
                 if (!isVisible(ra, dec)) {
                     showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_OBJECT_INFO);
                     return;
@@ -2206,8 +2240,9 @@ void handleButtons(){
             
         case UI_RATIO_AZ:
             if(left)  { uiState=UI_SETTINGS; }
-            if(up)    { temp_gearRatioAZ += 10; }
-            if(down)  { temp_gearRatioAZ -= 10; if(temp_gearRatioAZ<10) temp_gearRatioAZ=10; }
+            if(right) { ratioStep *= 10.0; if(ratioStep > 1000.0) ratioStep = 1.0; }
+            if(up)    { temp_gearRatioAZ += ratioStep; }
+            if(down)  { temp_gearRatioAZ -= ratioStep; if(temp_gearRatioAZ<1.0) temp_gearRatioAZ=1.0; }
             if(enter) {
                 gearRatioAZ = temp_gearRatioAZ;
                 Serial1.print(":BGa"); Serial1.print(gearRatioAZ); Serial1.print("#");
@@ -2218,8 +2253,9 @@ void handleButtons(){
 
         case UI_RATIO_ALT:
             if(left)  { uiState=UI_SETTINGS; }
-            if(up)    { temp_gearRatioALT += 10; }
-            if(down)  { temp_gearRatioALT -= 10; if(temp_gearRatioALT<10) temp_gearRatioALT=10; }
+            if(right) { ratioStep *= 10.0; if(ratioStep > 1000.0) ratioStep = 1.0; }
+            if(up)    { temp_gearRatioALT += ratioStep; }
+            if(down)  { temp_gearRatioALT -= ratioStep; if(temp_gearRatioALT<1.0) temp_gearRatioALT=1.0; }
             if(enter) {
                 gearRatioALT = temp_gearRatioALT;
                 Serial1.print(":BGe"); Serial1.print(gearRatioALT); Serial1.print("#");

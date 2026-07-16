@@ -89,10 +89,10 @@ except Exception as e:
                 
                 res = subprocess.run([py_exe, "-c", script], capture_output=True, text=True)
                 if res.returncode != 0:
-                    self.after(0, lambda: messagebox.showerror("Erreur", "Echec capture: " + res.stderr))
+                    self.after(0, lambda err=res.stderr: messagebox.showerror("Erreur", "Echec capture: " + err))
                     return
                 
-                self.after(0, lambda: self.update_info(f"Image {step_num} capturée. Résolution Astrométrique..."))
+                self.after(0, lambda step=step_num: self.update_info(f"Image {step} capturée. Résolution Astrométrique..."))
                 
                 # Solve
                 sf_cmd = ["solve-field", "/tmp/capture_pa.png", "--overwrite", "--no-plots", "--cpulimit", "30"]
@@ -176,7 +176,7 @@ except Exception as e:
                     self.calculate_cor()
                     
             except Exception as e:
-                self.after(0, lambda: messagebox.showerror("Erreur", str(e)))
+                self.after(0, lambda err=str(e): messagebox.showerror("Erreur", err))
                 self.after(0, lambda: self.btn_action.config(state="normal", text="Réessayer"))
 
         threading.Thread(target=task, daemon=True).start()
@@ -256,7 +256,7 @@ except Exception as e:
                 py_exe = venv_python if os.path.exists(venv_python) else sys.executable
                 res = subprocess.run([py_exe, "-c", script], capture_output=True, text=True)
                 if res.returncode != 0:
-                    self.after(0, lambda: messagebox.showerror("Erreur", "Echec capture: " + res.stderr))
+                    self.after(0, lambda err=res.stderr: messagebox.showerror("Erreur", "Echec capture: " + err))
                     self.after(0, lambda: self.btn_action.config(state="normal", text="Actualiser (Live Update)"))
                     return
                 

@@ -945,7 +945,7 @@ class ConfigToolApp(tk.Tk):
                 else:
                     self.after(0, lambda: messagebox.showerror("Erreur", "Erreur lors de la détection: " + res.stderr))
             except Exception as e:
-                self.after(0, lambda: messagebox.showerror("Erreur", str(e)))
+                self.after(0, lambda err=str(e): messagebox.showerror("Erreur", err))
             finally:
                 self.after(0, lambda: self.detect_cam_btn.config(state="normal", text="🔄"))
         

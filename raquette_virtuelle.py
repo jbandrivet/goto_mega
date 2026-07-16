@@ -454,22 +454,42 @@ class VirtualTeensyApp(tk.Tk):
                 self.ser.write(f":SG{sign}{int(abs(utc_offset)):02d}#".encode('ascii'))
                 self.ser.read_until(b"#")
                 
-                # 3.5 Sync Mechanical Settings
-                ms = self.cfg.get("microstep", 125)
-                self.ser.write(f":BSm{ms}#".encode('ascii'))
-                self.ser.read(1)
+                # 3.5 Sync Mechanical Settings FROM Mega to PC
+                self.ser.write(b":BSm#")
+                time.sleep(0.05)
+                if self.ser.in_waiting:
+                    try: self.cfg.set("microstep", int(self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')))
+                    except: pass
                 
-                sr = self.cfg.get("steps_per_rev_motor", 200)
-                self.ser.write(f":BSp{sr}#".encode('ascii'))
-                self.ser.read(1)
+                self.ser.write(b":BSp#")
+                time.sleep(0.05)
+                if self.ser.in_waiting:
+                    try: self.cfg.set("steps_per_rev_motor", int(self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')))
+                    except: pass
                 
-                ga = self.cfg.get("gear_ratio_az", 750.0)
-                self.ser.write(f":BGa{ga}#".encode('ascii'))
-                self.ser.read(1)
+                self.ser.write(b":BGa#")
+                time.sleep(0.05)
+                if self.ser.in_waiting:
+                    try:
+                        self.temp_ratio_az = float(self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#'))
+                        self.cfg.set("gear_ratio_az", self.temp_ratio_az)
+                    except: pass
                 
-                ge = self.cfg.get("gear_ratio_alt", 750.0)
-                self.ser.write(f":BGe{ge}#".encode('ascii'))
-                self.ser.read(1)
+                self.ser.write(b":BGe#")
+                time.sleep(0.05)
+                if self.ser.in_waiting:
+                    try:
+                        self.temp_ratio_alt = float(self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#'))
+                        self.cfg.set("gear_ratio_alt", self.temp_ratio_alt)
+                    except: pass
+                    
+                self.ser.write(b":Bb#")
+                time.sleep(0.05)
+                if self.ser.in_waiting:
+                    try: self.buzzer_on = (int(self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')) > 0)
+                    except: pass
+                    
+                self.cfg.save()
                 
                 
                 # 4. Slew speed
@@ -584,6 +604,7 @@ class VirtualTeensyApp(tk.Tk):
                         if resp:
                             parts = resp.split(',')
                             if len(parts) >= 8:
+                                self.is_tracking = (parts[0] == '1')
                                 self.is_slewing = (parts[1] == '1')
                                 try:
                                     raw_speed = float(parts[3]) / 10.0
@@ -792,11 +813,23 @@ class VirtualTeensyApp(tk.Tk):
                 l1 = f"DE: {dec_str}"[:20]
             if self.is_connected:
                 mnt_type = self.cfg.get("mount_type", "AltAz")
-                if mnt_type == "AltAz": mnt_str = "ALTAZ"
-                elif mnt_type == "ForkEq": mnt_str = "FORK EQ"
-                else: mnt_str = "GERM EQ"
+                if mnt_type == "AltAz": mnt_str = "ALTZ"
+                elif mnt_type == "ForkEq": mnt_str = "FORK"
+                else: mnt_str = "GERM"
                 
-                stat = f"{mnt_str} - OK" if not self.sim_mode else f"{mnt_str} - SIMULATEUR"
+                if self.sim_mode:
+                    stat_str = "SIMULATEUR"
+                else:
+                    if not getattr(self, "motor_power", True):
+                        stat_str = "MOT.OFF"
+                    elif getattr(self, "is_slewing", False):
+                        stat_str = "GOTO"
+                    elif getattr(self, "is_tracking", False):
+                        stat_str = "SUIVI"
+                    else:
+                        stat_str = "STOP"
+                        
+                stat = f"{mnt_str} - {stat_str}"
                 l2 = f"ETAT: {stat}"[:20]
                 l3 = "[ENT] = Menu   "[:20]
                 
@@ -981,18 +1014,20 @@ class VirtualTeensyApp(tk.Tk):
             lbl = "RATIO AZ" if is_altaz else "RATIO RA"
             if lang == "en": lbl = "AZ RATIO" if is_altaz else "RA RATIO"
             l0 = f"[ {lbl} ]"[:20]
-            l1 = f"> {self.temp_ratio_az:.1f}"[:20]
-            l2 = "Micro-pas / deg" if lang == "fr" else "Microsteps / deg"
-            l3 = "[ENT] Valider" if lang == "fr" else "[ENT] Confirm"
+            l1 = f" 1:{int(self.temp_ratio_az)}"[:20]
+            rs = getattr(self, 'ratio_step', 1.0)
+            l2 = f"  Pas: {int(rs)}"
+            l3 = "[<>]=Pas [^v]=Edit "
             
         elif self.state == self.UI_RATIO_ALT:
             is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
             lbl = "RATIO ALT" if is_altaz else "RATIO DEC"
             if lang == "en": lbl = "ALT RATIO" if is_altaz else "DEC RATIO"
             l0 = f"[ {lbl} ]"[:20]
-            l1 = f"> {self.temp_ratio_alt:.1f}"[:20]
-            l2 = "Micro-pas / deg" if lang == "fr" else "Microsteps / deg"
-            l3 = "[ENT] Valider" if lang == "fr" else "[ENT] Confirm"
+            l1 = f" 1:{int(self.temp_ratio_alt)}"[:20]
+            rs = getattr(self, 'ratio_step', 1.0)
+            l2 = f"  Pas: {int(rs)}"
+            l3 = "[<>]=Pas [^v]=Edit "
 
         self.lcd_lines[0].config(text=f"{l0:<20}")
         self.lcd_lines[1].config(text=f"{l1:<20}")
@@ -1379,13 +1414,17 @@ class VirtualTeensyApp(tk.Tk):
                     self.set_msg(" MONTURE REGLEE  ", "", "", "", 1200, self.UI_SETTINGS)
 
         elif self.state == self.UI_RATIO_AZ:
+            if not hasattr(self, 'ratio_step'): self.ratio_step = 1.0
             if btn == "LEFT":
                 self.state = self.UI_SETTINGS
+            elif btn == "RIGHT":
+                self.ratio_step *= 10.0
+                if self.ratio_step > 1000.0: self.ratio_step = 1.0
             elif btn == "UP":
-                self.temp_ratio_az += 10.0
+                self.temp_ratio_az += self.ratio_step
             elif btn == "DOWN":
-                self.temp_ratio_az -= 10.0
-                if self.temp_ratio_az < 10.0: self.temp_ratio_az = 10.0
+                self.temp_ratio_az -= self.ratio_step
+                if self.temp_ratio_az < 1.0: self.temp_ratio_az = 1.0
             elif btn == "ENTER":
                 self.cfg.set("gear_ratio_az", self.temp_ratio_az)
                 self.cfg.save()
@@ -1398,13 +1437,17 @@ class VirtualTeensyApp(tk.Tk):
                     self.set_msg(" RATIO AZ REGLE  " if is_altaz else " RATIO RA REGLE  ", "", "", "", 1200, self.UI_SETTINGS)
 
         elif self.state == self.UI_RATIO_ALT:
+            if not hasattr(self, 'ratio_step'): self.ratio_step = 1.0
             if btn == "LEFT":
                 self.state = self.UI_SETTINGS
+            elif btn == "RIGHT":
+                self.ratio_step *= 10.0
+                if self.ratio_step > 1000.0: self.ratio_step = 1.0
             elif btn == "UP":
-                self.temp_ratio_alt += 10.0
+                self.temp_ratio_alt += self.ratio_step
             elif btn == "DOWN":
-                self.temp_ratio_alt -= 10.0
-                if self.temp_ratio_alt < 10.0: self.temp_ratio_alt = 10.0
+                self.temp_ratio_alt -= self.ratio_step
+                if self.temp_ratio_alt < 1.0: self.temp_ratio_alt = 1.0
             elif btn == "ENTER":
                 self.cfg.set("gear_ratio_alt", self.temp_ratio_alt)
                 self.cfg.save()
@@ -1473,8 +1516,8 @@ class VirtualTeensyApp(tk.Tk):
             elif btn == "ENTER":
                 import time
                 t = time.localtime()
-                self.send_cmd(f":SC{time.strftime('%m/%d/%y', time.gmtime())}#")
-                self.send_cmd(f":SL{time.strftime('%H:%M:%S', time.gmtime())}#")
+                self.send_cmd(f":SC{time.strftime('%m/%d/%y', t)}#")
+                self.send_cmd(f":SL{time.strftime('%H:%M:%S', t)}#")
                 offset = -time.timezone // 3600
                 if time.daylight: offset = -time.altzone // 3600
                 self.send_cmd(f":SG{offset:+03d}#")
