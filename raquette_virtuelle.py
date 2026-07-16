@@ -923,11 +923,31 @@ class VirtualTeensyApp(tk.Tk):
                     try:
                         c_ra = Astro.parse_ra(self.current_ra)
                         c_dec = Astro.parse_dec(self.current_dec)
-                        gc_dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
+                        
+                        # Distance par axe, pas grand cercle
+                        ra_diff = abs(c_ra - self.target_ra) * 15.0
+                        if ra_diff > 180.0: ra_diff = 360.0 - ra_diff
+                        dec_diff = abs(c_dec - self.target_dec)
+                        dist = max(ra_diff, dec_diff)
                         
                         v_max = self.current_speed if getattr(self, "current_speed", 2.0) > 0 else 2.0
-                        eta = int(gc_dist / v_max)
                         
+                        # Modèle rampe 5s (trapèze/triangle)
+                        d_ramp = (v_max * 5.0) / 2.0
+                        if not getattr(self, "slew_stopwatch_active", False):
+                            self.slew_stopwatch_active = True
+                            self.slew_start_time = time.time()
+                            if dist >= 2 * d_ramp:
+                                coasting_dist = dist - 2 * d_ramp
+                                coasting_time = coasting_dist / v_max
+                                self.initial_eta = 10.0 + coasting_time
+                            else:
+                                self.initial_eta = 2.0 * math.sqrt(5.0 * dist / v_max) if v_max > 0 else 0.0
+                        
+                        elapsed = time.time() - getattr(self, "slew_start_time", time.time())
+                        eta = max(0, int(getattr(self, "initial_eta", 0) - elapsed))
+                        
+                        gc_dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
                         l1 = f"Dist restante: {gc_dist:.1f}°"[:20]
                         l2 = f"Temps estime:  {eta}s"[:20]
                         l3 = "[<] Annuler GOTO" if lang == "fr" else "[<] Cancel GOTO"
