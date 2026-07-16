@@ -1781,8 +1781,15 @@ try:
             frame = cv2.resize(frame, (int(w*scale), int(h*scale)))
         p2, p99 = np.percentile(frame, (2, 99.5))
         if p99 > p2:
-            frame = np.clip((frame - p2) / (p99 - p2) * 255.0, 0, 255).astype(np.uint8)
-        frame_bgr = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            frame_norm = np.clip((frame - p2) / (p99 - p2) * 255.0, 0, 255).astype(np.uint8)
+        else:
+            frame_norm = frame
+        
+        sharpness = cv2.Laplacian(frame_norm, cv2.CV_64F).var()
+        with open('/tmp/zwo_sharpness.txt', 'w') as f:
+            f.write(str(sharpness))
+            
+        frame_bgr = cv2.cvtColor(frame_norm, cv2.COLOR_GRAY2BGR)
         cv2.imwrite('/tmp/capture_astro_stream_tmp.ppm', frame_bgr)
         os.rename('/tmp/capture_astro_stream_tmp.ppm', '/tmp/capture_astro_stream.ppm')
 except KeyboardInterrupt:
@@ -1810,6 +1817,9 @@ finally:
         
         self.preview_lbl = tk.Label(self.preview_top, bg="black", width=640, height=480)
         self.preview_lbl.pack(padx=10, pady=10)
+        
+        self.sharpness_lbl = tk.Label(self.preview_top, text="Focus Score: 0.00", font=("Arial", 14, "bold"), fg="red")
+        self.sharpness_lbl.pack(pady=5)
         
         foc_frame = tk.Frame(self.preview_top, bg="#c0c0c0")
         foc_frame.pack(fill="x", padx=10, pady=(0,10))
@@ -1893,6 +1903,33 @@ finally:
         btn_out_fast.bind("<ButtonRelease-1>", btn_out_fast_release)
         btn_out_fast.pack(side="left", padx=5)
         
+        self.af_running = False
+        self.af_state = 'IDLE'
+        self.af_dir = 1
+        self.af_last_score = 0
+        self.af_step = 0
+        
+        def run_autofocus():
+            if self.af_running:
+                self.af_running = False
+                btn_af.config(text="Auto Focus", bg="#c0c0c0")
+                foc_stop_mega()
+                return
+            self.af_running = True
+            self.af_state = 'INIT'
+            self.af_dir = -1 # Start IN
+            self.af_last_score = 0
+            btn_af.config(text="Stop Auto Focus", bg="red")
+            
+        btn_af = tk.Button(btn_frame, text="Auto Focus", font=("Arial", 12, "bold"), width=12, command=run_autofocus, bg="#c0c0c0")
+        btn_af.pack(side="left", padx=20)
+        
+        self.af_mega_in = foc_in_mega
+        self.af_mega_out = foc_out_mega
+        self.af_mega_stop = foc_stop_mega
+        self.af_eaf_move = foc_move_eaf
+        self.btn_af = btn_af
+        
         self.update_preview_stream()
 
     def close_preview_focuser(self):
@@ -1914,6 +1951,51 @@ finally:
                     self.preview_lbl.config(image=self.preview_photo)
                 else:
                     self.preview_photo.configure(file='/tmp/capture_astro_stream.ppm')
+                    
+            if os.path.exists('/tmp/zwo_sharpness.txt'):
+                mtime = os.path.getmtime('/tmp/zwo_sharpness.txt')
+                with open('/tmp/zwo_sharpness.txt', 'r') as f:
+                    txt = f.read().strip()
+                if txt:
+                    score = float(txt)
+                    self.sharpness_lbl.config(text=f"Focus Score: {score:.1f}")
+                    
+                    if getattr(self, 'af_running', False):
+                        if not hasattr(self, 'af_last_mtime'): self.af_last_mtime = 0
+                        if not hasattr(self, 'af_wait_frames'): self.af_wait_frames = 0
+                        
+                        if mtime > self.af_last_mtime:
+                            self.af_last_mtime = mtime
+                            if self.af_wait_frames > 0:
+                                self.af_wait_frames -= 1
+                            else:
+                                is_eaf = getattr(self, 'focus_eaf_var', None) and self.focus_eaf_var.get()
+                                step_val = 30 if is_eaf else 0.2
+                                
+                                if self.af_state == 'INIT':
+                                    self.af_last_score = score
+                                    self.af_dir = -1
+                                    self.af_state = 'MOVING'
+                                    self.af_step = step_val
+                                elif self.af_state == 'MOVING':
+                                    if score < self.af_last_score:
+                                        self.af_dir *= -1
+                                        self.af_step /= 2.0
+                                    
+                                    self.af_last_score = score
+                                    if (is_eaf and self.af_step < 5) or (not is_eaf and self.af_step < 0.05):
+                                        self.af_running = False
+                                        self.btn_af.config(text="Auto Focus", bg="#c0c0c0")
+                                        self.af_state = 'IDLE'
+                                
+                                if self.af_running:
+                                    if is_eaf:
+                                        self.af_eaf_move(int(self.af_dir * self.af_step))
+                                    else:
+                                        if self.af_dir < 0: self.af_mega_in()
+                                        else: self.af_mega_out()
+                                        self.after(int(self.af_step * 1000), self.af_mega_stop)
+                                    self.af_wait_frames = 2
         except Exception:
             pass
         self.after(100, self.update_preview_stream)
