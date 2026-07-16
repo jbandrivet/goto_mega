@@ -1709,7 +1709,32 @@ void printSlewing(){
         double dist = acos(cos_dist) * RADEG;
         double speed = m_slewSpeed;
         if (speed < 0.05) speed = 3.0;
-        int eta = (int)(dist / speed);
+
+        static double last_target_ra = -1.0;
+        static unsigned long slewStartMs = 0;
+        static double initialEta = 0.0;
+
+        double ra_diff = fabs(m_currentRA - ra) * 15.0;
+        if (ra_diff > 180.0) ra_diff = 360.0 - ra_diff;
+        double dec_diff = fabs(m_currentDEC - dec);
+        double max_dist = (ra_diff > dec_diff) ? ra_diff : dec_diff;
+
+        if (ra != last_target_ra) {
+            last_target_ra = ra;
+            slewStartMs = millis();
+            
+            double d_ramp = (speed * 5.0) / 2.0;
+            if (max_dist >= 2.0 * d_ramp) {
+                double coasting_dist = max_dist - 2.0 * d_ramp;
+                initialEta = 10.0 + (coasting_dist / speed);
+            } else {
+                initialEta = 2.0 * sqrt(5.0 * max_dist / speed);
+            }
+        }
+
+        unsigned long elapsed = (millis() - slewStartMs) / 1000;
+        int eta = (int)initialEta - (int)elapsed;
+        if (eta < 0) eta = 0;
 
         char buf[21];
         snprintf(buf, 21, "Dist restante: %.1f%c", dist, 0xDF);
