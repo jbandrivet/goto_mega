@@ -160,7 +160,7 @@ except Exception as e:
                     except Exception as e:
                         try: self.app.ser.write(b":Q#")
                         except: pass
-                        self.after(0, lambda: self.update_info(f"Erreur lors de la rotation automatique : {e}"))
+                        self.after(0, lambda msg=str(e): self.update_info(f"Erreur lors de la rotation automatique : {msg}"))
                         self.after(0, lambda: self.btn_action.config(state="normal", text=f"Continuer (Prendre Image {next_step})"))
 
                 if step_num == 1:
