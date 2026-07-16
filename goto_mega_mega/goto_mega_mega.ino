@@ -1633,11 +1633,15 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   }
   
   if(c1=='B' && c2=='M'){
-    if(c3=='a') mountType = 0;
-    else if(c3=='e') mountType = 1;
-    else if(c3=='g') mountType = 2; 
-    saveStateToEEPROM();
-    out.write('1'); return;
+    if(ci>=4) {
+      if(c3=='a') mountType = 0;
+      else if(c3=='e') mountType = 1;
+      else if(c3=='g') mountType = 2; 
+      saveStateToEEPROM();
+      out.write('1'); return;
+    } else {
+      out.print(mountType); out.write('#'); return;
+    }
   }
   
   if(c1=='B' && c2=='G'){
@@ -1649,8 +1653,12 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
         recalculatePPD();
         saveStateToEEPROM();
       }
+      out.write('1'); return;
+    } else if (ci==4) {
+      if(c3=='a') out.print(gearRatioAZ);
+      else if(c3=='e') out.print(gearRatioALT);
+      out.write('#'); return;
     }
-    out.write('1'); return;
   }
   
   if(c1=='B' && c2=='R'){
