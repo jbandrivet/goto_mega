@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Auteur : Andrivet Jean-Baptiste
 import tkinter as tk
-from tkinter import ttk
+
 import serial
 import serial.tools.list_ports
 import time
@@ -182,7 +182,7 @@ class VirtualTeensyApp(tk.Tk):
 
     def build_ui(self):
         # Fonts
-        f_title = ("MS Sans Serif", 10, "bold")
+        
         f_label = ("MS Sans Serif", 9)
         f_lcd = ("Courier New", 13, "bold")
         
@@ -389,7 +389,7 @@ class VirtualTeensyApp(tk.Tk):
                         self.conn_start_time = time.time()
                         self.conn_port = port
                         self.conn_lbl.config(text=f"Connexion: {port}...", fg="#ffcc00")
-                    except Exception as e:
+                    except Exception:
                         if hasattr(self, 'ser') and self.ser:
                             try: self.ser.close()
                             except: pass
@@ -421,7 +421,7 @@ class VirtualTeensyApp(tk.Tk):
                             self.ser.close()
                             self.ser = None
                             self.conn_state = "disconnected"
-                    except Exception as e:
+                    except Exception:
                         if self.ser:
                             try: self.ser.close()
                             except: pass
@@ -646,7 +646,7 @@ class VirtualTeensyApp(tk.Tk):
                                     self.slew_stopwatch_active = False
                         
                         self.update_lcd()
-                    except Exception as e:
+                    except Exception:
                         pass
                 
         self.after(500, self.telemetry_loop) # Vitesse de rafraîchissement 500ms pour éviter de saturer l'Arduino
@@ -962,7 +962,7 @@ class VirtualTeensyApp(tk.Tk):
         elif self.state == self.UI_ALIGN_CENTER:
             o = self.obj_list[self.obj_idx]
             name = o.get('name', f"{o.get('cat')} {o.get('num')}")
-            l0 = f"CENTREZ L'OBJET:" if lang == "fr" else "CENTER OBJECT:"
+            l0 = "CENTREZ L'OBJET:" if lang == "fr" else "CENTER OBJECT:"
             l1 = f"> {name[:17]}"[:20]
             l2 = "Utilisez les fleches" if lang == "fr" else "Use arrow keys"
             l3 = "[ENT] Valider Sync" if lang == "fr" else "[ENT] Confirm Sync"
