@@ -1287,7 +1287,7 @@ static long parseSrSeconds(const char* s, uint8_t len) {
 // ======================== PROCESSCMD =======================
 
 static void processCmd(const char* cmd, uint8_t ci, Print& out) {
-  if(ci < 3) { out.print(F("0#")); return; }
+  if(ci < 2) { out.print(F("0#")); return; }
   char c1=cmd[1], c2=cmd[2], c3 = (ci>3) ? cmd[3] : '\0';
   char buf[16];
 
@@ -1611,7 +1611,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     if(d > (double)MAX_DELAY)       d = MAX_DELAY;
     stepDelaySlew = (unsigned long)d;
     saveStateToEEPROM(); 
-    out.write('1'); return;
+    out.print(F("1#")); return;
   }
   
   if(c1=='B' && c2=='b'){
@@ -1638,7 +1638,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       else if(c3=='e') mountType = 1;
       else if(c3=='g') mountType = 2; 
       saveStateToEEPROM();
-      out.write('1'); return;
+      out.print(F("1#")); return;
     } else {
       out.print(mountType); out.write('#'); return;
     }
@@ -1653,7 +1653,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
         recalculatePPD();
         saveStateToEEPROM();
       }
-      out.write('1'); return;
+      out.print(F("1#")); return;
     } else if (ci==4) {
       if(c3=='a') out.print(gearRatioAZ);
       else if(c3=='e') out.print(gearRatioALT);
@@ -1667,7 +1667,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       if(c3=='a') azReversed = rev;
       else if(c3=='e') altReversed = rev;
       saveStateToEEPROM();
-      out.write('1'); return;
+      out.print(F("1#")); return;
     } else {
       if(c3=='a') out.print(azReversed ? F("1#") : F("0#"));
       else if(c3=='e') out.print(altReversed ? F("1#") : F("0#"));
@@ -1701,7 +1701,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       if(c3=='z') parkAz = val;
       saveStateToEEPROM();
     }
-    out.write('1'); return;
+    out.print(F("1#")); return;
   }
 
   if(c1=='h'&&c2=='P'){
@@ -2017,10 +2017,10 @@ void setup() {
   }
   lastClkMs=millis(); lastTrkMs=millis();
   updatePos();
-  Serial.println(F("GotoMega v9.1 - OnStep ready"));
+  Serial.println(F("GotoMega v9.2 - OnStep ready"));
   Serial.println(F("Site: Default (0.0000N / 0.0000E)"));
   Serial.println(F("USB:38400 + DIN4(Serial3):38400"));
-  Serial3.println(F("GotoMega Mega v9.1 ready"));
+  Serial3.println(F("GotoMega Mega v9.2 ready"));
   
   noInterrupts();
   TCCR1A = 0;

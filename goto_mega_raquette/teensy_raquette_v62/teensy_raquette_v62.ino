@@ -1084,7 +1084,7 @@ StarObject getStarFromCatalog(uint16_t index) {
 #define MEGA_BAUD         38400
 #define POLL_INTERVAL_MS   250    
 #define TEENSY_TIMEOUT_MS  500    
-#define DEBOUNCE_MS         10
+#define DEBOUNCE_MS         50
 #define FAST_SCROLL_DELAY  150    
 #define FAST_SCROLL_STEP    10    
 
@@ -1361,7 +1361,10 @@ void cmd_goto(double ra_h, double dec_d){
     lcdNeedsRefresh=true;
 }
 
-void cmd_stop()           { mega_cmd(":Q",false); m_isTracking=false; m_isSlewing=false; }
+void cmd_stop()           { 
+    mega_cmd(":Qn",false); mega_cmd(":Qs",false); mega_cmd(":Qe",false); mega_cmd(":Qw",false);
+    m_isTracking=false; m_isSlewing=false; 
+}
 void cmd_toggleTracking() {
     if(m_isTracking) mega_cmd(":Td",false);
     else             mega_cmd(":Te",false);
@@ -2031,17 +2034,20 @@ void scrollList(int delta){
 
 void handleButtons(){
     readButtons(); detectPresses();
-    bool up    =btnPressed[BTN_IDX_UP];
-    bool down  =btnPressed[BTN_IDX_DOWN];
-    bool left  =btnPressed[BTN_IDX_LEFT];
-    bool right =btnPressed[BTN_IDX_RIGHT];
-    bool enter =btnPressed[BTN_IDX_ENTER];
+    bool up    =btnPressed[BTN_IDX_UP] && !btnReleased[BTN_IDX_UP];
+    bool down  =btnPressed[BTN_IDX_DOWN] && !btnReleased[BTN_IDX_DOWN];
+    bool left  =btnPressed[BTN_IDX_LEFT] && !btnReleased[BTN_IDX_LEFT];
+    bool right =btnPressed[BTN_IDX_RIGHT] && !btnReleased[BTN_IDX_RIGHT];
+    bool enter =btnPressed[BTN_IDX_ENTER] && !btnReleased[BTN_IDX_ENTER];
 
     if(uiState == UI_MAIN) {
         for(int i=0; i<5; i++) {
             if(i != BTN_IDX_ENTER) {
                 if(btnReleased[i]) {
-                    mega_cmd(":Q", false);
+                    mega_cmd(":Qn", false);
+                    mega_cmd(":Qs", false);
+                    mega_cmd(":Qe", false);
+                    mega_cmd(":Qw", false);
                 }
             }
         }
@@ -2142,13 +2148,13 @@ void handleButtons(){
             if(enter||left){ cmd_stop(); uiState=UI_MAIN; isParkingWorkflow=false; }
             break;
         case UI_SETTINGS:
-            if(left)       { mega_cmd(":Q", false); uiState=UI_MAIN; }
+            if(left)       { cmd_stop(); uiState=UI_MAIN; }
             if(up)         { settingsSel=(settingsSel-1+15)%15; }
             if(down)       { settingsSel=(settingsSel+1)%15; }
             if(right||enter){
-                if(settingsSel==0) { mega_cmd(":Q", false); currentCat=CAT_MESSIER; objectIndex=0; uiState=UI_CAT_SELECT; }
-                if(settingsSel==1) {
-                    mega_cmd(":Q", false);
+                if(settingsSel==0) { cmd_stop(); currentCat=CAT_MESSIER; objectIndex=0; uiState=UI_CAT_SELECT; }
+                else if(settingsSel==1) {
+                    cmd_stop();
                     if (!m_isPaused) {
                         mega_cmd(":Td", false);
                         m_isPaused = true;
@@ -2453,7 +2459,7 @@ void setup(){
     }
     
     lcdLine(1,"   * GoTo Mega *    ");
-    lcdLine(2,"   Raquette v6.3    ");
+    lcdLine(2,"   Raquette v6.4    ");
     
     for(int i=19; i>=0; i--) {
         char anim_buf1[21] = "                    ";
@@ -2472,22 +2478,25 @@ void setup(){
     lcdLine(3,buf);
     delay(1200);   
 
-    for(int i=0;i<3;i++){
+    for(int i=0;i<10;i++){
         String r=mega_cmd(":GVP");
-        if(r.startsWith("On-Step") || r.startsWith("GotoMega") || r.startsWith("GoTo") || r.startsWith("goto")){
+        if(r.startsWith("OnStep") || r.startsWith("On-Step") || r.startsWith("GotoMega") || r.startsWith("GoTo") || r.startsWith("goto")){
             m_online=true; break;
         }
         delay(600);
     }
 
     if(m_online){
-        lcdLine(2,"  Monture OK !     ");
+        lcdLine(2,"  Monture OK v6!   ");
+        delay(100);
         String sv=mega_cmd(":Bv");
         if(sv.length()>0) m_slewSpeed=sv.toInt()/10.0;
         
+        delay(100);
         String s_bga = mega_cmd(":BGa");
         if(s_bga.length()>0) gearRatioAZ = s_bga.toFloat();
         
+        delay(100);
         String s_bge = mega_cmd(":BGe");
         if(s_bge.length()>0) gearRatioALT = s_bge.toFloat();
         
