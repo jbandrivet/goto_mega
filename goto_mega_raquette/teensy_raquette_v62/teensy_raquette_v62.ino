@@ -1722,6 +1722,26 @@ void printSlewing(){
         double dec_diff = fabs(m_currentDEC - dec);
         double max_dist = (ra_diff > dec_diff) ? ra_diff : dec_diff;
 
+        float lst = getCurrentLST();
+        if (lst >= 0.0 && mountType == 2) {
+            float ha_target = fmod((lst - ra) * 15.0, 360.0);
+            if (ha_target < 0) ha_target += 360.0;
+            float target_az, target_alt;
+            if (ha_target >= 0.0 && ha_target < 180.0) {
+                target_az = ha_target;
+                target_alt = dec;
+            } else {
+                target_az = fmod(ha_target + 180.0, 360.0);
+                target_alt = 180.0 - dec;
+            }
+            double az_diff = fabs(m_currentAz - target_az);
+            if (az_diff > 180.0) az_diff = 360.0 - az_diff;
+            double alt_diff = fabs(m_currentAlt - target_alt);
+            // target_alt can be up to 270 (if dec=-90), and m_currentAlt up to 270.
+            double phys_max = (az_diff > alt_diff) ? az_diff : alt_diff;
+            if (phys_max > max_dist) max_dist = phys_max;
+        }
+
         if (ra != last_target_ra) {
             last_target_ra = ra;
             slewStartMs = millis();
