@@ -952,7 +952,7 @@ class VirtualTeensyApp(tk.Tk):
                         
                         gc_dist = Astro.angular_dist(c_ra, c_dec, self.target_ra, self.target_dec)
                         l1 = f"Dist restante: {gc_dist:.1f}°"[:20]
-                        l2 = f"Temps estime:  {eta}s"[:20]
+                        l2 = ""
                         l3 = "[<] Annuler GOTO" if lang == "fr" else "[<] Cancel GOTO"
                     except:
                         l1 = "Calcul en cours..."

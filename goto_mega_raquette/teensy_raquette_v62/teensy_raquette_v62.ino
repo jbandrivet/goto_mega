@@ -1762,8 +1762,7 @@ void printSlewing(){
         char buf[21];
         snprintf(buf, 21, "Dist restante: %.1f%c", dist, 0xDF);
         lcdLine(1, buf);
-        snprintf(buf, 21, "Temps estime:  %ds", eta);
-        lcdLine(2, buf);
+        lcdLine(2, "");
         lcdLine(3, isEnglish ? "[<] Cancel GOTO" : "[<] Annuler GOTO");
     }
 }
