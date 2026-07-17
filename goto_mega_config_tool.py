@@ -521,9 +521,14 @@ class ConfigToolApp(tk.Tk):
         self.speed_scale.set(self.settings["slew_speed"])
         self.speed_scale.pack(side="left", padx=5, fill="x", expand=True)
         
-        self.speed_val_lbl = tk.Label(row_opt, text=f"{self.settings['slew_speed']:.1f} °/s", width=8, bg="#c0c0c0", fg="black", font=f_label)
+        self.speed_val_lbl = tk.Label(row_opt, text=f"{self.settings['slew_speed']:.1f} °/s", width=15, bg="#c0c0c0", fg="black", font=f_label)
         self.speed_val_lbl.pack(side="left", padx=5)
         self.speed_scale.configure(command=self.update_speed_lbl)
+
+        self.steps_entry.bind("<KeyRelease>", lambda e: self.update_speed_lbl())
+        self.microstep_combo.bind("<<ComboboxSelected>>", lambda e: self.update_speed_lbl())
+        self.gear_az_entry.bind("<KeyRelease>", lambda e: self.update_speed_lbl())
+        self.after(100, self.update_speed_lbl)
 
         row_beep = tk.Frame(form_inner, bg="#c0c0c0")
         row_beep.pack(fill="x", pady=8)
@@ -911,8 +916,35 @@ class ConfigToolApp(tk.Tk):
         ports = [p.device for p in serial.tools.list_ports.comports()]
         return ports if ports else ["/dev/ttyACM0", "/dev/ttyUSB0"]
 
-    def update_speed_lbl(self, val):
-        self.speed_val_lbl.config(text=f"{float(val):.1f} °/s")
+    def update_speed_lbl(self, val=None):
+        try:
+            az_ratio = float(self.gear_az_entry.get())
+            motor_steps = int(self.steps_entry.get())
+            microstep = int(self.microstep_var.get())
+            az_ppd = (motor_steps * microstep * az_ratio) / 360.0
+            
+            if az_ppd > 0:
+                max_hw_speed = 1.0e6 / (az_ppd * 35.0)
+                limit = min(25.0, max_hw_speed)
+                
+                # Format to 1 decimal place to match slider resolution
+                limit = float(f"{limit:.1f}")
+                
+                self.speed_scale.config(to=limit)
+                
+                if self.speed_scale.get() > limit:
+                    self.speed_scale.set(limit)
+                    val = limit
+                    
+                if max_hw_speed < 25.0:
+                    self.speed_val_lbl.config(fg="red", text=f"{float(val if val else self.speed_scale.get()):.1f} °/s (HW Max)")
+                else:
+                    self.speed_val_lbl.config(fg="black", text=f"{float(val if val else self.speed_scale.get()):.1f} °/s")
+            else:
+                self.speed_val_lbl.config(text=f"{float(val if val else self.speed_scale.get()):.1f} °/s")
+        except ValueError:
+            if val is not None:
+                self.speed_val_lbl.config(text=f"{float(val):.1f} °/s")
 
     def toggle_blind_solving(self):
         if self.blind_var.get():
