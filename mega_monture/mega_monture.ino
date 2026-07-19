@@ -1533,7 +1533,9 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
           for(unsigned long i=0;i<steps;i++){stepPulse(AZ_STEP);delayMicroseconds(gDelay);}
           azPos+=steps; break;
       }
-      guiding=false; updatePos(); return;
+      guiding=false; updatePos(); 
+      if (tracking) force_tracking_rebase = true;
+      return;
     }
     if (alarmActive) return;
     enableMotors(true); parked=false;
