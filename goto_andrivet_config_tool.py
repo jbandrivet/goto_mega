@@ -2221,7 +2221,7 @@ finally:
         script_dir = Path(__file__).parent
         
         if target == "mega":
-            sketch_path = script_dir / "goto_andrivet_mega"
+            sketch_path = script_dir / "mega_monture"
             fqbn = "arduino:avr:mega"
             additional_args = []
         else:
