@@ -61,16 +61,16 @@ Câblez votre contrôleur principal en suivant ce schéma (les broches sont iden
 | :--- | :--- | :--- | :--- |
 | **Moteur Azimut (AZ/RA)** | **Pin 2** | **Pin 2** | `PUL+` (Pulse/Step) |
 | | **Pin 3** | **Pin 3** | `DIR+` (Direction) |
-| | **Pin 4** | **Pin 4** | `ENB+` (Enable - Optionnel) |
+| | **Pin 4** | **Pin 4** | `ENB+` (Enable) |
 | **Moteur Altitude (ALT/DEC)** | **Pin 5** | **Pin 5** | `PUL+` (Pulse/Step) |
 | | **Pin 6** | **Pin 6** | `DIR+` (Direction) |
-| | **Pin 7** | **Pin 7** | `ENB+` (Enable - Optionnel) |
+| | **Pin 7** | **Pin 7** | `ENB+` (Enable) |
 | **Moteur Dérotateur** | **Pin 8** | **Pin 8** | `PUL+` (Pulse/Step) |
 | | **Pin 9** | **Pin 9** | `DIR+` (Direction) |
-| | **Pin 10** | **Pin 10** | `ENB+` (Enable - Optionnel) |
+| | **Pin 10** | **Pin 10** | `ENB+` (Enable) |
 | **Moteur Focuseur** | **Pin 11** | **Pin 11** | `PUL+` (Pulse/Step) |
 | | **Pin 12** | **Pin 12** | `DIR+` (Direction) |
-| | **Pin 13** | **Pin 13** | `ENB+` (Enable - Optionnel) |
+| | **Pin 13** | **Pin 13** | `ENB+` (Enable) |
 | **Buzzer** | **Pin 49** | **Pin 20** | Borne `+` (via résistance 100 Ω) |
 | **Raquette Teensy** | **Pin 15 (RX3)** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
 | | **Pin 14 (TX3)** | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
