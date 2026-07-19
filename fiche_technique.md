@@ -59,11 +59,11 @@ La résolution de déplacement (PPD - Pas par Degré) de la monture est calculé
 
 $$PPD = \frac{\text{Pas Moteur} \times \text{Microstepping} \times \text{Rapport Réduction}}{360}$$
 
-### Valeurs de Référence (Configurables) :
-*   **Pas moteur par tour :** 200 pas.
-*   **Microstepping :** 80 (configuré sur les drivers pour donner 16 000 pas/tour).
-*   **Rapport de réduction (AZ/ALT) :** 750.0.
-*   **Résolution calculée :** **33 333,33 pas/degré**.
+### Valeurs (À configurer par l'utilisateur) :
+*   **Pas moteur par tour :** Généralement 200 pas (pour des moteurs 1.8°).
+*   **Microstepping :** À configurer selon votre driver (ex: 16, 32, 64, 128).
+*   **Rapport de réduction (AZ/ALT) :** Défini par l'utilisateur (à configurer impérativement via l'utilitaire selon votre mécanique propre).
+*   **Résolution calculée (PPD) :** Calculée automatiquement par l'utilitaire en fonction des trois valeurs ci-dessus.
 
 ---
 
