@@ -53,30 +53,30 @@ Vous pouvez programmer vos cartes directement depuis l'utilitaire de configurati
 3. Sélectionnez le **Port** série de votre carte dans les paramètres de connexion.
 4. Dans l'encadré **« Téléversement du Firmware »**, cliquez sur le bouton correspondant à votre carte pour compiler et flasher automatiquement.
 
-### 4. Schéma de Câblage Rapide (Arduino Mega)
+### 4. Schéma de Câblage Rapide (Monture : Mega ou Teensy)
 
-Câblez votre carte Arduino Mega 2560 en suivant ce schéma de connexion :
+Câblez votre contrôleur principal en suivant ce schéma (les broches sont identiques pour le Mega et le Teensy, à l'exception de la broche du Buzzer) :
 
-| Composant / Axe | Broche Arduino Mega | Signal Module / Driver |
-| :--- | :--- | :--- |
-| **Moteur Azimut (AZ/RA)** | **Pin 2** | `PUL+` (Pulse/Step) |
-| | **Pin 3** | `DIR+` (Direction) |
-| | **Pin 4** | `ENB+` (Enable - Optionnel) |
-| **Moteur Altitude (ALT/DEC)** | **Pin 5** | `PUL+` (Pulse/Step) |
-| | **Pin 6** | `DIR+` (Direction) |
-| | **Pin 7** | `ENB+` (Enable - Optionnel) |
-| **Moteur Dérotateur (Optionnel)** | **Pin 8** | `PUL+` (Pulse/Step) |
-| | **Pin 9** | `DIR+` (Direction) |
-| | **Pin 10** | `ENB+` (Enable - Optionnel) |
-| **Moteur Focuseur (Optionnel)** | **Pin 11** | `PUL+` (Pulse/Step) |
-| | **Pin 12** | `DIR+` (Direction) |
-| | **Pin 13** | `ENB+` (Enable - Optionnel) |
-| **Buzzer** | **Pin 49** | Borne `+` (via résistance 100 Ω) |
-| **Raquette Teensy 4.1** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
-| | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
-| **Module GPS Adafruit** | **Pin 17 (RX2)** | `TX` du module GPS |
+| Composant / Axe | Broche Arduino Mega 2560 | Broche Teensy 4.1 | Signal Module / Driver |
+| :--- | :--- | :--- | :--- |
+| **Moteur Azimut (AZ/RA)** | **Pin 2** | **Pin 2** | `PUL+` (Pulse/Step) |
+| | **Pin 3** | **Pin 3** | `DIR+` (Direction) |
+| | **Pin 4** | **Pin 4** | `ENB+` (Enable - Optionnel) |
+| **Moteur Altitude (ALT/DEC)** | **Pin 5** | **Pin 5** | `PUL+` (Pulse/Step) |
+| | **Pin 6** | **Pin 6** | `DIR+` (Direction) |
+| | **Pin 7** | **Pin 7** | `ENB+` (Enable - Optionnel) |
+| **Moteur Dérotateur** | **Pin 8** | N/A | `PUL+` (Pulse/Step) |
+| | **Pin 9** | N/A | `DIR+` (Direction) |
+| **Moteur Focuseur** | **Pin 11** | N/A | `PUL+` (Pulse/Step) |
+| | **Pin 12** | N/A | `DIR+` (Direction) |
+| **Buzzer** | **Pin 49** | **Pin 11** | Borne `+` (via résistance 100 Ω) |
+| **Raquette Teensy** | **Pin 15 (RX3)** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
+| | **Pin 14 (TX3)** | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
+| **Module GPS** | **Pin 17 (RX2)** | **Pin 17 (RX4)** | `TX` du module GPS |
+| | **Pin 16 (TX2)** | **Pin 16 (TX4)** | `RX` du module GPS |
 
-*Note : Les signaux de masse négatifs (`PUL-`, `DIR-`, `ENB-` des drivers, GND du buzzer, du GPS et de la Teensy) doivent tous être connectés à une broche **GND** de l'Arduino Mega.*
+*Note : Les signaux de masse négatifs (`PUL-`, `DIR-`, `ENB-` des drivers, GND du buzzer, du GPS et de la Teensy) doivent tous être connectés à une broche **GND** de votre carte.*
+*(Consultez le fichier `fiche_technique.md` pour des explications approfondies).*
 
 ### 4.1 Schéma de Câblage de la Raquette (Teensy 4.1)
 
@@ -93,10 +93,10 @@ Si vous fabriquez la raquette physique avec un Teensy 4.1, voici le câblage à 
 | | **Pin 8** | Bouton **Gauche (LEFT)** (vers GND) |
 | | **Pin 9** | Bouton **Droite (RIGHT)** (vers GND) |
 | | **Pin 10** | Bouton **Validation (ENTER)** (vers GND) |
-| **Câble RJ11 (vers Mega)**| **GND** | Pin 1 RJ11 (`GND` du Mega) |
-| | **VIN** | Pin 2 RJ11 (`5V` du Mega) |
-| | **Pin 1 (TX1)** | Pin 3 RJ11 (vers `RX3` Pin 15 du Mega) |
-| | **Pin 0 (RX1)** | Pin 4 RJ11 (vers `TX3` Pin 14 du Mega) |
+| **Câble RJ11 (vers Mega)**| **GND** | Pin 1 RJ11 (`GND` de la Monture) |
+| | **VIN** | Pin 2 RJ11 (`VIN` / `5V` de la Monture) |
+| | **Pin 1 (TX1)** | Pin 3 RJ11 (vers `RX3` Pin 15 Monture) |
+| | **Pin 0 (RX1)** | Pin 4 RJ11 (vers `TX3` Pin 14 Monture) |
 
 *ATTENTION : Le Teensy est alimenté par la pin 5V du Mega via VIN. Ne pas brancher l'USB du Teensy en même temps, sauf si le pad VUSB a été coupé au préalable.*
 
