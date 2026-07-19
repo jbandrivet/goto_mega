@@ -44,7 +44,7 @@ Le câblage des drivers moteurs vers le contrôleur reste quasiment identique qu
 | **Moteur AZ (Dir)** | Pin 3 | Pin 3 |
 | **Moteur ALT (Step)** | Pin 5 | Pin 5 |
 | **Moteur ALT (Dir)** | Pin 6 | Pin 6 |
-| **Buzzer** | Pin 49 | Pin 11 |
+| **Buzzer** | Pin 49 | Pin 20 |
 | **GPS (RX / TX)** | Pin 17 / Pin 16 (Serial2) | Pin 16 / Pin 17 (Serial4) |
 | **Raquette (RX / TX)** | Pin 15 / Pin 14 (Serial3) | Pin 15 / Pin 14 (Serial3) |
 

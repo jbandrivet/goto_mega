@@ -65,11 +65,13 @@ Câblez votre contrôleur principal en suivant ce schéma (les broches sont iden
 | **Moteur Altitude (ALT/DEC)** | **Pin 5** | **Pin 5** | `PUL+` (Pulse/Step) |
 | | **Pin 6** | **Pin 6** | `DIR+` (Direction) |
 | | **Pin 7** | **Pin 7** | `ENB+` (Enable - Optionnel) |
-| **Moteur Dérotateur** | **Pin 8** | N/A | `PUL+` (Pulse/Step) |
-| | **Pin 9** | N/A | `DIR+` (Direction) |
-| **Moteur Focuseur** | **Pin 11** | N/A | `PUL+` (Pulse/Step) |
-| | **Pin 12** | N/A | `DIR+` (Direction) |
-| **Buzzer** | **Pin 49** | **Pin 11** | Borne `+` (via résistance 100 Ω) |
+| **Moteur Dérotateur** | **Pin 8** | **Pin 8** | `PUL+` (Pulse/Step) |
+| | **Pin 9** | **Pin 9** | `DIR+` (Direction) |
+| | **Pin 10** | **Pin 10** | `ENB+` (Enable - Optionnel) |
+| **Moteur Focuseur** | **Pin 11** | **Pin 11** | `PUL+` (Pulse/Step) |
+| | **Pin 12** | **Pin 12** | `DIR+` (Direction) |
+| | **Pin 13** | **Pin 13** | `ENB+` (Enable - Optionnel) |
+| **Buzzer** | **Pin 49** | **Pin 20** | Borne `+` (via résistance 100 Ω) |
 | **Raquette Teensy** | **Pin 15 (RX3)** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
 | | **Pin 14 (TX3)** | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
 | **Module GPS** | **Pin 17 (RX2)** | **Pin 17 (RX4)** | `TX` du module GPS |

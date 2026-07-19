@@ -5,7 +5,7 @@
  * Cablage (Adapté pour Teensy 4.1) :
  * - Moteur AZ  : Step Pin 2, Dir Pin 3
  * - Moteur ALT : Step Pin 5, Dir Pin 6
- * - Buzzer     : Pin 11
+ * - Buzzer     : Pin 20
  * - Raquette   : Serial3 (Pin 14 TX, Pin 15 RX) @ 38400 baud
  * - Module GPS : Serial4 (Pin 17 TX, Pin 16 RX) @ 9600 baud
  */
@@ -48,7 +48,7 @@ static double         maxSlewRate   = DEFAULT_SLEW_RATE;
 #define AZ_STEP   2
 #define AZ_DIR    3
 #define AZ_EN     4
-#define BUZZER_PIN 49
+#define BUZZER_PIN 20
 #define BUZZ_FREQ  2000
 #define ALT_STEP  5
 #define ALT_DIR   6
