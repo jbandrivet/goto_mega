@@ -28,10 +28,10 @@ jobs:
 
     - name: Build with PyInstaller
       run: |
-        pyinstaller --noconfirm --onedir --windowed --add-data "goto_mega_mega:goto_mega_mega" --add-data "goto_mega_raquette:goto_mega_raquette" goto_mega_config_tool.py
+        pyinstaller --noconfirm --onedir --windowed --add-data "mega_monture:mega_monture" --add-data "teensy_monture:teensy_monture" --add-data "teensy_raquette:teensy_raquette" goto_andrivet_config_tool.py
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: GotoMegaConfig_${{ matrix.os }}
-        path: dist/goto_mega_config_tool
+        name: GotoAndrivetConfig_${{ matrix.os }}
+        path: dist/goto_andrivet_config_tool
