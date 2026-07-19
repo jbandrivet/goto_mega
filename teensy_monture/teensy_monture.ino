@@ -114,6 +114,7 @@ float parkAlt = 90.0;
 float parkAz = 0.0;
 static bool altReversed = false;
 static uint8_t trackRate=0;
+static bool force_tracking_rebase = false;
 static bool gpsEnabled = true;
 static bool derotEnabled = false;
 static double derotPPD = 100.0;
@@ -1137,11 +1138,18 @@ static void doTrack() {
   static double trk_speed_alt = 0.0; 
   static unsigned long last_full_trig_ms = 0;
 
-  if(trkStartLST == 0.0) {
+  if(trkStartLST == 0.0 || force_tracking_rebase) {
+    if (force_tracking_rebase) {
+      trkRA = (double)currRA / 3600.0;
+      trkDec = (double)currDEC / 3600.0;
+    }
     trkStartLST = lst();
     lastAzStepUs = micros();
     lastAltStepUs = micros();
     last_full_trig_ms = 0; 
+    smooth_speed_az = 0.0;
+    smooth_speed_alt = 0.0;
+    force_tracking_rebase = false;
   }
   if(millis()-lastTrkMs<200)return;
   lastTrkMs=millis();
@@ -2289,6 +2297,9 @@ void loop() {
       wasMovingSlow = true;
     } else if (wasMovingSlow) {
       updatePos();
+      if (tracking) {
+        force_tracking_rebase = true;
+      }
       saveStateToEEPROM();
       wasMovingSlow = false;
     }
