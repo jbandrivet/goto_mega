@@ -19,11 +19,11 @@ CONFIG_FILE = Path.home() / ".config" / "goto_andrivet" / "config_tool_settings.
 DEFAULTS = {
     "mount_port": "/dev/ttyACM0",
     "mount_baud": 38400,
-    "gear_ratio_az": 750.0,
-    "gear_ratio_alt": 750.0,
+    "gear_ratio_az": "",
+    "gear_ratio_alt": "",
     "mount_type": "AltAz",
-    "obs_lat": 0.0,
-    "obs_lon": 0.0,
+    "obs_lat": 48.8566,
+    "obs_lon": 2.3522,
     "slew_speed": 2.0,
     "buzzer_on": True,
     "steps_per_rev_motor": 200,
@@ -747,9 +747,6 @@ class ConfigToolApp(tk.Tk):
 
         f_big_button = ("MS Sans Serif", 10, "bold")
 
-        self.read_btn = tk.Button(actions_frame, text="Read Config from Arduino", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.read_arduino_config, state="disabled")
-        self.read_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
-
         self.apply_btn = tk.Button(actions_frame, text="Apply & Save to Arduino", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.apply_config_to_arduino, state="disabled")
         self.apply_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
 
@@ -858,7 +855,7 @@ class ConfigToolApp(tk.Tk):
             prefix = "Synced: " if lang == "en" else "Synchro : "
             self.time_lbl.config(text=prefix + time_part_str)
             
-        self.read_btn.config(text=t["read_config"])
+        self.apply_btn.config(text=t["apply_config"])
         self.apply_btn.config(text=t["apply_config"])
         self.launch_pad_btn.config(text=t["virtual_pad"])
         self.mount_ctrl_lf.config(text=t["mount_control"])
@@ -1252,6 +1249,9 @@ class ConfigToolApp(tk.Tk):
                     self.ser.write(b":Bbp#")
                     self.ser.read_until(b"#")
                     messagebox.showinfo("Connection", f"Successfully connected to Arduino on {port}!")
+                    
+                    # Read current settings from Arduino
+                    self.read_arduino_config()
                 else:
                     self.ser.close()
                     self.ser = None
@@ -1282,7 +1282,6 @@ class ConfigToolApp(tk.Tk):
             self.beep_test_btn.config(state="normal")
             self.sync_btn.config(state="normal")
             self.sync_pc_btn.config(state="normal")
-            self.read_btn.config(state="normal")
             self.apply_btn.config(state="normal")
             self.park_btn.config(state="normal")
             self.unpark_btn.config(state="normal")
@@ -1298,7 +1297,6 @@ class ConfigToolApp(tk.Tk):
             self.beep_test_btn.config(state="disabled")
             self.sync_btn.config(state="disabled")
             self.sync_pc_btn.config(state="disabled")
-            self.read_btn.config(state="disabled")
             self.apply_btn.config(state="disabled")
             self.park_btn.config(state="disabled")
             self.unpark_btn.config(state="disabled")
@@ -1460,6 +1458,13 @@ class ConfigToolApp(tk.Tk):
                 self.ser.write(b":BRe#")
                 rev_alt_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
                 
+                # Query Mount Type
+                self.ser.write(b":GM#")
+                gm_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                if gm_raw in ("AltAz", "ForkEq", "GermanEq"):
+                    self.mount_type_var.set(gm_raw)
+                    self.on_mount_type_changed(gm_raw)
+                
                 self.rev_az_var.set(rev_az_raw == '1')
                 self.rev_alt_var.set(rev_alt_raw == '1')
                 
@@ -1484,6 +1489,48 @@ class ConfigToolApp(tk.Tk):
                     self.update_speed_lbl(s_val)
                 except Exception:
                     pass
+                    
+                # Gear ratios and motor steps
+                self.ser.write(b":GGa#")
+                gear_az_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                self.ser.write(b":GGe#")
+                gear_alt_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                self.ser.write(b":GSp#")
+                steps_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                self.ser.write(b":GSm#")
+                micro_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                
+                try:
+                    if gear_az_raw:
+                        self.gear_az_entry.delete(0, tk.END)
+                        self.gear_az_entry.insert(0, f"{float(gear_az_raw):.1f}")
+                    if gear_alt_raw:
+                        self.gear_alt_entry.delete(0, tk.END)
+                        self.gear_alt_entry.insert(0, f"{float(gear_alt_raw):.1f}")
+                    if steps_raw:
+                        self.steps_entry.delete(0, tk.END)
+                        self.steps_entry.insert(0, str(int(steps_raw)))
+                    if micro_raw:
+                        self.microstep_var.set(str(int(micro_raw)))
+                except Exception:
+                    pass
+                
+                # Park Alt/Az
+                self.ser.write(b":GQa#")
+                park_alt_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                self.ser.write(b":GQz#")
+                park_az_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
+                
+                try:
+                    if park_alt_raw:
+                        self.park_alt_entry.delete(0, tk.END)
+                        self.park_alt_entry.insert(0, f"{float(park_alt_raw):.1f}")
+                    if park_az_raw:
+                        self.park_az_entry.delete(0, tk.END)
+                        self.park_az_entry.insert(0, f"{float(park_az_raw):.1f}")
+                except Exception:
+                    pass
+                
                 
                 messagebox.showinfo("Read Config", "Configuration successfully loaded from Arduino!")
             except Exception as e:
@@ -2048,6 +2095,8 @@ finally:
             buzzer = self.buzzer_var.get()
             rev_az = self.rev_az_var.get()
             rev_alt = self.rev_alt_var.get()
+            p_alt = float(self.park_alt_entry.get())
+            p_az = float(self.park_az_entry.get())
         except ValueError:
             messagebox.showerror("Input Error", "Please enter valid numerical values for gear ratios and coordinates.")
             return
@@ -2106,6 +2155,14 @@ finally:
             self.ser.write(f":BRe{1 if rev_alt else 0}#".encode('ascii'))
             self.ser.read_until(b"#")
 
+            # Send Park Alt
+            self.ser.write(f":BPa{p_alt}#".encode('ascii'))
+            self.ser.read_until(b"#")
+
+            # Send Park Az
+            self.ser.write(f":BPz{p_az}#".encode('ascii'))
+            self.ser.read_until(b"#")
+
             # Update local settings
             self.settings["mount_type"] = mt
             self.settings["steps_per_rev_motor"] = steps
@@ -2118,6 +2175,8 @@ finally:
             self.settings["buzzer_on"] = buzzer
             self.settings["rev_az"] = rev_az
             self.settings["rev_alt"] = rev_alt
+            self.settings["park_alt"] = p_alt
+            self.settings["park_az"] = p_az
             self.settings["focus_mega_en"] = self.focus_mega_var.get()
             self.settings["focus_eaf_en"] = self.focus_eaf_var.get()
             self.settings["astrometry_enabled"] = self.astro_en_var.get()

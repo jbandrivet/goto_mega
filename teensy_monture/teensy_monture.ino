@@ -1220,8 +1220,11 @@ static void doTrack() {
   double azD = tZ - liveAz;
   if(azD>180.0)azD-=360.0; if(azD<-180.0)azD+=360.0;
   
+  double altD = tA - liveAlt;
+  if(altD>180.0)altD-=360.0; if(altD<-180.0)altD+=360.0;
+  
   double error_az_steps = azD * AZ_PPD;
-  double error_alt_steps = (tA - liveAlt) * ALT_PPD;
+  double error_alt_steps = altD * ALT_PPD;
   
   double Kp = 0.3;
   double corr_speed_az = steps_per_sec_az + Kp * error_az_steps;
@@ -1839,12 +1842,15 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
         recalculatePPD();
         saveStateToEEPROM();
       }
-    } else if (c2=='P') {
-      double val = atof(cmd+4);
-      if(c3=='a') parkAlt = val;
-      if(c3=='z') parkAz = val;
-      saveStateToEEPROM();
     }
+    out.print(F("1#")); return;
+  }
+
+  if(c1=='B' && c2=='P'){
+    double val = atof(cmd+4);
+    if(c3=='a') parkAlt = val;
+    if(c3=='z') parkAz = val;
+    saveStateToEEPROM();
     out.print(F("1#")); return;
   }
 
@@ -2208,68 +2214,68 @@ void loop() {
     unsigned long nowMs=millis();
     
     static int8_t azActiveMove = 0;
-    static float azCurrentSpeed = 0.0;
-    static unsigned long azMoveStartMs = 0;
+    static float azFrequency = 0.0;
+    float f_min = 1.0e6 / MAX_DELAY;
     
     if (azMove != 0) {
-      if (azActiveMove == 0) {
-        azMoveStartMs = nowMs;
-      }
       azActiveMove = azMove;
-      azCurrentSpeed = slowSpeed;
-    } else if (azActiveMove != 0) {
-      if (nowMs - azMoveStartMs < 5000 || azCurrentSpeed < 4.0) {
-        azActiveMove = 0;
-        azCurrentSpeed = 0.0;
-      }
+      azFrequency = f_min;
+    } else {
+      azActiveMove = 0;
+      azFrequency = 0.0;
     }
     
-    if(azActiveMove && (now-lastSlowAz>=(unsigned long)(STEP_DELAY_SLOW/azCurrentSpeed))){
-      lastSlowAz=now; digitalWrite(AZ_DIR, (azActiveMove>0) ^ azReversed ? HIGH : LOW);
-      stepPulse(AZ_STEP); azPos+=azActiveMove;
-      if (azMove == 0) {
-        azCurrentSpeed -= 0.05;
-      }
-    }
-
     static int8_t altActiveMove = 0;
-    static float altCurrentSpeed = 0.0;
-    static unsigned long altMoveStartMs = 0;
+    static float altFrequency = 0.0;
     
     if (altMove != 0) {
-      if (altActiveMove == 0) {
-        altMoveStartMs = nowMs;
-      }
       altActiveMove = altMove;
-      altCurrentSpeed = slowSpeed;
-    } else if (altActiveMove != 0) {
-      if (nowMs - altMoveStartMs < 5000 || altCurrentSpeed < 4.0) {
-        altActiveMove = 0;
-        altCurrentSpeed = 0.0;
-      }
+      altFrequency = f_min;
+    } else {
+      altActiveMove = 0;
+      altFrequency = 0.0;
     }
-
-    if(altActiveMove && (now-lastSlowAlt>=(unsigned long)(STEP_DELAY_SLOW/altCurrentSpeed))){
-      double nA=(double)(altPos+altActiveMove)/ALT_PPD;
-      bool allowed = false;
-      if (nA >= ALT_MIN && nA <= ALT_MAX) {
-        allowed = true;
-      } else if (nA < ALT_MIN && altActiveMove > 0) {
-        allowed = true;
-      } else if (nA > ALT_MAX && altActiveMove < 0) {
-        allowed = true;
-      }
-      if(mountType >= 1 || allowed){
-        lastSlowAlt=now; digitalWrite(ALT_DIR, (altActiveMove>0) ^ altReversed ? HIGH : LOW);
-        stepPulse(ALT_STEP); altPos+=altActiveMove;
-        if (altMove == 0) {
-          altCurrentSpeed -= 0.05;
+    
+    if (azActiveMove != 0 || altActiveMove != 0) {
+        unsigned long delayAz = azActiveMove ? (unsigned long)(1.0e6 / azFrequency) : 0xFFFFFFFF;
+        unsigned long delayAlt = altActiveMove ? (unsigned long)(1.0e6 / altFrequency) : 0xFFFFFFFF;
+        if (delayAz < 5) delayAz = 5;
+        if (delayAlt < 5) delayAlt = 5;
+        
+        while (true) {
+            unsigned long nowUs = micros();
+            bool azReady = azActiveMove && (nowUs - lastSlowAz >= delayAz);
+            bool altReady = altActiveMove && (nowUs - lastSlowAlt >= delayAlt);
+            
+            if (azReady || altReady) {
+                if (azReady) {
+                    lastSlowAz = nowUs;
+                    digitalWrite(AZ_DIR, (azActiveMove>0) ^ azReversed ? HIGH : LOW);
+                    stepPulse(AZ_STEP); azPos+=azActiveMove;
+                }
+                if (altReady) {
+                    lastSlowAlt = nowUs;
+                    double nA=(double)(altPos+altActiveMove)/ALT_PPD;
+                    bool allowed = false;
+                    if (nA >= ALT_MIN && nA <= ALT_MAX) allowed = true;
+                    else if (nA < ALT_MIN && altActiveMove > 0) allowed = true;
+                    else if (nA > ALT_MAX && altActiveMove < 0) allowed = true;
+                    
+                    if(mountType >= 1 || allowed){
+                        digitalWrite(ALT_DIR, (altActiveMove>0) ^ altReversed ? HIGH : LOW);
+                        stepPulse(ALT_STEP); altPos+=altActiveMove;
+                    } else {
+                        limitHit=true;
+                        altActiveMove = 0;
+                        altFrequency = 0.0;
+                    }
+                }
+                break;
+            }
+            if (Serial3.available() > 0 || Serial.available() > 0) {
+                break;
+            }
         }
-      } else {
-        limitHit=true;
-        altActiveMove = 0;
-        altCurrentSpeed = 0.0;
-      }
     }
     
     static bool wasMovingSlow = false;
