@@ -1559,6 +1559,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     currRA=inRA; currDEC=inDEC;
     trkRA=ra_h; trkDec=dec_d; 
     synced=true; updatePos();
+    if (tracking) force_tracking_rebase = true;
     saveStateToEEPROM();
     out.print(F("Synced#")); return;
   }
