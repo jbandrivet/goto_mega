@@ -84,7 +84,7 @@ except Exception as e:
                 import sys
                 import os
                 from pathlib import Path
-                venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
                 py_exe = venv_python if os.path.exists(venv_python) else sys.executable
                 
                 res = subprocess.run([py_exe, "-c", script], capture_output=True, text=True)
@@ -252,7 +252,7 @@ except Exception as e:
                 import sys
                 import os
                 from pathlib import Path
-                venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
                 py_exe = venv_python if os.path.exists(venv_python) else sys.executable
                 res = subprocess.run([py_exe, "-c", script], capture_output=True, text=True)
                 if res.returncode != 0:

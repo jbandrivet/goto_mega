@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 
 # Ajouter le répertoire courant au chemin d'importation
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from goto_mega import ALL_CATALOGS, Astro, Settings
+from goto_andrivet import ALL_CATALOGS, Astro, Settings
 import ephem
 
 class VirtualTeensyApp(tk.Tk):
@@ -1143,7 +1143,7 @@ class VirtualTeensyApp(tk.Tk):
                     lang = self.cfg.get("language", "fr")
                     import time, math
                     from pathlib import Path
-                    tle_path = Path.home() / ".goto_mega" / "iss.tle"
+                    tle_path = Path.home() / ".goto_andrivet" / "iss.tle"
                     if tle_path.exists() and (time.time() - tle_path.stat().st_mtime < 86400):
                         try:
                             import ephem

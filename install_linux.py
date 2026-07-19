@@ -36,7 +36,7 @@ class InstallerApp(tk.Tk):
         try:
             import shutil
             source_dir = Path(__file__).parent.resolve()
-            install_dir = Path.home() / ".goto_mega"
+            install_dir = Path.home() / ".goto_andrivet"
             install_dir.mkdir(parents=True, exist_ok=True)
             venv_dir = install_dir / "venv"
             
@@ -69,7 +69,7 @@ class InstallerApp(tk.Tk):
                 desktop_dir = Path.home() / "Desktop"
                 
             python_exe = venv_dir / "bin" / "python3"
-            main_script = install_dir / "goto_mega_config_tool.py"
+            main_script = install_dir / "goto_andrivet_config_tool.py"
             
             desktop_file = desktop_dir / "GotoMega.desktop"
             content = f"""[Desktop Entry]

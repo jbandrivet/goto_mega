@@ -1,5 +1,5 @@
 /*
- * GotoMega - Teensy 4.1 Raquette
+ * GotoAndrivet - Teensy 4.1 Raquette
  * Auteur : Andrivet Jean-Baptiste
  * Firmware UI (LCD + boutons)
  * 
@@ -2499,7 +2499,7 @@ void setup(){
 
     for(int i=0;i<10;i++){
         String r=mega_cmd(":GVP");
-        if(r.startsWith("OnStep") || r.startsWith("On-Step") || r.startsWith("GotoMega") || r.startsWith("GoTo") || r.startsWith("goto")){
+        if(r.startsWith("OnStep") || r.startsWith("On-Step") || r.startsWith("GotoAndrivet") || r.startsWith("GoTo") || r.startsWith("goto")){
             m_online=true; break;
         }
         delay(600);

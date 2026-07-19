@@ -1,14 +1,17 @@
 /*
- * GotoMegaMega - Controleur de monture Astro Mega 2560 (Protocole OnStep)
+ * GotoAndrivetTeensy - Controleur de monture Astro Teensy 4.1 (Protocole OnStep)
  * Auteur : Andrivet Jean-Baptiste
  * 
- * Cablage :
+ * Cablage (Adapté pour Teensy 4.1) :
  * - Moteur AZ  : Step Pin 2, Dir Pin 3
  * - Moteur ALT : Step Pin 5, Dir Pin 6
  * - Buzzer     : Pin 11
- * - Raquette   : Serial3 (Pin 14 TX, Pin 15 RX) @ 38400 baud (Connecteur DIN 4 broches)
- * - Module GPS : Serial2 (Pin 16 TX, Pin 17 RX) @ 9600 baud
+ * - Raquette   : Serial3 (Pin 14 TX, Pin 15 RX) @ 38400 baud
+ * - Module GPS : Serial4 (Pin 17 TX, Pin 16 RX) @ 9600 baud
  */
+
+IntervalTimer trackingTimer;
+
 
 #include <math.h>
 #include <EEPROM.h>
@@ -680,17 +683,9 @@ static void rd2aa_same_pier(double ra, double dec, double *alt, double *az) {
 // ======================== MOTEURS ==========================
 
 static inline void stepPulse(uint8_t pin) {
-  if (pin == 2) {
-    PORTE |= (1 << 4);
-    delayMicroseconds(10);
-    PORTE &= ~(1 << 4);
-  } else if (pin == 5) {
-    PORTE |= (1 << 3);
-    delayMicroseconds(10);
-    PORTE &= ~(1 << 3);
-  } else {
-    digitalWrite(pin,HIGH); delayMicroseconds(10); digitalWrite(pin,LOW);
-  }
+  digitalWriteFast(pin, HIGH);
+  delayMicroseconds(1);
+  digitalWriteFast(pin, LOW);
 }
 
 static void enableMotors(bool en) {
@@ -939,8 +934,7 @@ static int slewToAA(double tAlt, double tAz) {
   return interrupted ? 0 : 1;
 }
 
-// ======================== SUIVI (ISR TIMER 1 @ 10 kHz) ============================
-
+// ======================== SUIVI (ISR IntervalTimer @ 10 kHz) ============================
 static volatile unsigned long az_accum = 0;
 static volatile unsigned long alt_accum = 0;
 static volatile unsigned long az_add = 0;
@@ -948,7 +942,7 @@ static volatile unsigned long alt_add = 0;
 static volatile int8_t isr_az_dir = 0;
 static volatile int8_t isr_alt_dir = 0;
 
-ISR(TIMER1_COMPA_vect) {
+void doTrackingISR() {
   if (tracking && !slewing) {
     if (azMove == 0 && az_add > 0) {
       az_accum += az_add;
@@ -2017,20 +2011,12 @@ void setup() {
   }
   lastClkMs=millis(); lastTrkMs=millis();
   updatePos();
-  Serial.println(F("GotoMega v9.2 - OnStep ready"));
+  Serial.println(F("GotoAndrivet v9.2 - OnStep ready (Teensy 4.1 Version)"));
   Serial.println(F("Site: Default (0.0000N / 0.0000E)"));
   Serial.println(F("USB:38400 + DIN4(Serial3):38400"));
-  Serial3.println(F("GotoMega Mega v9.2 ready"));
+  Serial3.println(F("GotoAndrivet Teensy v9.2 ready"));
   
-  noInterrupts();
-  TCCR1A = 0;
-  TCCR1B = 0;
-  TCNT1  = 0;
-  OCR1A = 199; 
-  TCCR1B |= (1 << WGM12); 
-  TCCR1B |= (1 << CS11);  
-  TIMSK1 |= (1 << OCIE1A); 
-  interrupts();
+  trackingTimer.begin(doTrackingISR, 100); // 100 microseconds = 10 kHz
   
   playStartupMelody();
   delay(100);

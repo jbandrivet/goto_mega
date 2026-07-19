@@ -14,7 +14,7 @@ import threading
 import os
 import re
 
-CONFIG_FILE = Path.home() / ".config" / "goto_mega" / "config_tool_settings.json"
+CONFIG_FILE = Path.home() / ".config" / "goto_andrivet" / "config_tool_settings.json"
 
 DEFAULTS = {
     "mount_port": "/dev/ttyACM0",
@@ -174,7 +174,7 @@ class ConfigToolApp(tk.Tk):
     def cleanup_old_tle(self):
         import time
         from pathlib import Path
-        tle_path = Path.home() / ".goto_mega" / "iss.tle"
+        tle_path = Path.home() / ".goto_andrivet" / "iss.tle"
         if tle_path.exists():
             if time.time() - tle_path.stat().st_mtime > 86400:
                 try:
@@ -187,7 +187,7 @@ class ConfigToolApp(tk.Tk):
         import json
         import subprocess
         try:
-            url = "https://api.github.com/repos/jbandrivet/goto_mega/commits/main"
+            url = "https://api.github.com/repos/jbandrivet/goto_andrivet/commits/main"
             req = urllib.request.Request(url, headers={"User-Agent": "GotoMega-Updater/1.0"})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
@@ -200,12 +200,12 @@ class ConfigToolApp(tk.Tk):
                 if res.returncode == 0:
                     local_sha = res.stdout.strip()
             else:
-                version_file = Path.home() / ".config" / "goto_mega" / "version.txt"
+                version_file = Path.home() / ".config" / "goto_andrivet" / "version.txt"
                 if version_file.exists():
                     local_sha = version_file.read_text().strip()
                 
             if local_sha == "":
-                version_file = Path.home() / ".config" / "goto_mega" / "version.txt"
+                version_file = Path.home() / ".config" / "goto_andrivet" / "version.txt"
                 version_file.parent.mkdir(parents=True, exist_ok=True)
                 version_file.write_text(remote_sha)
                 self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
@@ -265,7 +265,7 @@ class ConfigToolApp(tk.Tk):
             # Le logiciel est compilé (PyInstaller)
             messagebox.showinfo("Mise à jour", "La mise à jour automatique de la version compilée (.exe) arrivera bientôt !\nPour le moment, veuillez télécharger la nouvelle version sur GitHub Releases.")
             import webbrowser
-            webbrowser.open("https://github.com/jbandrivet/goto_mega/releases")
+            webbrowser.open("https://github.com/jbandrivet/goto_andrivet/releases")
         else:
             if not getattr(self, 'update_available', False):
                 messagebox.showinfo("Mise à jour", "Aucune nouvelle mise à jour n'est disponible.\nVotre logiciel est déjà à la dernière version !")
@@ -287,7 +287,7 @@ class ConfigToolApp(tk.Tk):
 
                 # Sinon (installation via install_linux.py) : téléchargement du ZIP
                 try:
-                    url = "https://github.com/jbandrivet/goto_mega/archive/refs/heads/main.zip"
+                    url = "https://github.com/jbandrivet/goto_andrivet/archive/refs/heads/main.zip"
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
                         zip_path = tmp.name
                     
@@ -299,7 +299,7 @@ class ConfigToolApp(tk.Tk):
                         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                             zip_ref.extractall(extract_dir)
                             
-                        # Github crée un sous-dossier "goto_mega-main" dans le zip
+                        # Github crée un sous-dossier "goto_andrivet-main" dans le zip
                         extracted_items = list(Path(extract_dir).iterdir())
                         source_dir = extracted_items[0] if extracted_items else None
                             
@@ -318,7 +318,7 @@ class ConfigToolApp(tk.Tk):
                     os.unlink(zip_path)
                     
                     if hasattr(self, 'remote_sha'):
-                        version_file = Path.home() / ".config" / "goto_mega" / "version.txt"
+                        version_file = Path.home() / ".config" / "goto_andrivet" / "version.txt"
                         version_file.parent.mkdir(parents=True, exist_ok=True)
                         version_file.write_text(self.remote_sha)
                         
@@ -789,8 +789,8 @@ class ConfigToolApp(tk.Tk):
             from pathlib import Path
             script_path = Path(__file__).parent / "raquette_virtuelle.py"
             if not script_path.exists():
-                script_path = Path.home() / ".goto_mega" / "raquette_virtuelle.py"
-            venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                script_path = Path.home() / ".goto_andrivet" / "raquette_virtuelle.py"
+            venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
             py_exe = venv_python if os.path.exists(venv_python) else sys.executable
             subprocess.Popen([py_exe, str(script_path)])
         except Exception as e:
@@ -965,7 +965,7 @@ class ConfigToolApp(tk.Tk):
             try:
                 import subprocess, os, ast, sys
                 from pathlib import Path
-                venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
                 python_path = venv_python if os.path.exists(venv_python) else sys.executable
                 res = subprocess.run([python_path, "-c", script], capture_output=True, text=True)
                 if res.returncode == 0:
@@ -1398,7 +1398,7 @@ class ConfigToolApp(tk.Tk):
             
             try:
                 tle_str = "\n".join(iss_lines)
-                tle_path = Path.home() / ".goto_mega" / "iss.tle"
+                tle_path = Path.home() / ".goto_andrivet" / "iss.tle"
                 with open(tle_path, "w", encoding="utf-8") as f:
                     f.write(tle_str)
                     
@@ -1593,7 +1593,7 @@ if img is not None:
                 
                 import sys
                 from pathlib import Path
-                venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+                venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
                 python_path = venv_python if os.path.exists(venv_python) else sys.executable
                 res = subprocess.run([python_path, "/tmp/zwo_capture.py"], capture_output=True, text=True)
                 if res.returncode != 0:
@@ -1837,7 +1837,7 @@ finally:
             f.write(script)
             
         import sys
-        venv_python = str(Path.home() / ".goto_mega" / "venv" / "bin" / "python3")
+        venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
         python_path = venv_python if os.path.exists(venv_python) else sys.executable
 
         import subprocess
@@ -2221,11 +2221,11 @@ finally:
         script_dir = Path(__file__).parent
         
         if target == "mega":
-            sketch_path = script_dir / "goto_mega_mega"
+            sketch_path = script_dir / "goto_andrivet_mega"
             fqbn = "arduino:avr:mega"
             additional_args = []
         else:
-            sketch_path = script_dir / "goto_mega_raquette" / "teensy_raquette_v62"
+            sketch_path = script_dir / "goto_andrivet_raquette" / "teensy_raquette_v62"
             fqbn = "teensy:avr:teensy41"
             additional_args = ["--additional-urls", "https://www.pjrc.com/teensy/package_teensy_index.json"]
 

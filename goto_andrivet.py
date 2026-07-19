@@ -8,7 +8,7 @@
 ╚══════════════════════════════════════════════════════════════╝
 
 Lancement :
-    python3 goto_mega.py
+    python3 goto_andrivet.py
 
 Dépendance unique :
     pip3 install pyserial
@@ -65,13 +65,13 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(message)s",
     handlers=[logging.StreamHandler(sys.stdout)]
 )
-log = logging.getLogger("goto_mega")
+log = logging.getLogger("goto_andrivet")
 
 
 # ════════════════════════════════════════════════════════════════
 #  SECTION 1 : PARAMÈTRES PERSISTANTS
 # ════════════════════════════════════════════════════════════════
-CONFIG_FILE = Path.home() / ".config" / "goto_mega" / "settings.json"
+CONFIG_FILE = Path.home() / ".config" / "goto_andrivet" / "settings.json"
 
 DEFAULTS = {
     "site_name":           "Lyon-Villeurbanne",

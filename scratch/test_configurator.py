@@ -8,7 +8,7 @@ import json
 
 # Import the configurator tool classes
 sys.path.append(str(Path(__file__).parent.parent))
-import goto_mega_config_tool as config_tool
+import goto_andrivet_config_tool as config_tool
 
 class TestConfiguratorLogic(unittest.TestCase):
 
@@ -19,7 +19,7 @@ class TestConfiguratorLogic(unittest.TestCase):
             self.temp_config_path.unlink()
         
         # Patch the CONFIG_FILE path in the module
-        self.path_patcher = patch("goto_mega_config_tool.CONFIG_FILE", self.temp_config_path)
+        self.path_patcher = patch("goto_andrivet_config_tool.CONFIG_FILE", self.temp_config_path)
         self.path_patcher.start()
 
     def tearDown(self):

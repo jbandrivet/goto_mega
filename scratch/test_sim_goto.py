@@ -2,10 +2,10 @@ import sys
 import os
 import time
 
-# Add the project directory to path so we can import goto_mega
-sys.path.append("/media/jean-baptiste/6E91-2E1D/perso/astronomie/gotos/goto_mega")
+# Add the project directory to path so we can import goto_andrivet
+sys.path.append("/media/jean-baptiste/6E91-2E1D/perso/astronomie/gotos/goto_andrivet")
 
-from goto_mega import Settings, Mount, Astro
+from goto_andrivet import Settings, Mount, Astro
 
 def main():
     cfg = Settings()

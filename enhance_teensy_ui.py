@@ -1,6 +1,6 @@
 import re
 
-with open("goto_mega_raquette/teensy_raquette_v62/teensy_raquette_v62.ino", "r") as f:
+with open("goto_andrivet_raquette/teensy_raquette_v62/teensy_raquette_v62.ino", "r") as f:
     code = f.read()
 
 # Replace printMain
@@ -299,7 +299,7 @@ if old_printSlewing in code:
 else:
     print("Could not find printSlewing")
 
-with open("goto_mega_raquette/teensy_raquette_v62/teensy_raquette_v62.ino", "w") as f:
+with open("goto_andrivet_raquette/teensy_raquette_v62/teensy_raquette_v62.ino", "w") as f:
     f.write(code)
 
 print("Updated Teensy UI for 2004 LCD")
