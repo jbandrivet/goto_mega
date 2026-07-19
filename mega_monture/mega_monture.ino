@@ -843,6 +843,9 @@ static int slewToAA(double tAlt, double tAz) {
   static char sbRj [CMD_MAX]; static uint8_t sbiRj=0;
   sbiUsb=0; sbiRj=0;
 
+  unsigned long err = maxS / 2;
+  bool azIsMajor = (aAS >= aLS);
+
   for(unsigned long i=0;i<maxS;i++){
     unsigned long loopStart = micros();
     lastI = i;
@@ -860,8 +863,21 @@ static int slewToAA(double tAlt, double tAz) {
       dl = minDelay;
     }
 
-    if(i<aAS)stepPulse(AZ_STEP);
-    if(i<aLS)stepPulse(ALT_STEP);
+    if (azIsMajor) {
+      stepPulse(AZ_STEP);
+      err += aLS;
+      if (err >= maxS) {
+        err -= maxS;
+        stepPulse(ALT_STEP);
+      }
+    } else {
+      stepPulse(ALT_STEP);
+      err += aAS;
+      if (err >= maxS) {
+        err -= maxS;
+        stepPulse(AZ_STEP);
+      }
+    }
 
     if ((i & 31) == 0) {
       updateBuzzer();
