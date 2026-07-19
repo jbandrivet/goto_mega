@@ -1,88 +1,59 @@
-# FICHE TECHNIQUE : SYSTÈME DE COMMANDE GOTOUNIVERSAL
-*Version 5.2 (Alignée Mega v9.1 + Teensy v6.2) — Juin 2026*
+# FICHE TECHNIQUE : SYSTÈME DE COMMANDE GOTO-ANDRIVET
+*Version 9.2 (Dual Architecture : Mega & Teensy) — Juin 2026*
 
 Ce document regroupe les spécifications électriques, le schéma de câblage des drivers **M542**, les paramètres mécaniques et les protocoles de communication pour le système de commande motorisé GoTo universel (GotoAndrivet).
 
 ---
 
-## 1. Caractéristiques de Communication
+## 1. Choix de l'Architecture (Monture Mega vs Teensy)
+
+Le projet **Goto-Andrivet** propose désormais deux versions différentes pour le "cerveau" de la monture (le contrôleur moteur principal). Le choix de la carte affecte directement la puissance de calcul pour le suivi et les modèles de pointage.
+
+### Option A : Contrôleur Arduino Mega 2560 (Dossier `mega_monture`)
+* **Processeur :** 8-bit AVR @ 16 MHz.
+* **Avantage :** Matériel très standard, robuste et peu cher.
+* **Inconvénient :** Puissance de calcul très limitée. Il effectue d'excellents suivis basiques (1 étoile), mais il est incapable de faire fonctionner des modèles de pointage complexes (multi-étoiles) sans perdre la fluidité des moteurs.
+
+### Option B : Contrôleur Teensy 4.1 (Dossier `teensy_monture`)
+* **Processeur :** 32-bit ARM Cortex-M7 @ 600 MHz avec coprocesseur mathématique (FPU).
+* **Avantage :** Une puissance phénoménale. Il génère des pas moteurs d'une fluidité parfaite même à très haute vitesse et permet les calculs matriciels complexes requis pour l'alignement multi-étoiles sans aucune saccade.
+* **Inconvénient :** Plus coûteux.
+
+> [!NOTE]
+> Quel que soit le contrôleur choisi pour la monture, la télécommande (**Raquette**) reste toujours propulsée par un Teensy 4.1 (Dossier `teensy_raquette`) en raison de l'affichage graphique LCD et des calculs d'éphémérides requis.
+
+---
+
+## 2. Caractéristiques de Communication
 
 *   **Liaison USB (PC / ASIAir / INDI) :** **38 400 bauds** (Vitesse optimisée pour la télémétrie en temps réel).
-*   **Liaison Raquette (Serial3 / DIN 4 broches) :** **38 400 bauds**.
+*   **Liaison Raquette (Connecteur DIN 4 broches) :** **38 400 bauds**.
 *   **Protocole :** Meade LX200 avec extensions OnStep (supporté par KStars/Ekos, Stellarium, SkySafari).
 
 ---
 
-## 2. Schéma de Câblage Électrique (Arduino Mega 2560)
+## 3. Schéma de Câblage Électrique (Côté Monture)
+
+Le câblage des drivers moteurs vers le contrôleur reste quasiment identique quelle que soit la carte utilisée. Les drivers M542 sont raccordés en configuration **Cathode Commune (GND commun)**.
+
+### Broches selon le contrôleur choisi :
+
+| Composant | Broche Arduino Mega 2560 | Broche Teensy 4.1 |
+|---|---|---|
+| **Moteur AZ (Step)** | Pin 2 | Pin 2 |
+| **Moteur AZ (Dir)** | Pin 3 | Pin 3 |
+| **Moteur ALT (Step)** | Pin 5 | Pin 5 |
+| **Moteur ALT (Dir)** | Pin 6 | Pin 6 |
+| **Buzzer** | Pin 49 | Pin 11 |
+| **GPS (RX / TX)** | Pin 17 / Pin 16 (Serial2) | Pin 16 / Pin 17 (Serial4) |
+| **Raquette (RX / TX)** | Pin 15 / Pin 14 (Serial3) | Pin 15 / Pin 14 (Serial3) |
 
 > [!IMPORTANT]
-> **Repérage physique des broches sur votre carte Arduino Mega :**
-> - Les pins **2 à 7** (moteurs) se situent dans la rangée étiquetée **`PWM`** (qui contient les broches `0` à `13`).
-> - Les pins **14 et 15** (raquette Teensy) se situent dans la rangée étiquetée **`COMMUNICATION`**.
-> - La pin **49** (buzzer) se situe dans le grand bloc double-rangée étiqueté **`DIGITAL`** qui commence à `22` (situé à l'extrémité de la carte).
-> - Les pins **GND** (masses) et **5V** (alimentation) se situent dans la section étiquetée **`POWER`**.
-
-### Axe Azimut / RA (Moteur AZ)
-Le driver de l'axe Azimut (AZ) est raccordé en configuration **Cathode Commune (GND commun)** :
-*   **`PUL+` (Pulse / Step)** $\rightarrow$ Broche **Pin 2** (dans la zone **`PWM`**)
-*   **`DIR+` (Direction)** $\rightarrow$ Broche **Pin 3** (dans la zone **`PWM`**)
-*   **`ENB+` (Enable)** $\rightarrow$ Broche **Pin 4** (dans la zone **`PWM`**) *(Optionnel - Voir note)*
-*   **`PUL-` / `DIR-` / `ENB-`** $\rightarrow$ Reliés ensemble $\rightarrow$ **GND** (dans la zone **`POWER`**)
-
-### Axe Altitude / DEC (Moteur ALT)
-Le driver de l'axe Altitude (ALT) est raccordé de la même manière :
-*   **`PUL+` (Pulse / Step)** $\rightarrow$ Broche **Pin 5** (dans la zone **`PWM`**)
-*   **`DIR+` (Direction)** $\rightarrow$ Broche **Pin 6** (dans la zone **`PWM`**)
-*   **`ENB+` (Enable)** $\rightarrow$ Broche **Pin 7** (dans la zone **`PWM`**) *(Optionnel - Voir note)*
-*   **`PUL-` / `DIR-` / `ENB-`** $\rightarrow$ Reliés ensemble $\rightarrow$ **GND** (dans la zone **`POWER`**)
-
-### Dérotateur (Moteur DEROT) - Optionnel (AltAz)
-Le driver du dérotateur est raccordé de la même manière :
-*   **`PUL+` (Pulse / Step)** $\rightarrow$ Broche **Pin 8** (dans la zone **`PWM`**)
-*   **`DIR+` (Direction)** $\rightarrow$ Broche **Pin 9** (dans la zone **`PWM`**)
-*   **`ENB+` (Enable)** $\rightarrow$ Broche **Pin 10** (dans la zone **`PWM`**) *(Optionnel)*
-*   **`PUL-` / `DIR-` / `ENB-`** $\rightarrow$ Reliés ensemble $\rightarrow$ **GND** (dans la zone **`POWER`**)
-
-### Focuseur (Moteur FOCUS) - Optionnel
-Le driver du système de mise au point est raccordé de la même manière :
-*   **`PUL+` (Pulse / Step)** $\rightarrow$ Broche **Pin 11** (dans la zone **`PWM`**)
-*   **`DIR+` (Direction)** $\rightarrow$ Broche **Pin 12** (dans la zone **`PWM`**)
-*   **`ENB+` (Enable)** $\rightarrow$ Broche **Pin 13** (dans la zone **`PWM`**) *(Optionnel)*
-*   **`PUL-` / `DIR-` / `ENB-`** $\rightarrow$ Reliés ensemble $\rightarrow$ **GND** (dans la zone **`POWER`**)
-
-> [!NOTE]
-> **Activation des drivers (ENB) :** Les drivers M542 sont activés par défaut lorsque aucun courant ne traverse le signal `ENB`. Les raccordements à la **Pin 4** et **Pin 7** sont donc optionnels si vous souhaitez laisser les moteurs constamment sous tension (recommandé pour éviter le glissement de la monture).
-
-### Le Buzzer (Alerte sonore)
-*   **Borne positive (+)** $\rightarrow$ Résistance de 100 $\Omega$ $\rightarrow$ Broche **Pin 49** (dans la zone **`DIGITAL`** commençant à 22)
-*   **Borne négative (-)** $\rightarrow$ **GND** (dans la zone **`POWER`**)
-
-### Connecteur DIN 4 broches Raquette (Teensy 4.1 $\leftrightarrow$ Mega)
-
-Connecteur DIN 4 broches avec détrompeur intégré (mâle côté câble, femelle châssis côté boîtier raquette).
-
-| Pin DIN | Signal | Broche Mega | Zone sur la carte |
-|---|---|---|---|
-| **1** | GND | **GND** | **`POWER`** |
-| **2** | 5V (alim Teensy → VIN) | **5V** | **`POWER`** |
-| **3** | TX (Teensy → Mega) | **Pin 15 (RX3)** | **`COMMUNICATION`** |
-| **4** | RX (Mega → Teensy) | **Pin 14 (TX3)** | **`COMMUNICATION`** |
-
-> [!WARNING]
-> Le Mega doit être alimenté par **barrel jack (7-12V DC)** pour fournir assez de courant au Teensy via la pin 5V. Ne pas alimenter le Mega uniquement par USB si la raquette est branchée.
-> **Ne pas brancher l'USB du Teensy** quand le VIN est alimenté, sauf si le pad VUSB est coupé.
-
-### Module GPS (Adafruit Ultimate GPS Breakout v3)
-Le module GPS (pour l'heure et la position exactes) communique via le port série matériel 2 (`Serial2`) à 9600 bauds. Le module Adafruit v3 est 100% compatible avec la logique 5V de l'Arduino Mega.
-
-*   **VIN (Alimentation)** $\rightarrow$ **5V** (dans la zone **`POWER`** du Mega)
-*   **GND (Masse)** $\rightarrow$ **GND** (dans la zone **`POWER`** du Mega)
-*   **TX (Transmission GPS)** $\rightarrow$ Broche **Pin 17 (RX2)** (dans la zone **`COMMUNICATION`** du Mega)
-*   **RX (Réception GPS)** $\rightarrow$ Broche **Pin 16 (TX2)** (dans la zone **`COMMUNICATION`** du Mega)
+> Pour le Teensy 4.1, les broches physiques pour le GPS restent aux emplacements 16 et 17, mais elles correspondent au port matériel `Serial4` (au lieu du `Serial2` sur le Mega). Le câblage physique des fils volants est donc préservé !
 
 ---
 
-## 3. Paramètres Mécaniques et Résolutions
+## 4. Paramètres Mécaniques et Résolutions
 
 La résolution de déplacement (PPD - Pas par Degré) de la monture est calculée selon la formule :
 
@@ -96,29 +67,29 @@ $$PPD = \frac{\text{Pas Moteur} \times \text{Microstepping} \times \text{Rapport
 
 ---
 
-## 4. Modes de Suivi (Tracking)
+## 5. Modes de Suivi (Tracking)
 
-*   **Suivi Sidéral (Ciel profond) :** Calculé en temps réel par l'Arduino Mega toutes les 500 ms à partir du Temps Sidéral Local (LST) de l'horloge.
+*   **Suivi Sidéral (Ciel profond) :** Calculé en temps réel toutes les 500 ms à partir du Temps Sidéral Local (LST) de l'horloge.
 *   **Suivi Lunaire (`:TL#`) :** Vitesse de l'angle horaire (HA) ralentie de **~2,37%** (facteur d'échelle `0.976327`) pour compenser le déplacement orbital de la Lune.
 *   **Suivi Solaire (`:TS#`) :** Vitesse ralentie de **~0,27%** (facteur d'échelle `0.997270`) pour compenser le mouvement orbital de la Terre.
 
-## Câblage de la Raquette Physique (Teensy 4.1)
+---
 
-La raquette physique est articulée autour d'une carte **Teensy 4.1**, alimentée par le **5V du Mega** via sa broche **VIN** (plage acceptée : 3.6V – 5.5V).
+## 6. Câblage de la Raquette Physique (Teensy 4.1)
 
-### 1. Connecteur DIN 4 broches (Communication + Alimentation depuis le Mega)
+La raquette physique est articulée autour d'une carte **Teensy 4.1**.
+
+### 1. Connecteur DIN 4 broches (Communication + Alimentation depuis la Monture)
 
 | Pin DIN | Signal | Broche Teensy |
 |---|---|---|
 | **1** | GND | **GND** |
 | **2** | 5V (alimentation) | **VIN** |
-| **3** | TX (Teensy → Mega) | **Pin 1 (TX1)** |
-| **4** | RX (Mega → Teensy) | **Pin 0 (RX1)** |
+| **3** | TX (Teensy → Monture) | **Pin 1 (TX1)** |
+| **4** | RX (Monture → Teensy) | **Pin 0 (RX1)** |
 
-*(Rappel : TX1/RX1 du Teensy sont reliées aux pins RX3/TX3 de l'Arduino Mega via le câble DIN.)*
-
-> [!NOTE]
-> **Consommation :** Teensy 4.1 (~100-150 mA) + LCD I2C (~30 mA) = ~200 mA. Le régulateur du Mega (barrel jack) supporte ~800 mA, marge largement suffisante.
+> [!WARNING]
+> La monture doit fournir assez de courant au Teensy via la pin VIN. Ne pas alimenter le Teensy par son port USB si le câble DIN l'alimente déjà, sauf si le pad `VUSB` sous le Teensy a été physiquement sectionné.
 
 ### 2. Écran LCD Grove I2C
 * **SDA** $\rightarrow$ Broche **Pin 18 (SDA0)** de la Teensy
@@ -127,7 +98,7 @@ La raquette physique est articulée autour d'une carte **Teensy 4.1**, alimenté
 * **GND** $\rightarrow$ Broche **GND**
 
 ### 3. Boutons Poussoirs (Clavier directionnel)
-Les boutons sont câblés en **INPUT_PULLUP**, ce qui signifie qu'ils doivent être reliés d'un côté à la broche correspondante de la Teensy, et de l'autre côté à la masse (**GND**). Aucun besoin de résistance externe !
+Les boutons sont câblés en **INPUT_PULLUP** (reliés entre la broche et le GND). Aucun besoin de résistance externe !
 
 * **Haut (UP)** $\rightarrow$ Broche **Pin 6**
 * **Bas (DOWN)** $\rightarrow$ Broche **Pin 7**
