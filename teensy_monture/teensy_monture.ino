@@ -77,6 +77,19 @@ static int dt_h=12, dt_mi=0, dt_s=0;
 static unsigned long lastClkMs=0;
 static bool timeSet = false;           // [FIX 25] False par defaut jusqu'au fix GPS ou :SC/:SL
 
+
+// === MODELE DE POINTAGE N-ETOILES (IDW) ===
+#define MAX_SYNC_POINTS 20
+struct SyncPoint {
+  double ideal_az;
+  double ideal_alt;
+  double mach_az;
+  double mach_alt;
+};
+static SyncPoint syncPoints[MAX_SYNC_POINTS];
+static int numSyncPoints = 0;
+static int syncIndex = 0;
+
 // === ETAT ===
 static double currAz=0.0, currAlt=0.0;
 static volatile long azPos=0, altPos=0; // Volatile because modified in ISR
@@ -488,7 +501,7 @@ static double getHourAngle(double ra) {
   return ha;
 }
 
-static void rd2aa_at(double ra, double dec, double *alt, double *az, double offset_sec) {
+static void ideal_rd2aa_at(double ra, double dec, double *alt, double *az, double offset_sec) {
   double scale = 1.0;
   if (trackRate == 1)      scale = 0.976327;
   else if (trackRate == 2) scale = 0.997270;
@@ -522,11 +535,116 @@ static void rd2aa_at(double ra, double dec, double *alt, double *az, double offs
   if(sin(hr)>0)*az=360.0-*az;
 }
 
-static void rd2aa(double ra, double dec, double *alt, double *az) {
-  rd2aa_at(ra, dec, alt, az, 0.0);
+
+static void rd2mach_at(double ra, double dec, double *mach_alt, double *mach_az, double offset_sec) {
+  double ideal_alt, ideal_az;
+  ideal_rd2aa_at(ra, dec, &ideal_alt, &ideal_az, offset_sec);
+  
+  if (numSyncPoints == 0) {
+    *mach_alt = ideal_alt;
+    *mach_az = ideal_az;
+    return;
+  }
+  
+  if (numSyncPoints == 1) {
+    double dAlt = syncPoints[0].mach_alt - syncPoints[0].ideal_alt;
+    double dAz  = syncPoints[0].mach_az - syncPoints[0].ideal_az;
+    *mach_alt = ideal_alt + dAlt;
+    *mach_az = ideal_az + dAz;
+    *mach_az = fmod(*mach_az, 360.0);
+    if (*mach_az < 0) *mach_az += 360.0;
+    return;
+  }
+  
+  double sumWeight = 0.0;
+  double sumDAlt = 0.0;
+  double sumDAz = 0.0;
+  
+  for (int i=0; i<numSyncPoints; i++) {
+    double d_alt = ideal_alt - syncPoints[i].ideal_alt;
+    double d_az = ideal_az - syncPoints[i].ideal_az;
+    if (d_az > 180.0) d_az -= 360.0;
+    if (d_az < -180.0) d_az += 360.0;
+    
+    double distSq = d_alt*d_alt + d_az*d_az;
+    if (distSq < 0.0001) {
+      sumDAlt = syncPoints[i].mach_alt - syncPoints[i].ideal_alt;
+      sumDAz  = syncPoints[i].mach_az - syncPoints[i].ideal_az;
+      sumWeight = 1.0;
+      break;
+    }
+    
+    double weight = 1.0 / distSq;
+    double errAlt = syncPoints[i].mach_alt - syncPoints[i].ideal_alt;
+    double errAz = syncPoints[i].mach_az - syncPoints[i].ideal_az;
+    if (errAz > 180.0) errAz -= 360.0;
+    if (errAz < -180.0) errAz += 360.0;
+    
+    sumDAlt += errAlt * weight;
+    sumDAz += errAz * weight;
+    sumWeight += weight;
+  }
+  
+  *mach_alt = ideal_alt + (sumDAlt / sumWeight);
+  *mach_az = fmod(ideal_az + (sumDAz / sumWeight), 360.0);
+  if (*mach_az < 0) *mach_az += 360.0;
 }
 
-static void aa2rd(double alt, double az, long *rs, long *ds) {
+static void rd2mach(double ra, double dec, double *mach_alt, double *mach_az) {
+  rd2mach_at(ra, dec, mach_alt, mach_az, 0.0);
+}
+
+static void mach2rd(double mach_alt, double mach_az, long *rs, long *ds) {
+  if (numSyncPoints == 0) {
+    ideal_aa2rd(mach_alt, mach_az, rs, ds);
+    return;
+  }
+  
+  if (numSyncPoints == 1) {
+    double dAlt = syncPoints[0].mach_alt - syncPoints[0].ideal_alt;
+    double dAz  = syncPoints[0].mach_az - syncPoints[0].ideal_az;
+    ideal_aa2rd(mach_alt - dAlt, mach_az - dAz, rs, ds);
+    return;
+  }
+  
+  double sumWeight = 0.0;
+  double sumDAlt = 0.0;
+  double sumDAz = 0.0;
+  
+  for (int i=0; i<numSyncPoints; i++) {
+    double d_alt = mach_alt - syncPoints[i].mach_alt;
+    double d_az = mach_az - syncPoints[i].mach_az;
+    if (d_az > 180.0) d_az -= 360.0;
+    if (d_az < -180.0) d_az += 360.0;
+    
+    double distSq = d_alt*d_alt + d_az*d_az;
+    if (distSq < 0.0001) {
+      sumDAlt = syncPoints[i].mach_alt - syncPoints[i].ideal_alt;
+      sumDAz  = syncPoints[i].mach_az - syncPoints[i].ideal_az;
+      sumWeight = 1.0;
+      break;
+    }
+    
+    double weight = 1.0 / distSq;
+    double errAlt = syncPoints[i].mach_alt - syncPoints[i].ideal_alt;
+    double errAz = syncPoints[i].mach_az - syncPoints[i].ideal_az;
+    if (errAz > 180.0) errAz -= 360.0;
+    if (errAz < -180.0) errAz += 360.0;
+    
+    sumDAlt += errAlt * weight;
+    sumDAz += errAz * weight;
+    sumWeight += weight;
+  }
+  
+  double ideal_alt = mach_alt - (sumDAlt / sumWeight);
+  double ideal_az = fmod(mach_az - (sumDAz / sumWeight), 360.0);
+  if (ideal_az < 0) ideal_az += 360.0;
+  
+  ideal_aa2rd(ideal_alt, ideal_az, rs, ds);
+}
+
+
+static void ideal_aa2rd(double alt, double az, long *rs, long *ds) {
   if (mountType == 1) { 
     *ds = alt * 3600.0;
     double ra = lst() - (az / 15.0);
@@ -716,7 +834,7 @@ static void updatePos() {
     while(currAlt < -180.0) currAlt += 360.0;
     while(currAlt >  180.0) currAlt -= 360.0;
   }
-  aa2rd(currAlt,currAz,&currRA,&currDEC);
+  mach2rd(currAlt,currAz,&currRA,&currDEC);
   formatRaDec(currRA, currDEC);
 
   double physAlt = getPhysicalAlt();
@@ -801,7 +919,7 @@ static int slewToAA(double tAlt, double tAz) {
 
   long startRA=currRA, startDEC=currDEC;
   long endRA, endDEC;
-  aa2rd(tAlt, tAz, &endRA, &endDEC);
+  mach2rd(tAlt, tAz, &endRA, &endDEC);
   long deltaRA=endRA-startRA;
   if(deltaRA>43200) deltaRA-=86400;
   if(deltaRA<-43200) deltaRA+=86400;
@@ -1033,7 +1151,7 @@ static void doTrack() {
   if(last_full_trig_ms == 0 || millis() - last_full_trig_ms >= 5000) {
     double current_lst = lst();
     double tA, tZ;
-    rd2aa_at(trkRA, trkDec, &tA, &tZ, 0.0);
+    rd2mach_at(trkRA, trkDec, &tA, &tZ, 0.0);
     double targetAlt = (mountType == 0) ? tA : getAstronomicalAlt(trkRA, trkDec);
     if(targetAlt < ALT_MIN){
       tracking=false; limitHit=true; alarmActive=true; trkStartLST=0.0;
@@ -1050,7 +1168,7 @@ static void doTrack() {
     }
     
     double tA_next, tZ_next;
-    rd2aa_at(trkRA, trkDec, &tA_next, &tZ_next, 10.0);
+    rd2mach_at(trkRA, trkDec, &tA_next, &tZ_next, 10.0);
     
     double speed_az = tZ_next - tZ;
     if(speed_az > 180.0) speed_az -= 360.0;
@@ -1417,7 +1535,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     if (slewing) { out.write('1'); return; }
     if(!timeSet) { out.print(F("5Time not set#")); return; }
     double ra_h=inRA/3600.0, dec_d=inDEC/3600.0, tA, tZ;
-    rd2aa(ra_h,dec_d,&tA,&tZ);
+    rd2mach(ra_h,dec_d,&tA,&tZ);
     double targetAlt = (mountType == 0) ? tA : getAstronomicalAlt(ra_h, dec_d);
     if(targetAlt < ALT_MIN - 0.01){ limitHit=true; out.print(F("1Below horizon#")); return; }
     out.write('0');
@@ -1441,7 +1559,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     }
     out.write('0');
     if(slewToAA(inAlt, inAz)){
-      long rs, ds; aa2rd(inAlt, inAz, &rs, &ds);
+      long rs, ds; ideal_aa2rd(inAlt, inAz, &rs, &ds);
       trkRA  = rs/3600.0; trkDec = ds/3600.0; parked = false;
     }
     return;
@@ -1512,11 +1630,27 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     return;
   }
 
+  if(c1=='C'&&c2=='M'&&c3=='L'){
+    numSyncPoints = 0; syncIndex = 0;
+    out.print(F("Model Cleared#")); return;
+  }
   if(c1=='C'&&c2=='M'){
     if(!timeSet) { out.print(F("Time not set#")); return; }
     double ra_h=inRA/3600.0, dec_d=inDEC/3600.0;
-    rd2aa(ra_h,dec_d,&currAlt,&currAz);
-    azPos=(long)(currAz*AZ_PPD); altPos=(long)(currAlt*ALT_PPD);
+    
+    // MODELE N-ETOILES
+    double ideal_alt, ideal_az;
+    ideal_rd2aa_at(ra_h, dec_d, &ideal_alt, &ideal_az, 0.0);
+    
+    syncPoints[syncIndex].ideal_az = ideal_az;
+    syncPoints[syncIndex].ideal_alt = ideal_alt;
+    syncPoints[syncIndex].mach_az = fmod(currAz, 360.0);
+    if(syncPoints[syncIndex].mach_az < 0) syncPoints[syncIndex].mach_az += 360.0;
+    syncPoints[syncIndex].mach_alt = currAlt;
+    
+    syncIndex = (syncIndex + 1) % MAX_SYNC_POINTS;
+    if (numSyncPoints < MAX_SYNC_POINTS) numSyncPoints++;
+    
     currRA=inRA; currDEC=inDEC;
     trkRA=ra_h; trkDec=dec_d; 
     synced=true; updatePos();
@@ -1526,7 +1660,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='C'&&c2=='S'){
     if(!timeSet) { out.print(F("N/A#")); return; }
     double ra_h=inRA/3600.0, dec_d=inDEC/3600.0;
-    rd2aa(ra_h,dec_d,&currAlt,&currAz);
+    ideal_rd2aa_at(ra_h,dec_d,&currAlt,&currAz,0.0);
     azPos=(long)(currAz*AZ_PPD); altPos=(long)(currAlt*ALT_PPD);
     currRA=inRA; currDEC=inDEC;
     trkRA=ra_h; trkDec=dec_d; 
@@ -1706,7 +1840,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       double pAlt = parkAlt;
       double pAz = parkAz;
       long pRA, pDEC;
-      aa2rd(pAlt, pAz, &pRA, &pDEC);
+      mach2rd(pAlt, pAz, &pRA, &pDEC);
       inRA = pRA;
       inDEC = pDEC;
       slewToAA(pAlt, pAz);
@@ -1730,7 +1864,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     double pAlt = (mountType >= 1) ? 90.0 : 0.0;
     double pAz = 0.0;
     long pRA, pDEC;
-    aa2rd(pAlt, pAz, &pRA, &pDEC);
+    mach2rd(pAlt, pAz, &pRA, &pDEC);
     inRA = pRA;
     inDEC = pDEC;
     slewToAA(pAlt, pAz); atHome=true;
