@@ -1325,13 +1325,7 @@ void pollMega(){
     m_slewSpeed =next().toInt()/10.0;
     m_currentAlt=next().toFloat();
     m_currentAz =next().toFloat();
-    bool old_parked = m_isParked;
     m_isParked  =next().toInt();
-    if (m_isParked && !old_parked) {
-        motorPowerOn = false;
-    } else if (!m_isParked && old_parked) {
-        motorPowerOn = true;
-    }
     m_isAligned =next().toInt();
 
     String gu = mega_cmd(":GU");
@@ -2174,10 +2168,32 @@ void handleButtons(){
     bool right =btnPressed[BTN_IDX_RIGHT] && !btnReleased[BTN_IDX_RIGHT];
     bool enter =btnPressed[BTN_IDX_ENTER] && !btnReleased[BTN_IDX_ENTER];
 
+    static bool manualSlewing[4] = {false, false, false, false}; // up, down, left, right
+
     if(uiState == UI_MAIN) {
-        for(int i=0; i<5; i++) {
-            if(i != BTN_IDX_ENTER) {
-                if(btnReleased[i]) {
+        if(up)    { mega_cmd(":Mn", false); manualSlewing[0] = true; }
+        if(down)  { mega_cmd(":Ms", false); manualSlewing[1] = true; }
+        if(left)  { mega_cmd(":Me", false); manualSlewing[2] = true; }
+        if(right) { mega_cmd(":Mw", false); manualSlewing[3] = true; }
+
+        if(btnReleased[BTN_IDX_UP] && manualSlewing[0]) {
+            mega_cmd(":Qn", false); manualSlewing[0] = false;
+        }
+        if(btnReleased[BTN_IDX_DOWN] && manualSlewing[1]) {
+            mega_cmd(":Qs", false); manualSlewing[1] = false;
+        }
+        if(btnReleased[BTN_IDX_LEFT] && manualSlewing[2]) {
+            mega_cmd(":Qw", false); manualSlewing[2] = false;
+        }
+        if(btnReleased[BTN_IDX_RIGHT] && manualSlewing[3]) {
+            mega_cmd(":Qe", false); manualSlewing[3] = false;
+        }
+        
+        // Safety: If for some reason multiple keys are released, ensure we stop
+        for(int i=0; i<4; i++) {
+            if(btnReleased[i] && !manualSlewing[0] && !manualSlewing[1] && !manualSlewing[2] && !manualSlewing[3]) {
+                // If a button is released but we didn't track a slew, and we are not slewing a GoTo, stop anyway just in case
+                if (!m_isSlewing) {
                     mega_cmd(":Qn", false);
                     mega_cmd(":Qs", false);
                     mega_cmd(":Qe", false);
@@ -2208,10 +2224,6 @@ void handleButtons(){
     switch(uiState){
 
         case UI_MAIN:
-            if(up)    { mega_cmd(":Mn", false); }
-            if(down)  { mega_cmd(":Ms", false); }
-            if(left)  { mega_cmd(":Me", false); }
-            if(right) { mega_cmd(":Mw", false); }
             if(enter) { settingsSel=0; uiState=UI_SETTINGS; }
             break;
 

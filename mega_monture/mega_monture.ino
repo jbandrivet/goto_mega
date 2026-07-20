@@ -1768,7 +1768,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       inDEC = pDEC;
       slewToAA(pAlt, pAz);
     }
-    parked=true; enableMotors(false);
+    parked=true;
     saveStateToEEPROM();
     return;
   }
