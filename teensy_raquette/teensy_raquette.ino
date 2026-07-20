@@ -1975,10 +1975,20 @@ void refreshLcd(){
         }
         case UI_EDIT_TIME: {
             lcdLine(0, "[ HEURE ]");
-            char b[17];
-            snprintf(b,17,"%02d/%02d %02d:%02d", dt_d, dt_m, dt_hr, dt_min);
+            char b[21];
+            snprintf(b,21,"%02d/%02d %02d:%02d", dt_d, dt_m, dt_hr, dt_min);
             lcdLine(1,b);
-            lcdLine(2, "");
+            
+            float lst = getCurrentLST();
+            if (lst >= 0) {
+                int lst_h = (int)lst;
+                int lst_m = (int)((lst - lst_h) * 60);
+                snprintf(b, 21, "LST: %02dh%02dm", lst_h, lst_m);
+                lcdLine(2, b);
+            } else {
+                lcdLine(2, "LST: --h--");
+            }
+            
             lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
             break;
         }
