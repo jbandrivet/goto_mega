@@ -2171,10 +2171,12 @@ void handleButtons(){
     static bool manualSlewing[4] = {false, false, false, false}; // up, down, left, right
 
     if(uiState == UI_MAIN) {
-        if(up)    { mega_cmd(":Mn", false); manualSlewing[0] = true; }
-        if(down)  { mega_cmd(":Ms", false); manualSlewing[1] = true; }
-        if(left)  { mega_cmd(":Me", false); manualSlewing[2] = true; }
-        if(right) { mega_cmd(":Mw", false); manualSlewing[3] = true; }
+        if (!m_isSlewing) {
+            if(up)    { mega_cmd(":Mn", false); manualSlewing[0] = true; }
+            if(down)  { mega_cmd(":Ms", false); manualSlewing[1] = true; }
+            if(left)  { mega_cmd(":Me", false); manualSlewing[2] = true; }
+            if(right) { mega_cmd(":Mw", false); manualSlewing[3] = true; }
+        }
 
         if(btnReleased[BTN_IDX_UP] && manualSlewing[0]) {
             mega_cmd(":Qn", false); manualSlewing[0] = false;
