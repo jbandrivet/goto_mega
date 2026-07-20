@@ -2687,6 +2687,8 @@ void setup(){
         
         saveEEPROM();
         
+        syncDataFromMega();
+        
         delay(900);
     } else {
         lcdLine(2,"  NON CONNECTEE    ");
