@@ -1570,6 +1570,8 @@ void printMain(){
         lcdLine(2, isEnglish ? "STATE: NO CONNECTION" : "Etat: Non connectee");
     } else if(m_isPaused){
         lcdLine(2, "* EN PAUSE *");
+    } else if(m_isParked){
+        lcdLine(2, "* PARQUEE *");
     } else if(m_limitHit){
         lcdLine(2, "!! LIMITE !!");
     } else {
