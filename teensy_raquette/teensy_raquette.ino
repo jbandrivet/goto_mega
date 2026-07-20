@@ -1576,15 +1576,43 @@ void printMain(){
         String mType = "AltAz";
         if (mountType == 1) mType = "Fourche";
         if (mountType == 2) mType = "Germ";
+        
         String tState = isEnglish ? "Stop" : "Arret";
         if (m_isTracking) {
-            if (trackedObjectName.length() > 0) tState = trackedObjectName;
-            else tState = isEnglish ? "Track" : "Suivi";
+            tState = isEnglish ? "Track" : "Suivi";
         }
-        String mState = motorPowerOn ? "M1" : "M0";
-        char stBuf[21];
-        snprintf(stBuf, 21, "%s-%s-%s", mType.c_str(), tState.c_str(), mState.c_str());
-        lcdLine(2, stBuf);
+        
+        String objStr = "";
+        if (m_isTracking && trackedObjectName.length() > 0) {
+            objStr = "-" + trackedObjectName;
+        }
+
+        char stBuf[40];
+        if (!motorPowerOn) {
+            snprintf(stBuf, 40, "%s-%s(OFF)", mType.c_str(), tState.c_str());
+        } else {
+            snprintf(stBuf, 40, "%s-%s%s", mType.c_str(), tState.c_str(), objStr.c_str());
+        }
+
+        int len = strlen(stBuf);
+        if (len > 20) {
+            static unsigned long lastScroll = 0;
+            static int scrollIdx = 0;
+            if (millis() - lastScroll > 400) {
+                lastScroll = millis();
+                scrollIdx++;
+                if (scrollIdx > len - 20 + 4) scrollIdx = 0; // Pause at the end
+            }
+            int dispIdx = scrollIdx;
+            if (dispIdx > len - 20) dispIdx = len - 20;
+            
+            char dispBuf[21];
+            strncpy(dispBuf, stBuf + dispIdx, 20);
+            dispBuf[20] = '\0';
+            lcdLine(2, dispBuf);
+        } else {
+            lcdLine(2, stBuf);
+        }
     }
     lcdLine(3, isEnglish ? "[ENT] = Menu        " : "[ENT] = Menu        ");
 }
