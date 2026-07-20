@@ -1482,6 +1482,18 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='G'&&c2=='X'){ handleGX(cmd, out); return; }
   if(c1=='G'&&c2=='c'){ out.print(F("24#")); return; }
   if(c1=='G'&&c2=='a'){ sprintf(buf,"%02d:%02d:%02d#", (dt_h%12==0)?12:(dt_h%12), dt_mi, dt_s); out.print(buf); return; }
+  if(c1=='G'&&c2=='L'){ sprintf(buf,"%02d:%02d:%02d#", dt_h, dt_mi, dt_s); out.print(buf); return; }
+  if(c1=='G'&&c2=='C'){ sprintf(buf,"%02d/%02d/%02d#", dt_m, dt_d, dt_y%100); out.print(buf); return; }
+  if(c1=='G'&&c2=='S'&&strlen(cmd)<=4){
+    double l = lst(); int h = (int)l;
+    double mm = (l - h) * 60.0; int m = (int)mm;
+    int s = (int)((mm - m) * 60.0 + 0.5);
+    if(s >= 60) { s -= 60; m++; }
+    if(m >= 60) { m -= 60; h++; }
+    if(h >= 24) { h -= 24; }
+    sprintf(buf,"%02d:%02d:%02d#", h, m, s);
+    out.print(buf); return;
+  }
   if(c1=='G'&&c2=='T'){ out.print(F("60.0000#")); return; }
   if(c1=='G'&&c2=='M'){
     if (mountType == 0) out.print(F("AltAz#"));

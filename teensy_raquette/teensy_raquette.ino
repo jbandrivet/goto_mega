@@ -1568,15 +1568,14 @@ void printMain(){
     } else if(m_limitHit){
         lcdLine(2, "!! LIMITE !!");
     } else {
-        const char* mnt_str = (mountType == 0) ? "ALTZ" : ((mountType == 1) ? "FORK" : "GERM");
-        const char* stat_str;
-        if (!motorPowerOn) stat_str = isEnglish ? "MOT.OFF" : "MOT.OFF";
-        else if (m_isSlewing) stat_str = "GOTO";
-        else if (m_isTracking) stat_str = isEnglish ? "TRACK" : "SUIVI";
-        else stat_str = "STOP";
-
-        snprintf(buf, 21,"ETAT: %s - %s", mnt_str, stat_str);
-        lcdLine(2,buf);
+        String mType = "AltAz";
+        if (mountType == 1) mType = "Fourche";
+        if (mountType == 2) mType = "Germ";
+        String tState = m_isTracking ? (isEnglish ? "Track" : "Suivi") : (isEnglish ? "Stop" : "Arret");
+        String mState = motorPowerOn ? "M1" : "M0";
+        char stBuf[21];
+        snprintf(stBuf, 21, "%s-%s-%s", mType.c_str(), tState.c_str(), mState.c_str());
+        lcdLine(2, stBuf);
     }
     lcdLine(3, isEnglish ? "[ENT] = Menu        " : "[ENT] = Menu        ");
 }
