@@ -2418,6 +2418,7 @@ void handleButtons(){
                 char b[32];
                 snprintf(b,32,":SC%02d/%02d/%02d",dt_m,dt_d,dt_y%100); mega_cmd(b);
                 snprintf(b,32,":SL%02d:%02d:%02d",dt_hr,dt_min,dt_sec); mega_cmd(b);
+                syncDataFromMega(); // Update current_lst from Mega
                 timeFetched = true;
                 showMessage("   HEURE SAUVEE   ", "", 1200, UI_SETTINGS);
             }
@@ -2442,6 +2443,7 @@ void handleButtons(){
             if(enter) {
                 saveEEPROM();
                 sendLocationToMega();
+                syncDataFromMega(); // Update current_lst from Mega (LST depends on longitude)
                 showMessage("  LIEU SAUVEGARDE ", "", 1200, UI_SETTINGS);
             }
             break;
