@@ -1363,7 +1363,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='G'&&c2=='o'){ out.print(F("+00*#")); return; }
   if(c1=='G'&&c2=='W'){
     if (mountType == 2) out.write('G');
-    else if (mountType == 1) out.write('F');
+    else if (mountType == 1) out.write('P'); // MUST be P for KStars compatibility!
     else out.write('A');
     out.write(tracking?'T':'N');
     out.write(synced?'1':'0'); out.write('#'); return;
@@ -1386,7 +1386,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='G'&&c2=='T'){ out.print(F("60.0000#")); return; }
   if(c1=='G'&&c2=='M'){
     if (mountType == 0) out.print(F("AltAz#"));
-    else if (mountType == 1) out.print(F("ForkEq#"));
+    else if (mountType == 1) out.print(F("Fork#"));
     else if (mountType == 2) out.print(F("GermanEq#"));
     return;
   }
