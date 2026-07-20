@@ -1325,7 +1325,13 @@ void pollMega(){
     m_slewSpeed =next().toInt()/10.0;
     m_currentAlt=next().toFloat();
     m_currentAz =next().toFloat();
+    bool old_parked = m_isParked;
     m_isParked  =next().toInt();
+    if (m_isParked && !old_parked) {
+        motorPowerOn = false;
+    } else if (!m_isParked && old_parked) {
+        motorPowerOn = true;
+    }
     m_isAligned =next().toInt();
 
     String gu = mega_cmd(":GU");
@@ -1862,15 +1868,15 @@ void printSettings() {
     const char* opts[] = {
         "Catalogues",
         isEnglish ? "GoTo Custom" : "GoTo Manuel",
-        m_isPaused ? (isEnglish ? "Resume Track" : "Reprendre Suivi") : (isEnglish ? "Pause Motors" : "Pause Moteurs"),
+        isEnglish ? "Parking" : "Parking", 
+        m_isPaused ? (isEnglish ? "Resume Track" : "Reprendre Suivi") : (isEnglish ? "Pause Track" : "Pause Suivi"),
+        isEnglish ? "Motor Power" : "Alim Moteurs", 
         isEnglish ? "GoTo Speed" : "Vitesse GoTo", 
         "Buzzer", 
         isEnglish ? "Sync/Align" : "Synchroniser", 
-        isEnglish ? "Parking" : "Parking", 
         isEnglish ? "Mount Type" : "Type Monture",
         (mountType == 0) ? "Ratio AZ" : "Ratio RA",
         (mountType == 0) ? "Ratio ALT" : "Ratio DEC",
-        isEnglish ? "Motor Power" : "Alim Moteurs", 
         isEnglish ? "Date/Time" : "Date/Heure", 
         isEnglish ? "Location" : "Lieu Obs.", 
         isEnglish ? "Language" : "Langue",
@@ -2304,7 +2310,8 @@ void handleButtons(){
                     editSel = 0;
                     uiState = UI_CUSTOM_GOTO;
                 }
-                else if(settingsSel==2) {
+                else if(settingsSel==2) uiState=UI_PARKING;
+                else if(settingsSel==3) {
                     cmd_stop();
                     if (!m_isPaused) {
                         mega_cmd(":Td", false);
@@ -2329,14 +2336,13 @@ void handleButtons(){
                         }
                     }
                 }
-                if(settingsSel==3) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
-                if(settingsSel==4) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
-                if(settingsSel==5) uiState=UI_ALIGN;
-                if(settingsSel==6) uiState=UI_PARKING;
-                if(settingsSel==7) { temp_mountType = mountType; uiState=UI_MOUNT; }
-                if(settingsSel==8) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
-                if(settingsSel==9) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
-                if(settingsSel==10) { temp_motorPowerOn = motorPowerOn; uiState=UI_MOTOR_POWER; }
+                if(settingsSel==4) { temp_motorPowerOn = motorPowerOn; uiState=UI_MOTOR_POWER; }
+                if(settingsSel==5) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
+                if(settingsSel==6) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
+                if(settingsSel==7) uiState=UI_ALIGN;
+                if(settingsSel==8) { temp_mountType = mountType; uiState=UI_MOUNT; }
+                if(settingsSel==9) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
+                if(settingsSel==10) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
                 if(settingsSel==11) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_TIME; }
                 if(settingsSel==12) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
                 if(settingsSel==13) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
