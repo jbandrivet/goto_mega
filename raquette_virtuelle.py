@@ -1009,7 +1009,17 @@ class VirtualTeensyApp(tk.Tk):
         elif self.state == self.UI_EDIT_TIME:
             l0 = "[ REGLAGE HEURE ]" if lang == "fr" else "[ SET TIME ]"
             l1 = f" {time.strftime('%H:%M:%S')} (PC)"
-            l2 = ""
+            import ephem
+            import math
+            obs = ephem.Observer()
+            obs.lat = str(self.lat)
+            obs.lon = str(self.lon)
+            obs.date = ephem.now()
+            lst_rad = obs.sidereal_time()
+            lst_hours = lst_rad * 12.0 / math.pi
+            lst_h = int(lst_hours)
+            lst_m = int((lst_hours - lst_h) * 60)
+            l2 = f" LST: {lst_h:02d}h{lst_m:02d}m"
             l3 = "[ENT] Sync PC" if lang == "fr" else "[ENT] Sync PC"
             
         elif self.state == self.UI_EDIT_LOCATION:
