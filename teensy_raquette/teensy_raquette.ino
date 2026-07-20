@@ -34,6 +34,9 @@ bool temp_displayRaDec = true;
 
 int dt_y=2026, dt_m=1, dt_d=1;
 int dt_hr=12, dt_min=0, dt_sec=0;
+int cgo_ra_h=0, cgo_ra_m=0, cgo_ra_s=0;
+int cgo_dec_d=0, cgo_dec_m=0, cgo_dec_s=0;
+bool cgo_dec_neg=false;
 float obs_lat=45.0, obs_lon=0.0;
 bool timeFetched = false;
 
@@ -1161,7 +1164,8 @@ enum UIState {
     UI_SLEWING, UI_SETTINGS, UI_SPEED, UI_ALIGN, UI_PARKING,
     UI_MOUNT, UI_RATIO_AZ, UI_RATIO_ALT, UI_BEEP, UI_OFFLINE,
     UI_MESSAGE, UI_EDIT_TIME, UI_EDIT_LOCATION, UI_MENU_SELECT,
-    UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER, UI_GPS, UI_COORD_MODE
+    UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER, UI_GPS, UI_COORD_MODE,
+    UI_CUSTOM_GOTO
 };
 UIState uiState = UI_MAIN;
 
@@ -1822,6 +1826,7 @@ void printSettings() {
     lcdLine(0, isEnglish ? "[ SETTINGS ]" : "[ REGLAGES ]");
     const char* opts[] = {
         "Catalogues",
+        isEnglish ? "GoTo Custom" : "GoTo Manuel",
         m_isPaused ? (isEnglish ? "Resume Track" : "Reprendre Suivi") : (isEnglish ? "Pause Motors" : "Pause Moteurs"),
         isEnglish ? "GoTo Speed" : "Vitesse GoTo", 
         "Buzzer", 
@@ -1840,7 +1845,7 @@ void printSettings() {
     
     char b1[21], b2[21], b3[21];
     int start = settingsSel;
-    if (start > 15 - 3) start = 15 - 3;
+    if (start > 16 - 3) start = 16 - 3;
     
     snprintf(b1, 21, "%c %s", (settingsSel == start) ? '>' : ' ', opts[start]);
     snprintf(b2, 21, "%c %s", (settingsSel == start + 1) ? '>' : ' ', opts[start + 1]);
@@ -2044,6 +2049,20 @@ void refreshLcd(){
             lcdLine(3, b3);
             break;
         }
+        case UI_CUSTOM_GOTO: {
+            lcdLine(0, isEnglish ? "[ CUSTOM GOTO ]" : "[ GOTO MANUEL ]");
+            char b[21];
+            snprintf(b, 21, "RA:  %02dh %02dm %02ds", cgo_ra_h, cgo_ra_m, cgo_ra_s);
+            if (editSel == 0) b[4] = '>'; else if (editSel == 1) b[8] = '>'; else if (editSel == 2) b[12] = '>';
+            lcdLine(1, b);
+            
+            snprintf(b, 21, "DEC: %c%02d* %02d' %02d\"", cgo_dec_neg?'-':'+', cgo_dec_d, cgo_dec_m, cgo_dec_s);
+            if (editSel == 3) b[4] = '>'; else if (editSel == 4) b[9] = '>'; else if (editSel == 5) b[13] = '>';
+            lcdLine(2, b);
+            
+            lcdLine(3, isEnglish ? "[UP/DWN] Edit" : "[HAUT/BAS] Edit");
+            break;
+        }
         default: break;
     }
     lcdNeedsRefresh=false;
@@ -2223,11 +2242,23 @@ void handleButtons(){
             break;
         case UI_SETTINGS:
             if(left)       { cmd_stop(); uiState=UI_MAIN; }
-            if(up)         { settingsSel=(settingsSel-1+15)%15; }
-            if(down)       { settingsSel=(settingsSel+1)%15; }
+            if(up)         { settingsSel=(settingsSel-1+16)%16; }
+            if(down)       { settingsSel=(settingsSel+1)%16; }
             if(right||enter){
                 if(settingsSel==0) { cmd_stop(); currentCat=CAT_MESSIER; objectIndex=0; uiState=UI_CAT_SELECT; }
                 else if(settingsSel==1) {
+                    cgo_ra_h = (int)m_currentRA;
+                    cgo_ra_m = (int)((m_currentRA - cgo_ra_h) * 60.0);
+                    cgo_ra_s = (int)((m_currentRA - cgo_ra_h - cgo_ra_m/60.0) * 3600.0);
+                    cgo_dec_neg = (m_currentDEC < 0);
+                    double adec = fabs(m_currentDEC);
+                    cgo_dec_d = (int)adec;
+                    cgo_dec_m = (int)((adec - cgo_dec_d) * 60.0);
+                    cgo_dec_s = (int)((adec - cgo_dec_d - cgo_dec_m/60.0) * 3600.0);
+                    editSel = 0;
+                    uiState = UI_CUSTOM_GOTO;
+                }
+                else if(settingsSel==2) {
                     cmd_stop();
                     if (!m_isPaused) {
                         mega_cmd(":Td", false);
@@ -2252,19 +2283,19 @@ void handleButtons(){
                         }
                     }
                 }
-                if(settingsSel==2) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
-                if(settingsSel==3) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
-                if(settingsSel==4) uiState=UI_ALIGN;
-                if(settingsSel==5) uiState=UI_PARKING;
-                if(settingsSel==6) { temp_mountType = mountType; uiState=UI_MOUNT; }
-                if(settingsSel==7) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
-                if(settingsSel==8) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
-                if(settingsSel==9) { temp_motorPowerOn = motorPowerOn; uiState=UI_MOTOR_POWER; }
-                if(settingsSel==10) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_TIME; }
-                if(settingsSel==11) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
-                if(settingsSel==12) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
-                if(settingsSel==13) { temp_gpsEnabled = gpsEnabled; uiState=UI_GPS; }
-                if(settingsSel==14) { temp_displayRaDec = displayRaDec; uiState=UI_COORD_MODE; }
+                if(settingsSel==3) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
+                if(settingsSel==4) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
+                if(settingsSel==5) uiState=UI_ALIGN;
+                if(settingsSel==6) uiState=UI_PARKING;
+                if(settingsSel==7) { temp_mountType = mountType; uiState=UI_MOUNT; }
+                if(settingsSel==8) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
+                if(settingsSel==9) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
+                if(settingsSel==10) { temp_motorPowerOn = motorPowerOn; uiState=UI_MOTOR_POWER; }
+                if(settingsSel==11) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_TIME; }
+                if(settingsSel==12) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
+                if(settingsSel==13) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
+                if(settingsSel==14) { temp_gpsEnabled = gpsEnabled; uiState=UI_GPS; }
+                if(settingsSel==15) { temp_displayRaDec = displayRaDec; uiState=UI_COORD_MODE; }
             }
             break;
 
@@ -2454,6 +2485,61 @@ void handleButtons(){
                 sendLocationToMega();
                 syncDataFromMega(); // Update current_lst from Mega (LST depends on longitude)
                 showMessage("  LIEU SAUVEGARDE ", "", 1200, UI_SETTINGS);
+            }
+            break;
+        case UI_CUSTOM_GOTO:
+            if(left) {
+                if(editSel > 0) editSel--;
+                else uiState=UI_SETTINGS;
+            }
+            if(right) {
+                if(editSel < 5) editSel++;
+            }
+            if(up) {
+                if(editSel==0) { cgo_ra_h++; if(cgo_ra_h>23) cgo_ra_h=0; }
+                if(editSel==1) { cgo_ra_m++; if(cgo_ra_m>59) cgo_ra_m=0; }
+                if(editSel==2) { cgo_ra_s++; if(cgo_ra_s>59) cgo_ra_s=0; }
+                if(editSel==3) { 
+                    if (cgo_dec_d == 0) {
+                        if (!cgo_dec_neg) { cgo_dec_d=1; }
+                        else { cgo_dec_neg=false; cgo_dec_d=1; }
+                    } else if (cgo_dec_d == 89 && !cgo_dec_neg) { cgo_dec_d=90; }
+                    else if (cgo_dec_d == 90 && cgo_dec_neg) { cgo_dec_d=89; }
+                    else {
+                        if (!cgo_dec_neg) cgo_dec_d++;
+                        else cgo_dec_d--;
+                    }
+                }
+                if(editSel==4) { cgo_dec_m++; if(cgo_dec_m>59) cgo_dec_m=0; }
+                if(editSel==5) { cgo_dec_s++; if(cgo_dec_s>59) cgo_dec_s=0; }
+            }
+            if(down) {
+                if(editSel==0) { cgo_ra_h--; if(cgo_ra_h<0) cgo_ra_h=23; }
+                if(editSel==1) { cgo_ra_m--; if(cgo_ra_m<0) cgo_ra_m=59; }
+                if(editSel==2) { cgo_ra_s--; if(cgo_ra_s<0) cgo_ra_s=59; }
+                if(editSel==3) { 
+                    if (cgo_dec_d == 0) {
+                        if (cgo_dec_neg) { cgo_dec_d=1; }
+                        else { cgo_dec_neg=true; cgo_dec_d=1; }
+                    } else if (cgo_dec_d == 89 && cgo_dec_neg) { cgo_dec_d=90; }
+                    else if (cgo_dec_d == 90 && !cgo_dec_neg) { cgo_dec_d=89; }
+                    else {
+                        if (cgo_dec_neg) cgo_dec_d++;
+                        else cgo_dec_d--;
+                    }
+                }
+                if(editSel==4) { cgo_dec_m--; if(cgo_dec_m<0) cgo_dec_m=59; }
+                if(editSel==5) { cgo_dec_s--; if(cgo_dec_s<0) cgo_dec_s=59; }
+            }
+            if(enter) {
+                double ra = cgo_ra_h + cgo_ra_m/60.0 + cgo_ra_s/3600.0;
+                double dec = cgo_dec_d + cgo_dec_m/60.0 + cgo_dec_s/3600.0;
+                if (cgo_dec_neg) dec = -dec;
+                if (!isVisible(ra, dec)) {
+                    showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_CUSTOM_GOTO);
+                } else {
+                    cmd_goto(ra,dec);
+                }
             }
             break;
 
