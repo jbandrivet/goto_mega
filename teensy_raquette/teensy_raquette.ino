@@ -1105,6 +1105,7 @@ double  m_currentAlt  = 0.0;
 double  m_currentAz   = 0.0;
 double  m_parkAlt     = 0.0;
 double  m_parkAz      = 0.0;
+String  trackedObjectName = "";
 bool    m_isTracking  = false;
 bool    m_isSlewing   = false;
 bool    m_limitHit    = false;
@@ -1575,7 +1576,11 @@ void printMain(){
         String mType = "AltAz";
         if (mountType == 1) mType = "Fourche";
         if (mountType == 2) mType = "Germ";
-        String tState = m_isTracking ? (isEnglish ? "Track" : "Suivi") : (isEnglish ? "Stop" : "Arret");
+        String tState = isEnglish ? "Stop" : "Arret";
+        if (m_isTracking) {
+            if (trackedObjectName.length() > 0) tState = trackedObjectName;
+            else tState = isEnglish ? "Track" : "Suivi";
+        }
         String mState = motorPowerOn ? "M1" : "M0";
         char stBuf[21];
         snprintf(stBuf, 21, "%s-%s-%s", mType.c_str(), tState.c_str(), mState.c_str());
@@ -2221,14 +2226,25 @@ void handleButtons(){
             }
             if(enter) {
                 double ra = 0, dec = 0;
-                if(currentCat == CAT_SYSSOL) { ra = sysSolObjs[objectIndex].ra; dec = sysSolObjs[objectIndex].dec; }
-                else if(selectedIsStar) { ra = selectedStar.ra; dec = selectedStar.dec; }
-                else { ra = selectedObj.ra; dec = selectedObj.dec; }
+                char objName[16] = "";
+                if(currentCat == CAT_SYSSOL) { 
+                    ra = sysSolObjs[objectIndex].ra; dec = sysSolObjs[objectIndex].dec; 
+                    strncpy(objName, sysSolObjs[objectIndex].name, 15);
+                }
+                else if(selectedIsStar) { 
+                    ra = selectedStar.ra; dec = selectedStar.dec; 
+                    strncpy(objName, selectedStar.name, 15);
+                }
+                else { 
+                    ra = selectedObj.ra; dec = selectedObj.dec; 
+                    snprintf(objName, 16, "%s%d", getCatPrefix(currentCat), selectedObj.id);
+                }
                 
                 if (!isVisible(ra, dec)) {
                     showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_OBJECT_INFO);
                     return;
                 }
+                trackedObjectName = String(objName);
                 cmd_goto(ra,dec);
                 if (isAlignWorkflow) {
                     uiState = UI_ALIGN_CENTER;
@@ -2538,6 +2554,7 @@ void handleButtons(){
                 if (!isVisible(ra, dec)) {
                     showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_CUSTOM_GOTO);
                 } else {
+                    trackedObjectName = "Manuel";
                     cmd_goto(ra,dec);
                 }
             }
