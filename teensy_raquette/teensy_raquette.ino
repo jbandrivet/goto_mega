@@ -1703,7 +1703,12 @@ void printSlewing(){
         double alt_diff = fabs(m_currentAlt - m_parkAlt);
         
         char buf[21];
-        snprintf(buf, 21, "dAZ:%5.1f%c dAL:%4.1f%c", az_diff, 0xDF, alt_diff, 0xDF);
+        if (mountType == 0) {
+            snprintf(buf, 21, "dAZ:%5.1f%c dAL:%4.1f%c", az_diff, 0xDF, alt_diff, 0xDF);
+        } else {
+            // For equatorial, Az is RA axis and Alt is DEC axis
+            snprintf(buf, 21, "dRA:%5.1f%c dDE:%4.1f%c", az_diff, 0xDF, alt_diff, 0xDF);
+        }
         lcdLine(1, buf);
         lcdLine(2, "");
         lcdLine(3, isEnglish ? "[<] Cancel" : "[<] Annuler");
