@@ -782,7 +782,12 @@ static int slewToAA(double tAlt, double tAz) {
   double startPhysAlt = getPhysicalAlt();
   double targetAlt = tAlt;
   if (mountType >= 1) {
-    double hr = tAz * DEG_TO_RAD;
+    // tAz is RA in degrees, tAlt is DEC in degrees
+    double lst_deg = lst() * 15.0; // LST in degrees
+    double ha_deg = lst_deg - tAz;
+    if (ha_deg < 0) ha_deg += 360.0;
+    
+    double hr = ha_deg * DEG_TO_RAD;
     double dr = tAlt * DEG_TO_RAD;
     double lr = siteLat * DEG_TO_RAD;
     double sa = sin(dr) * sin(lr) + cos(dr) * cos(lr) * cos(hr);
