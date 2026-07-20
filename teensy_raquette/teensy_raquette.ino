@@ -1709,7 +1709,7 @@ void printSlewing(){
         double cos_dist = sin(c_dec_rad) * sin(t_dec_rad) + cos(c_dec_rad) * cos(t_dec_rad) * cos(d_ra_rad);
         if (cos_dist < -1.0) cos_dist = -1.0;
         if (cos_dist > 1.0) cos_dist = 1.0;
-        double dist = acos(cos_dist) * RADEG;
+        if (cos_dist > 1.0) cos_dist = 1.0;
         double speed = m_slewSpeed;
         if (speed < 0.05) speed = 3.0;
 
@@ -1760,7 +1760,29 @@ void printSlewing(){
         if (eta < 0) eta = 0;
 
         char buf[21];
-        snprintf(buf, 21, "Dist restante: %.1f%c", dist, 0xDF);
+        if (mountType == 0) {
+            // For Alt-Az, we just show the direct remaining distance on the sky for simplicity, 
+            // since we don't have target Alt/Az computed here.
+            // Wait, we can compute target Alt/Az!
+            float lst = getCurrentLST();
+            double ha = (lst - ra) * 15.0;
+            double ha_rad = ha * DEGRAD;
+            double dec_rad = dec * DEGRAD;
+            double lat_rad = obs_lat * DEGRAD;
+            double sin_alt = sin(dec_rad)*sin(lat_rad) + cos(dec_rad)*cos(lat_rad)*cos(ha_rad);
+            double target_alt = asin(sin_alt) * RADEG;
+            double cos_az = (sin(dec_rad) - sin_alt*sin(lat_rad)) / (cos(asin(sin_alt))*cos(lat_rad));
+            double target_az = acos(constrain(cos_az, -1.0, 1.0)) * RADEG;
+            if (sin(ha_rad) > 0) target_az = 360.0 - target_az;
+
+            double az_diff = fabs(m_currentAz - target_az);
+            if (az_diff > 180.0) az_diff = 360.0 - az_diff;
+            double alt_diff = fabs(m_currentAlt - target_alt);
+            
+            snprintf(buf, 21, "dAZ:%5.1f%c dAL:%4.1f%c", az_diff, 0xDF, alt_diff, 0xDF);
+        } else {
+            snprintf(buf, 21, "dRA:%5.1f%c dDE:%4.1f%c", ra_diff, 0xDF, dec_diff, 0xDF);
+        }
         lcdLine(1, buf);
         lcdLine(2, "");
         lcdLine(3, isEnglish ? "[<] Cancel GOTO" : "[<] Annuler GOTO");
