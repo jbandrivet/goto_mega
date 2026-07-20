@@ -1392,7 +1392,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='G'&&c2=='T'){ out.print(F("60.0000#")); return; }
   if(c1=='G'&&c2=='M'){
     if (mountType == 0) out.print(F("AltAz#"));
-    else if (mountType == 1) out.print(F("Fork#"));
+    else if (mountType == 1) out.print(F("ForkEq#"));
     else if (mountType == 2) out.print(F("GermanEq#"));
     return;
   }
