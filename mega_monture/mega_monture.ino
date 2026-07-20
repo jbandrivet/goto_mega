@@ -580,19 +580,14 @@ static double getPhysicalAlt() {
     return currAlt;
   }
   double ha, dec;
-  if (mountType == 1) { 
-    ha = currAz;
+  double az_norm = fmod(currAz, 360.0);
+  if (az_norm < 0) az_norm += 360.0;
+  if (currAlt >= -90.0 && currAlt <= 90.0) {
+    ha = az_norm;
     dec = currAlt;
   } else { 
-    double az_norm = fmod(currAz, 360.0);
-    if (az_norm < 0) az_norm += 360.0;
-    if (currAlt >= -90.0 && currAlt <= 90.0) {
-      ha = az_norm;
-      dec = currAlt;
-    } else { 
-      ha = fmod(az_norm + 180.0, 360.0);
-      dec = 180.0 - currAlt;
-    }
+    ha = fmod(az_norm + 180.0, 360.0);
+    dec = 180.0 - currAlt;
   }
   double hr = ha * DEG_TO_RAD;
   double dr = dec * DEG_TO_RAD;
@@ -606,19 +601,14 @@ static double getPhysicalAz() {
     return currAz;
   }
   double ha, dec;
-  if (mountType == 1) { 
-    ha = currAz;
+  double az_norm = fmod(currAz, 360.0);
+  if (az_norm < 0) az_norm += 360.0;
+  if (currAlt >= -90.0 && currAlt <= 90.0) {
+    ha = az_norm;
     dec = currAlt;
   } else { 
-    double az_norm = fmod(currAz, 360.0);
-    if (az_norm < 0) az_norm += 360.0;
-    if (currAlt >= -90.0 && currAlt <= 90.0) {
-      ha = az_norm;
-      dec = currAlt;
-    } else { 
-      ha = fmod(az_norm + 180.0, 360.0);
-      dec = 180.0 - currAlt;
-    }
+    ha = fmod(az_norm + 180.0, 360.0);
+    dec = 180.0 - currAlt;
   }
   double hr = ha * DEG_TO_RAD;
   double dr = dec * DEG_TO_RAD;
@@ -1373,7 +1363,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='G'&&c2=='o'){ out.print(F("+00*#")); return; }
   if(c1=='G'&&c2=='W'){
     if (mountType == 2) out.write('G');
-    else if (mountType == 1) out.write('P');
+    else if (mountType == 1) out.write('F');
     else out.write('A');
     out.write(tracking?'T':'N');
     out.write(synced?'1':'0'); out.write('#'); return;
