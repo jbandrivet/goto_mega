@@ -1100,6 +1100,8 @@ double  m_currentRA   = 0.0;
 double  m_currentDEC  = 0.0;
 double  m_currentAlt  = 0.0;
 double  m_currentAz   = 0.0;
+double  m_parkAlt     = 0.0;
+double  m_parkAz      = 0.0;
 bool    m_isTracking  = false;
 bool    m_isSlewing   = false;
 bool    m_limitHit    = false;
@@ -1178,6 +1180,7 @@ StarObject    selectedStar;
 bool          selectedIsStar = false;
 
 int  settingsSel = 0;
+int  parkSel = 0;
 int  menuSel = 0;
 int  editSel = 0;
 bool lcdNeedsRefresh = true;
@@ -1694,8 +1697,15 @@ void printSlewing(){
     if (isParkingWorkflow) {
         snprintf(b0, 21, isEnglish ? "PARKING IN PROG %c" : "PARKING EN COURS %c", anim);
         lcdLine(0, b0);
-        lcdLine(1, isEnglish ? "Motors running..." : "Moteurs en route...");
-        lcdLine(2, isEnglish ? "Please wait" : "Veuillez patienter");
+        
+        double az_diff = fabs(m_currentAz - m_parkAz);
+        if (az_diff > 180.0) az_diff = 360.0 - az_diff;
+        double alt_diff = fabs(m_currentAlt - m_parkAlt);
+        
+        char buf[21];
+        snprintf(buf, 21, "dAZ:%5.1f%c dAL:%4.1f%c", az_diff, 0xDF, alt_diff, 0xDF);
+        lcdLine(1, buf);
+        lcdLine(2, "");
         lcdLine(3, isEnglish ? "[<] Cancel" : "[<] Annuler");
     } else {
         snprintf(b0, 21, isEnglish ? "SLEWING TO TGT %c" : "GOTO EN COURS... %c", anim);
@@ -1858,10 +1868,19 @@ void printAlign(){
 }
 
 void printParking(){
-    lcdLine(0, "PARKING");
-    lcdLine(1, "ENT=OK  <=RET");
-    lcdLine(2, "");
-    lcdLine(3, "");
+    lcdLine(0, isEnglish ? "[ PARKING ]" : "[ PARKING ]");
+    const char* opt0 = isEnglish ? "Park" : "Parquer";
+    const char* opt1 = isEnglish ? "Unpark" : "Deparquer";
+    const char* opt2 = isEnglish ? "Set Pos" : "Definir Pos";
+    
+    char b1[21], b2[21], b3[21];
+    snprintf(b1, 21, "%c %s", (parkSel == 0) ? '>' : ' ', opt0);
+    snprintf(b2, 21, "%c %s", (parkSel == 1) ? '>' : ' ', opt1);
+    snprintf(b3, 21, "%c %s", (parkSel == 2) ? '>' : ' ', opt2);
+    
+    lcdLine(1, b1);
+    lcdLine(2, b2);
+    lcdLine(3, b3);
 }
 
 void sendLocationToMega() {
@@ -2288,11 +2307,28 @@ void handleButtons(){
 
         case UI_PARKING:
             if(left)  { uiState=UI_SETTINGS; }
+            if(up)    { parkSel=(parkSel-1+3)%3; }
+            if(down)  { parkSel=(parkSel+1)%3; }
             if(enter) {
-                cmd_parking();
-                isParkingWorkflow = true;
-                showMessage(" PARKING EN COURS..", "                    ",
-                            1500, UI_SLEWING);
+                if (parkSel == 0) { // Park
+                    String sa = mega_cmd(":GQa#");
+                    String sz = mega_cmd(":GQz#");
+                    if (sa.length() > 0) m_parkAlt = sa.toFloat();
+                    if (sz.length() > 0) m_parkAz = sz.toFloat();
+                    cmd_parking();
+                    isParkingWorkflow = true;
+                    showMessage(" PARKING EN COURS..", "                    ", 1500, UI_SLEWING);
+                } else if (parkSel == 1) { // Unpark
+                    mega_cmd(":hW#");
+                    m_isPaused = false;
+                    showMessage(isEnglish ? " MOUNT UNPARKED   " : " MONTURE DEPARQUEE", "                    ", 1500, UI_MAIN);
+                } else if (parkSel == 2) { // Set Pos
+                    // Sent current Alt as Park Alt
+                    mega_cmd(":SQa" + String(m_currentAlt, 4));
+                    // Sent current Az as Park Az
+                    mega_cmd(":SQz" + String(m_currentAz, 4));
+                    showMessage(isEnglish ? " PARK POS SAVED   " : " POS PARK ENREG.  ", "                    ", 1500, UI_MAIN);
+                }
             }
             break;
 
