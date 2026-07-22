@@ -79,7 +79,7 @@ static bool timeSet = false;           // [FIX 25] False par defaut jusqu'au fix
 
 
 // === MODELE DE POINTAGE N-ETOILES (IDW) ===
-#define MAX_SYNC_POINTS 20
+#define MAX_SYNC_POINTS 50
 struct SyncPoint {
   double ideal_az;
   double ideal_alt;
@@ -1683,14 +1683,34 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     double ideal_alt, ideal_az;
     ideal_rd2aa_at(ra_h, dec_d, &ideal_alt, &ideal_az, 0.0);
     
-    syncPoints[syncIndex].ideal_az = ideal_az;
-    syncPoints[syncIndex].ideal_alt = ideal_alt;
-    syncPoints[syncIndex].mach_az = fmod(currAz, 360.0);
-    if(syncPoints[syncIndex].mach_az < 0) syncPoints[syncIndex].mach_az += 360.0;
-    syncPoints[syncIndex].mach_alt = currAlt;
+    double mach_az_norm = fmod(currAz, 360.0);
+    if(mach_az_norm < 0) mach_az_norm += 360.0;
+
+    int foundIdx = -1;
+    for(int i=0; i<numSyncPoints; i++) {
+        double d_alt = ideal_alt - syncPoints[i].ideal_alt;
+        double d_az = ideal_az - syncPoints[i].ideal_az;
+        if(d_az > 180.0) d_az -= 360.0;
+        if(d_az < -180.0) d_az += 360.0;
+        if(d_alt*d_alt + d_az*d_az < 0.0001) {
+            foundIdx = i;
+            break;
+        }
+    }
     
-    syncIndex = (syncIndex + 1) % MAX_SYNC_POINTS;
-    if (numSyncPoints < MAX_SYNC_POINTS) numSyncPoints++;
+    if (foundIdx >= 0) {
+        // Met à jour le point existant
+        syncPoints[foundIdx].mach_az = mach_az_norm;
+        syncPoints[foundIdx].mach_alt = currAlt;
+    } else {
+        // Ajoute un nouveau point
+        syncPoints[syncIndex].ideal_az = ideal_az;
+        syncPoints[syncIndex].ideal_alt = ideal_alt;
+        syncPoints[syncIndex].mach_az = mach_az_norm;
+        syncPoints[syncIndex].mach_alt = currAlt;
+        syncIndex = (syncIndex + 1) % MAX_SYNC_POINTS;
+        if (numSyncPoints < MAX_SYNC_POINTS) numSyncPoints++;
+    }
     
     currRA=inRA; currDEC=inDEC;
     trkRA=ra_h; trkDec=dec_d; 
