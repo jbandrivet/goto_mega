@@ -1257,22 +1257,40 @@ String mega_cmd(const String &cmd, bool needsReply=true){
     Serial1.print(cmd);
     Serial1.print('#');
     if(!needsReply) return "";
-    String resp="";
+    
+    char resp_buf[128];
+    int resp_len = 0;
+    
     unsigned long t0=millis();
     while(millis()-t0 < TEENSY_TIMEOUT_MS){
         readButtons(); // Keep scanning buttons while waiting!
         while(Serial1.available()){
             char c=(char)Serial1.read();
-            if(c=='#') return resp;
-            resp+=c;
-            if (cmd.startsWith(":S") && !cmd.startsWith(":SC") && !cmd.startsWith(":SL") && !cmd.startsWith(":SG") && resp.length() == 1) {
-                if (resp[0] == '0' || resp[0] == '1') return resp;
+            if(c=='#') {
+                resp_buf[resp_len] = '\0';
+                return String(resp_buf);
             }
-            if (cmd == ":MS" && resp == "0") return resp;
-            if (cmd == ":Q" && resp == "0") return resp;
+            if (resp_len < 127) {
+                resp_buf[resp_len++] = c;
+            }
+            if (cmd.startsWith(":S") && !cmd.startsWith(":SC") && !cmd.startsWith(":SL") && !cmd.startsWith(":SG") && resp_len == 1) {
+                if (resp_buf[0] == '0' || resp_buf[0] == '1') {
+                    resp_buf[resp_len] = '\0';
+                    return String(resp_buf);
+                }
+            }
+            if (cmd == ":MS" && resp_len == 1 && resp_buf[0] == '0') {
+                resp_buf[resp_len] = '\0';
+                return String(resp_buf);
+            }
+            if (cmd == ":Q" && resp_len == 1 && resp_buf[0] == '0') {
+                resp_buf[resp_len] = '\0';
+                return String(resp_buf);
+            }
         }
     }
-    return resp; // Return whatever we received instead of ""!
+    resp_buf[resp_len] = '\0';
+    return String(resp_buf); // Return whatever we received instead of ""!
 }
 
 String formatRA(double ra_h){
