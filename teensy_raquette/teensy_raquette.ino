@@ -1166,7 +1166,7 @@ enum UIState {
     UI_MOUNT, UI_RATIO_AZ, UI_RATIO_ALT, UI_BEEP, UI_OFFLINE,
     UI_MESSAGE, UI_EDIT_TIME, UI_EDIT_LOCATION, UI_MENU_SELECT,
     UI_MOTOR_POWER, UI_LANGUAGE, UI_ALIGN_CENTER, UI_GPS, UI_COORD_MODE,
-    UI_CUSTOM_GOTO
+    UI_CUSTOM_GOTO, UI_SPIRAL
 };
 UIState uiState = UI_MAIN;
 
@@ -1882,6 +1882,7 @@ void printSettings() {
         isEnglish ? "GoTo Custom" : "GoTo Manuel",
         isEnglish ? "Parking" : "Parking", 
         m_isPaused ? (isEnglish ? "Resume Track" : "Reprendre Suivi") : (isEnglish ? "Pause Track" : "Pause Suivi"),
+        isEnglish ? "Spiral Search" : "Rech. Spirale", 
         isEnglish ? "Motor Power" : "Alim Moteurs", 
         isEnglish ? "GoTo Speed" : "Vitesse GoTo", 
         "Buzzer", 
@@ -1898,7 +1899,7 @@ void printSettings() {
     
     char b1[21], b2[21], b3[21];
     int start = settingsSel;
-    if (start > 16 - 3) start = 16 - 3;
+    if (start > 17 - 3) start = 17 - 3;
     
     snprintf(b1, 21, "%c %s", (settingsSel == start) ? '>' : ' ', opts[start]);
     snprintf(b2, 21, "%c %s", (settingsSel == start + 1) ? '>' : ' ', opts[start + 1]);
@@ -1965,6 +1966,12 @@ void refreshLcd(){
         case UI_OBJECT_LIST: printObjectList(); break;
         case UI_OBJECT_INFO: printObjectInfo(); break;
         case UI_SLEWING:     printSlewing();    break;
+        case UI_SPIRAL:
+            lcdLine(0, isEnglish ? "[ SPIRAL SEARCH ]" : "[ RECH. SPIRALE ]");
+            lcdLine(1, isEnglish ? "  Searching...  " : "  En cours...   ");
+            lcdLine(2, "");
+            lcdLine(3, isEnglish ? "[<] Cancel Search" : "[<] Annuler     ");
+            break;
         case UI_SPEED:       printSpeed();      break;
         case UI_SETTINGS:    printSettings();   break;
         case UI_ALIGN:       printAlign();      break;
@@ -2324,10 +2331,13 @@ void handleButtons(){
         case UI_SLEWING:
             if(enter||left){ cmd_stop(); uiState=UI_MAIN; isParkingWorkflow=false; }
             break;
+        case UI_SPIRAL:
+            if(enter||left){ mega_cmd(":XS0#", false); mega_cmd(":Q#", false); uiState=UI_MAIN; }
+            break;
         case UI_SETTINGS:
             if(left)       { cmd_stop(); uiState=UI_MAIN; }
-            if(up)         { settingsSel=(settingsSel-1+16)%16; }
-            if(down)       { settingsSel=(settingsSel+1)%16; }
+            if(up)         { settingsSel=(settingsSel-1+17)%17; }
+            if(down)       { settingsSel=(settingsSel+1)%17; }
             if(right||enter){
                 if(settingsSel==0) { cmd_stop(); currentCat=CAT_MESSIER; objectIndex=0; uiState=UI_CAT_SELECT; }
                 else if(settingsSel==1) {
@@ -2368,18 +2378,19 @@ void handleButtons(){
                         }
                     }
                 }
-                if(settingsSel==4) { temp_motorPowerOn = motorPowerOn; uiState=UI_MOTOR_POWER; }
-                if(settingsSel==5) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
-                if(settingsSel==6) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
-                if(settingsSel==7) uiState=UI_ALIGN;
-                if(settingsSel==8) { temp_mountType = mountType; uiState=UI_MOUNT; }
-                if(settingsSel==9) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
-                if(settingsSel==10) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
-                if(settingsSel==11) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_TIME; }
-                if(settingsSel==12) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
-                if(settingsSel==13) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
-                if(settingsSel==14) { temp_gpsEnabled = gpsEnabled; uiState=UI_GPS; }
-                if(settingsSel==15) { temp_displayRaDec = displayRaDec; uiState=UI_COORD_MODE; }
+                else if(settingsSel==4) { mega_cmd(":XS1#", false); uiState=UI_SPIRAL; }
+                else if(settingsSel==5) { temp_motorPowerOn = motorPowerOn; uiState=UI_MOTOR_POWER; }
+                else if(settingsSel==6) { temp_slewSpeed = m_slewSpeed; uiState=UI_SPEED; }
+                else if(settingsSel==7) { temp_buzzerOn = buzzerOn; uiState=UI_BEEP; }
+                else if(settingsSel==8) uiState=UI_ALIGN;
+                else if(settingsSel==9) { temp_mountType = mountType; uiState=UI_MOUNT; }
+                else if(settingsSel==10) { temp_gearRatioAZ = gearRatioAZ; uiState=UI_RATIO_AZ; }
+                else if(settingsSel==11) { temp_gearRatioALT = gearRatioALT; uiState=UI_RATIO_ALT; }
+                else if(settingsSel==12) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_TIME; }
+                else if(settingsSel==13) { syncDataFromMega(); editSel=0; uiState=UI_EDIT_LOCATION; }
+                else if(settingsSel==14) { temp_isEnglish = isEnglish; uiState=UI_LANGUAGE; }
+                else if(settingsSel==15) { temp_gpsEnabled = gpsEnabled; uiState=UI_GPS; }
+                else if(settingsSel==16) { temp_displayRaDec = displayRaDec; uiState=UI_COORD_MODE; }
             }
             break;
 

@@ -123,6 +123,13 @@ static unsigned long lastAltStepUs = 0;
 static volatile int8_t azMove=0, altMove=0; // Volatile because read in ISR
 static unsigned long lastSlowAz=0, lastSlowAlt=0;
 
+// === SPIRAL SEARCH ===
+static bool spiralActive = false;
+static unsigned long spiralNextMs = 0;
+static int spiralCurrentStep = 0;
+static int spiralDirection = 0; 
+static int spiralSegmentLength = 1;
+
 // === PERSISTENCE EEPROM ===
 const uint16_t EEPROM_ADDR_MAGIC    = 0;
 const uint16_t EEPROM_ADDR_PARKED   = 1;
@@ -1551,7 +1558,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       return;
     }
     if (alarmActive) return;
-    enableMotors(true); parked=false;
+    enableMotors(true); parked=false; spiralActive=false;
     switch(c2){
       case 'n':altMove= 1; break; case 's':altMove=-1; break;
       case 'e':azMove =-1; break; case 'w':azMove = 1; break;
@@ -1560,6 +1567,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   }
 
   if(c1=='Q'){
+    spiralActive = false;
     if(c2=='n'||c2=='s')altMove=0;
     else if(c2=='e'||c2=='w')azMove=0;
     else { azMove=0; altMove=0; }
@@ -1591,6 +1599,22 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   }
 
   
+  if(c1=='X'&&c2=='S'){
+    if(c3=='1') { 
+        spiralActive = true; 
+        spiralDirection = 0;
+        spiralSegmentLength = 1;
+        spiralCurrentStep = 0;
+        spiralNextMs = millis();
+        out.write('1'); return; 
+    }
+    if(c3=='0') { 
+        spiralActive = false;
+        azMove = 0; altMove = 0;
+        out.write('1'); return; 
+    }
+  }
+
   // Commands for Derotator and Focus
   if(c1=='X'&&c2=='D'){
     if(c3=='e') { derotEnabled=(cmd[4]=='1'); saveStateToEEPROM(); out.write('1'); return; }
@@ -2117,6 +2141,27 @@ static void serveStream(Stream& in, Print& out, char* buf, uint8_t& bi) {
 void loop() {
   clk();
   handleGPS(); // [ADD] On ecoute le GPS et on met a l'heure
+
+  // === SPIRAL SEARCH LOGIC ===
+  if (spiralActive) {
+    if (millis() >= spiralNextMs) {
+      azMove = 0; altMove = 0;
+      if (spiralDirection == 0) azMove = -1; // East / Right
+      else if (spiralDirection == 1) altMove = 1; // North / Up
+      else if (spiralDirection == 2) azMove = 1;  // West / Left
+      else if (spiralDirection == 3) altMove = -1; // South / Down
+      
+      unsigned long duration = spiralSegmentLength * 1000UL; // 1s per segment unit
+      spiralNextMs = millis() + duration;
+      
+      spiralDirection = (spiralDirection + 1) % 4;
+      spiralCurrentStep++;
+      if (spiralCurrentStep >= 2) {
+        spiralCurrentStep = 0;
+        spiralSegmentLength++;
+      }
+    }
+  }
 
   // Mouvement lent (boutons E/W/N/S)
   if(!slewing && !parked){
