@@ -677,18 +677,37 @@ static void rd2aa_same_pier(double ra, double dec, double *alt, double *az) {
 
 // ======================== MOTEURS ==========================
 
+// Largeur d'impulsion PUL. 10 us est tres conservateur : les DM542/DM556/
+// DM860 acceptent 2,5 us, les TB6600 2,2 us. Descendre a 3-5 us libere
+// autant de budget dans l'ISR et dans la boucle de goto. Valeur laissee a
+// 10 pour ne rien changer au comportement existant.
+#ifndef STEP_PULSE_US
+#define STEP_PULSE_US 10
+#endif
+#define DIR_SETUP_US  5   // etablissement DIR avant PUL (drivers externes)
+
 static inline void stepPulse(uint8_t pin) {
   if (pin == 2) {
     PORTE |= (1 << 4);
-    delayMicroseconds(10);
+    delayMicroseconds(STEP_PULSE_US);
     PORTE &= ~(1 << 4);
   } else if (pin == 5) {
     PORTE |= (1 << 3);
-    delayMicroseconds(10);
+    delayMicroseconds(STEP_PULSE_US);
     PORTE &= ~(1 << 3);
   } else {
-    digitalWrite(pin,HIGH); delayMicroseconds(10); digitalWrite(pin,LOW);
+    digitalWrite(pin,HIGH); delayMicroseconds(STEP_PULSE_US); digitalWrite(pin,LOW);
   }
+}
+
+// Ecriture DIR en acces direct au port, dans le meme esprit que stepPulse.
+// Bits constants => avr-gcc emet sbi/cbi, atomique donc sur d'etre appele
+// depuis l'ISR. Repli sur digitalWrite (deja protege par cli/sei) si les
+// broches sont reaffectees.
+static inline void dirWrite(uint8_t pin, bool level) {
+  if (pin == 3)      { if (level) PORTE |= (1 << 5); else PORTE &= ~(1 << 5); }
+  else if (pin == 6) { if (level) PORTH |= (1 << 3); else PORTH &= ~(1 << 3); }
+  else               { digitalWrite(pin, level ? HIGH : LOW); }
 }
 
 static void enableMotors(bool en) {
@@ -966,37 +985,87 @@ static int slewToAA(double tAlt, double tAz) {
 
 // ======================== SUIVI (ISR TIMER 1 @ 10 kHz) ============================
 
-static volatile unsigned long az_accum = 0;
-static volatile unsigned long alt_accum = 0;
+static volatile long az_accum = 0;
+static volatile long alt_accum = 0;
 static volatile unsigned long az_add = 0;
 static volatile unsigned long alt_add = 0;
 static volatile int8_t isr_az_dir = 0;
 static volatile int8_t isr_alt_dir = 0;
 
+// ---------------------- GUIDAGE IMPULSIONNEL (non bloquant) ----------------
+// Voir teensy_monture.ino : meme correctif, memes semantiques.
+#define ISR_HZ             10000UL      // = 16 MHz / (8 * (OCR1A+1)), OCR1A=199
+#define SIDEREAL_ARCSEC_S  15.0410686
+
+static double guideRate = 0.5;          // x sideral
+
+static volatile long   guideTicksAz  = 0;
+static volatile long   guideTicksAlt = 0;
+static volatile long   guideAddAz    = 0;
+static volatile long   guideAddAlt   = 0;
+static volatile bool   guidePendingRebase = false;
+static volatile int8_t lastDirAz  = 0;
+static volatile int8_t lastDirAlt = 0;
+
+// Seul point du code qui touche DIR/PUL pendant suivi et guidage.
+static inline void stepAxis(uint8_t dirPin, uint8_t stepPin, int8_t dir,
+                            bool reversed, volatile int8_t *lastDir) {
+  if (dir != *lastDir) {
+    dirWrite(dirPin, ((dir > 0) ^ reversed));
+    *lastDir = dir;
+    delayMicroseconds(DIR_SETUP_US);
+  }
+  stepPulse(stepPin);
+}
+
+
 ISR(TIMER1_COMPA_vect) {
-  if (tracking && !slewing) {
-    if (azMove == 0 && az_add > 0) {
-      az_accum += az_add;
-      if (az_accum >= 1000000UL) {
-        az_accum -= 1000000UL;
-        digitalWrite(AZ_DIR, (isr_az_dir > 0) ^ azReversed ? HIGH : LOW);
-        stepPulse(AZ_STEP);
-        azPos += isr_az_dir;
+  const bool motionOK = tracking && !slewing && !alarmActive;
+
+  // ---------------------------- Axe AZ / AD ---------------------------------
+  if (azMove == 0) {
+    long net = 0;
+    if (motionOK && az_add > 0) net = (long)az_add * isr_az_dir;
+    if (motionOK && guideTicksAz > 0) {
+      net += guideAddAz;
+      if (--guideTicksAz == 0) { guideAddAz = 0; guidePendingRebase = true; }
+    }
+    if (net != 0) {
+      az_accum += net;
+      if (az_accum >= 1000000L) {
+        az_accum -= 1000000L;
+        stepAxis(AZ_DIR, AZ_STEP, 1, azReversed, &lastDirAz);
+        azPos += 1;
+      } else if (az_accum <= -1000000L) {
+        az_accum += 1000000L;
+        stepAxis(AZ_DIR, AZ_STEP, -1, azReversed, &lastDirAz);
+        azPos -= 1;
       }
     }
-    if (altMove == 0 && alt_add > 0) {
-      alt_accum += alt_add;
-      if (alt_accum >= 1000000UL) {
-        alt_accum -= 1000000UL;
-        
-        long nextAlt = altPos + isr_alt_dir;
+  }
+
+  // --------------------------- Axe ALT / DEC --------------------------------
+  if (altMove == 0) {
+    long net = 0;
+    if (motionOK && alt_add > 0) net = (long)alt_add * isr_alt_dir;
+    if (motionOK && guideTicksAlt > 0) {
+      net += guideAddAlt;
+      if (--guideTicksAlt == 0) { guideAddAlt = 0; guidePendingRebase = true; }
+    }
+    if (net != 0) {
+      alt_accum += net;
+      int8_t d = 0;
+      if (alt_accum >= 1000000L)       { alt_accum -= 1000000L; d =  1; }
+      else if (alt_accum <= -1000000L) { alt_accum += 1000000L; d = -1; }
+      if (d != 0) {
+        long nextAlt = altPos + d;
         double nA = (double)nextAlt / ALT_PPD;
         if (mountType == 0 && (nA < ALT_MIN || nA > ALT_MAX)) {
           limitHit = true;
           tracking = false;
+          guideTicksAlt = 0; guideAddAlt = 0;
         } else {
-          digitalWrite(ALT_DIR, (isr_alt_dir > 0) ^ altReversed ? HIGH : LOW);
-          stepPulse(ALT_STEP);
+          stepAxis(ALT_DIR, ALT_STEP, d, altReversed, &lastDirAlt);
           altPos = nextAlt;
         }
       }
@@ -1049,6 +1118,22 @@ static void doTrack() {
   }
   if(millis()-lastTrkMs<200)return;
   lastTrkMs=millis();
+
+  // Recale la cible celeste sur la position atteinte apres guidage, sans
+  // purger le filtre de lissage (contrairement a force_tracking_rebase).
+  if (guidePendingRebase) {
+    noInterrupts();
+    bool busy = (guideTicksAz > 0 || guideTicksAlt > 0);
+    if (!busy) guidePendingRebase = false;
+    interrupts();
+    if (!busy) {
+      guiding = false;
+      updatePos();
+      trkRA  = (double)currRA  / 3600.0;
+      trkDec = (double)currDEC / 3600.0;
+      last_full_trig_ms = 0;
+    }
+  }
 
   double physAlt = getPhysicalAlt();
   if (physAlt < ALT_MIN || (mountType == 0 && physAlt > ALT_MAX)) {
@@ -1516,46 +1601,29 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       out.write('1'); return;
     }
     if(c2=='g' && ci>=4){
-      if (alarmActive) return;
+      if (alarmActive || slewing) return;
       char dir=cmd[3]; unsigned long ms=0;
       for(uint8_t i=4;i<ci;i++) if(cmd[i]>='0'&&cmd[i]<='9') ms=ms*10+(cmd[i]-'0');
       if(ms>5000)ms=5000; if(ms==0)return;
-      enableMotors(true); guiding=true;
-      unsigned long gDelay=STEP_DELAY_SLOW/2;
-      unsigned long steps=(ms*1000UL)/gDelay; if(steps==0)steps=1;
+      enableMotors(true);
+
+      long ticks  = (long)((ms * ISR_HZ) / 1000UL);
+      long addAz  = (long)(guideRate * SIDEREAL_ARCSEC_S * AZ_PPD  / 3600.0 * 100.0);
+      long addAlt = (long)(guideRate * SIDEREAL_ARCSEC_S * ALT_PPD / 3600.0 * 100.0);
+      if (addAz  < 1) addAz  = 1;
+      if (addAlt < 1) addAlt = 1;
+
+      noInterrupts();
       switch(dir){
-        case 'n': {
-          long maxAltPos = (long)(ALT_MAX * ALT_PPD);
-          if(altPos + (long)steps > maxAltPos) {
-            long room = maxAltPos - altPos;
-            steps = (room > 0) ? (unsigned long)room : 0;
-          }
-          if(steps == 0) { guiding=false; return; }
-          digitalWrite(ALT_DIR, altReversed ? LOW : HIGH);
-          for(unsigned long i=0;i<steps;i++){stepPulse(ALT_STEP);delayMicroseconds(gDelay);}
-          altPos+=steps; break;
-        }
-        case 's': {
-          long minAltPos = (long)(ALT_MIN * ALT_PPD);
-          if(altPos - (long)steps < minAltPos) {
-            long room = altPos - minAltPos;
-            steps = (room > 0) ? (unsigned long)room : 0;
-          }
-          if(steps == 0) { guiding=false; return; }
-          digitalWrite(ALT_DIR, altReversed ? HIGH : LOW);
-          for(unsigned long i=0;i<steps;i++){stepPulse(ALT_STEP);delayMicroseconds(gDelay);}
-          altPos-=steps; break;
-        }
-        case 'e': digitalWrite(AZ_DIR, azReversed ? HIGH : LOW);
-          for(unsigned long i=0;i<steps;i++){stepPulse(AZ_STEP);delayMicroseconds(gDelay);}
-          azPos-=steps; break;
-        case 'w': digitalWrite(AZ_DIR, azReversed ? LOW : HIGH);
-          for(unsigned long i=0;i<steps;i++){stepPulse(AZ_STEP);delayMicroseconds(gDelay);}
-          azPos+=steps; break;
+        case 'n': guideAddAlt =  addAlt; guideTicksAlt = ticks; break;
+        case 's': guideAddAlt = -addAlt; guideTicksAlt = ticks; break;
+        case 'w': guideAddAz  =  addAz;  guideTicksAz  = ticks; break;
+        case 'e': guideAddAz  = -addAz;  guideTicksAz  = ticks; break;
+        default:  interrupts(); return;
       }
-      guiding=false; updatePos(); 
-      if (tracking) force_tracking_rebase = true;
-      return;
+      guiding = true;
+      interrupts();
+      return;   // non bloquant
     }
     if (alarmActive) return;
     enableMotors(true); parked=false; spiralActive=false;
