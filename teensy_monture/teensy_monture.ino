@@ -1755,6 +1755,14 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       if (addAz  < 1) addAz  = 1;
       if (addAlt < 1) addAlt = 1;
 
+      // Butees d'altitude : l'ancien handler clampait le nombre de pas contre
+      // ALT_MIN/ALT_MAX pour TOUS les types de monture. C'etait un non-sens en
+      // equatorial, ou l'axe "alt" porte la declinaison : on bornait une DEC
+      // avec des limites d'horizon. Le controle est desormais celui de l'ISR,
+      // volontairement restreint a mountType == 0 (AltAz), seul cas ou l'axe
+      // represente reellement une hauteur. En equatorial, la protection est
+      // assuree en amont par la surveillance de l'altitude physique dans
+      // doTrack(), qui coupe le suivi sous ALT_MIN.
       noInterrupts();
       switch(dir){
         case 'n': guideAddAlt =  addAlt; guideTicksAlt = ticks; break;
