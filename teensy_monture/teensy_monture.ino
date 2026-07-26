@@ -814,6 +814,53 @@ static inline void stepPulse(uint8_t pin) {
   digitalWriteFast(pin, LOW);
 }
 
+#define DIR_SETUP_US  5   // etablissement DIR avant PUL (DM556/DM860)
+#define STEP_PULSE_US 3   // largeur d'impulsion PUL cote ISR
+
+// ------------------- DIRECTION DES AXES : POINT UNIQUE ---------------------
+// Toute ecriture de AZ_DIR / ALT_DIR passe par setDirAz() / setDirAlt() :
+// ISR de suivi, guidage, GOTO et mouvement manuel. Rien d'autre ne doit
+// toucher ces broches, sinon le cache ci-dessous devient faux et l'axe part
+// a l'envers sans que personne ne le detecte (le compteur de pas, lui,
+// continue de compter dans le bon sens).
+//
+// On memorise le NIVEAU reellement ecrit, et non la direction logique : si
+// azReversed / altReversed change en cours de session, le niveau recalcule
+// differe du cache et la broche est bien reecrite.
+// -1 = etat inconnu depuis le boot, force la premiere ecriture.
+static volatile int8_t lastLvlAz  = -1;
+static volatile int8_t lastLvlAlt = -1;
+
+static inline void setDirAz(int8_t dir) {
+  int8_t lvl = ((dir > 0) ^ azReversed) ? 1 : 0;
+  if (lvl == lastLvlAz) return;        // deja au bon niveau : pas de delai
+  digitalWrite(AZ_DIR, lvl ? HIGH : LOW);
+  lastLvlAz = lvl;
+  delayMicroseconds(DIR_SETUP_US);     // etablissement avant le prochain PUL
+}
+
+static inline void setDirAlt(int8_t dir) {
+  int8_t lvl = ((dir > 0) ^ altReversed) ? 1 : 0;
+  if (lvl == lastLvlAlt) return;
+  digitalWrite(ALT_DIR, lvl ? HIGH : LOW);
+  lastLvlAlt = lvl;
+  delayMicroseconds(DIR_SETUP_US);
+}
+
+static inline void stepAxisAz(int8_t dir) {
+  setDirAz(dir);
+  digitalWriteFast(AZ_STEP, HIGH);
+  delayMicroseconds(STEP_PULSE_US);
+  digitalWriteFast(AZ_STEP, LOW);
+}
+
+static inline void stepAxisAlt(int8_t dir) {
+  setDirAlt(dir);
+  digitalWriteFast(ALT_STEP, HIGH);
+  delayMicroseconds(STEP_PULSE_US);
+  digitalWriteFast(ALT_STEP, LOW);
+}
+
 static void enableMotors(bool en) {
   if (alarmActive && en) {
     digitalWrite(AZ_EN, HIGH);
@@ -922,9 +969,6 @@ static int slewToAA(double tAlt, double tAz) {
   unsigned long maxS=max(aAS,aLS);
   if(maxS==0)return 1;
 
-  digitalWrite(AZ_DIR, (azS>=0) ^ azReversed ? HIGH : LOW);
-  digitalWrite(ALT_DIR, (altS>=0) ^ altReversed ? HIGH : LOW);
-
   long startRA=currRA, startDEC=currDEC;
   long endRA, endDEC;
   mach2rd(tAlt, tAz, &endRA, &endDEC);
@@ -935,6 +979,10 @@ static int slewToAA(double tAlt, double tAz) {
 
   long azStart=azPos, altStart=altPos;
   enableMotors(true); slewing=true;
+  // DIR pose apres slewing=true : tant que le drapeau n'est pas leve, l'ISR
+  // de suivi peut encore emettre un pas et reprendre la main sur la broche.
+  setDirAz(azS >= 0 ? 1 : -1);
+  setDirAlt(altS >= 0 ? 1 : -1);
   digitalWrite(LED_BUILTIN,HIGH);
 
   unsigned long minDelay = stepDelaySlew;
@@ -1089,9 +1137,7 @@ static volatile int8_t isr_alt_dir = 0;
 // increment signe dans l'accumulateur de l'ISR. Plus de course sur DIR, plus
 // de boucle bloquante, et la vitesse est derivee du sideral et des pas/degre.
 #define ISR_HZ             10000UL      // doit correspondre a trackingTimer.begin()
-#define SIDEREAL_ARCSEC_S  15.0410686   // vitesse ssiderale
-#define DIR_SETUP_US       5            // temps d'etablissement DIR (DM556/DM860)
-#define STEP_PULSE_US      3            // largeur d'impulsion PUL
+#define SIDEREAL_ARCSEC_S  15.0410686   // vitesse siderale
 
 static double guideRate = 0.5;          // x sideral (0.5 = standard PHD2/Ekos)
 
@@ -1100,22 +1146,6 @@ static volatile long   guideTicksAlt = 0;
 static volatile long   guideAddAz    = 0;   // increment signe, ppm de pas / tick
 static volatile long   guideAddAlt   = 0;
 static volatile bool   guidePendingRebase = false;
-static volatile int8_t lastDirAz  = 0;      // derniere direction ecrite sur DIR
-static volatile int8_t lastDirAlt = 0;
-
-// Emet un pas en respectant le temps d'etablissement de DIR. Seule cette
-// fonction (appelee depuis l'ISR) touche aux broches DIR/PUL pendant le suivi.
-static inline void stepAxis(uint8_t dirPin, uint8_t stepPin, int8_t dir,
-                            bool reversed, volatile int8_t *lastDir) {
-  if (dir != *lastDir) {
-    digitalWrite(dirPin, ((dir > 0) ^ reversed) ? HIGH : LOW);
-    *lastDir = dir;
-    delayMicroseconds(DIR_SETUP_US);
-  }
-  digitalWriteFast(stepPin, HIGH);
-  delayMicroseconds(STEP_PULSE_US);
-  digitalWriteFast(stepPin, LOW);
-}
 
 
 void doTrackingISR() {
@@ -1133,11 +1163,11 @@ void doTrackingISR() {
       az_accum += net;
       if (az_accum >= 1000000L) {
         az_accum -= 1000000L;
-        stepAxis(AZ_DIR, AZ_STEP, 1, azReversed, &lastDirAz);
+        stepAxisAz(1);
         azPos += 1;
       } else if (az_accum <= -1000000L) {
         az_accum += 1000000L;
-        stepAxis(AZ_DIR, AZ_STEP, -1, azReversed, &lastDirAz);
+        stepAxisAz(-1);
         azPos -= 1;
       }
     }
@@ -1164,7 +1194,7 @@ void doTrackingISR() {
           tracking = false;
           guideTicksAlt = 0; guideAddAlt = 0;
         } else {
-          stepAxis(ALT_DIR, ALT_STEP, d, altReversed, &lastDirAlt);
+          stepAxisAlt(d);
           altPos = nextAlt;
         }
       }
@@ -2396,7 +2426,7 @@ void loop() {
             if (azReady || altReady) {
                 if (azReady) {
                     lastSlowAz = nowUs;
-                    digitalWrite(AZ_DIR, (azActiveMove>0) ^ azReversed ? HIGH : LOW);
+                    setDirAz(azActiveMove);
                     stepPulse(AZ_STEP); azPos+=azActiveMove;
                 }
                 if (altReady) {
@@ -2408,7 +2438,7 @@ void loop() {
                     else if (nA > ALT_MAX && altActiveMove < 0) allowed = true;
                     
                     if(mountType >= 1 || allowed){
-                        digitalWrite(ALT_DIR, (altActiveMove>0) ^ altReversed ? HIGH : LOW);
+                        setDirAlt(altActiveMove);
                         stepPulse(ALT_STEP); altPos+=altActiveMove;
                     } else {
                         limitHit=true;
