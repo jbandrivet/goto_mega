@@ -1127,10 +1127,13 @@ static int slewToAA(double tAlt, double tAz) {
 // ======================== SUIVI (ISR IntervalTimer @ 10 kHz) ============================
 static volatile long az_accum = 0;
 static volatile long alt_accum = 0;
-static volatile unsigned long az_add = 0;
-static volatile unsigned long alt_add = 0;
-static volatile int8_t isr_az_dir = 0;
-static volatile int8_t isr_alt_dir = 0;
+// Increment signe ajoute a l'accumulateur a chaque tick, en ppm de pas.
+// Precalcule dans doTrack() : l'ISR ne fait plus qu'une addition. La paire
+// magnitude/sens d'origine imposait un produit 32 bits par +-1 a chaque tick,
+// soit un appel a __mulsi3 sur AVR, 10 000 fois par seconde et par axe, pour
+// des operandes qui ne changent que toutes les 200 ms.
+static volatile long az_add_s  = 0;
+static volatile long alt_add_s = 0;
 
 // ---------------------- GUIDAGE IMPULSIONNEL (non bloquant) ----------------
 // Le guidage n'ecrit plus jamais directement sur les broches : il injecte un
@@ -1175,7 +1178,7 @@ void doTrackingISR() {
   // ---------------------------- Axe AZ / AD ---------------------------------
   if (azMove == 0) {
     long net = guideNetAz;
-    if (motionOK && az_add > 0) net += (long)az_add * isr_az_dir;
+    if (motionOK) net += az_add_s;
     if (net != 0) {
       az_accum += net;
       if (az_accum >= 1000000L) {
@@ -1193,7 +1196,7 @@ void doTrackingISR() {
   // --------------------------- Axe ALT / DEC --------------------------------
   if (altMove == 0) {
     long net = guideNetAlt;
-    if (motionOK && alt_add > 0) net += (long)alt_add * isr_alt_dir;
+    if (motionOK) net += alt_add_s;
     if (net != 0) {
       alt_accum += net;
       int8_t d = 0;
@@ -1384,27 +1387,17 @@ static void doTrack() {
   else smooth_speed_alt = alpha * corr_speed_alt + (1.0 - alpha) * smooth_speed_alt;
   
   noInterrupts();
-  if (smooth_speed_az > 0.05) {
-    isr_az_dir = 1;
-    az_add = (unsigned long)(smooth_speed_az * 100.0);
-  } else if (smooth_speed_az < -0.05) {
-    isr_az_dir = -1;
-    az_add = (unsigned long)((-smooth_speed_az) * 100.0);
+  if (smooth_speed_az > 0.05 || smooth_speed_az < -0.05) {
+    az_add_s = (long)(smooth_speed_az * 100.0);
   } else {
-    isr_az_dir = 0;
-    az_add = 0;
+    az_add_s = 0;
     az_accum = 0;
   }
   
-  if (smooth_speed_alt > 0.05) {
-    isr_alt_dir = 1;
-    alt_add = (unsigned long)(smooth_speed_alt * 100.0);
-  } else if (smooth_speed_alt < -0.05) {
-    isr_alt_dir = -1;
-    alt_add = (unsigned long)((-smooth_speed_alt) * 100.0);
+  if (smooth_speed_alt > 0.05 || smooth_speed_alt < -0.05) {
+    alt_add_s = (long)(smooth_speed_alt * 100.0);
   } else {
-    isr_alt_dir = 0;
-    alt_add = 0;
+    alt_add_s = 0;
     alt_accum = 0;
   }
   interrupts();
