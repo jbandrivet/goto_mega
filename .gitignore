@@ -8,6 +8,7 @@ __pycache__/
 # Fichiers de test et logs
 scratch/
 patch_*.py
+fix*.py
 test_*.py
 sim_*.py
 revert_*.py
