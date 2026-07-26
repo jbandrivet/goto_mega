@@ -1414,11 +1414,33 @@ static void handleGX(const char* cmd, Print& out) {
   if(g1=='9'&&g2=='3'){ out.print((int)maxSlewRate); out.write('#'); return; }
   if(g1=='9'&&g2=='4'){ out.print(F("A#")); return; }
   if(g1=='9'&&(g2=='5'||g2=='6')){ out.print(F("0#")); return; }
-  if(g1=='9'&&g2=='A'){ out.print(F("0#")); return; }
-  if(g1=='9'&&g2=='B'){ out.print(F("89#")); return; }
-  if(g1=='9'&&g2=='C'){ out.print(F("-360#")); return; }
-  if(g1=='9'&&g2=='D'){ out.print(F("360#")); return; }
-  if(g1=='9'&&g2=='F'){ out.print((int)maxSlewRate); out.write('#'); return; }
+  // Plage :GX9A-9E : le driver INDI y lit la METEO, pas des limites d'axes.
+  //   :GX9A# -> WEATHER_TEMPERATURE  (plage declaree -40..85)
+  //   :GX9C# -> WEATHER_HUMIDITY     (plage declaree   0..100)
+  //   :GX9B# -> WEATHER_BAROMETER    (plage declaree   0..1500)
+  //   :GX9E# -> WEATHER_DEWPOINT     (plage declaree   0..100)
+  // On renvoyait 89 et -360, qui ressemblaient a des limites d'axes. -360 en
+  // humidite sort de la plage declaree, ce qui fait passer le parametre INDI
+  // en ALERT : le planificateur d'Ekos peut interrompre une session sur une
+  // alerte meteo. Ce n'etait donc pas seulement cosmetique.
+  //
+  // Il n'existe aucun moyen de declarer "pas de capteur" : le driver enregistre
+  // WEATHER_INTERFACE et lit ces quatre commandes a chaque cycle, sans garde.
+  // On renvoie donc 0, dans la plage pour ne pas declencher d'alerte, et
+  // suffisamment absurde (0 hPa) pour qu'un humain voie qu'il n'y a pas de
+  // mesure, plutot que des valeurs plausibles qui feraient croire a des vraies.
+  //
+  // Les vraies limites d'axes ne passent pas par ici : elles sont servies par
+  // :Gh# et :Go#, que le driver interroge effectivement. Rien dans le projet
+  // n'interrogeait :GX9B/9C/9D, ces valeurs n'etaient donc lues que par Ekos.
+  if(g1=='9'&&g2=='A'){ out.print(F("0#"));   return; }   // temperature
+  if(g1=='9'&&g2=='B'){ out.print(F("0#"));   return; }   // barometre
+  if(g1=='9'&&g2=='C'){ out.print(F("0#"));   return; }   // humidite
+  if(g1=='9'&&g2=='D'){ out.print(F("0#"));   return; }   // inutilise du driver
+  if(g1=='9'&&g2=='E'){ out.print(F("0#"));   return; }   // point de rosee
+  // :GX9F# -> WEATHER_CPU_TEMPERATURE. Le driver documente -274 comme valeur
+  // "non lue" ; on renvoyait maxSlewRate, affiche tel quel en degres.
+  if(g1=='9'&&g2=='F'){ out.print(F("-274#")); return; }
   // :GXEM# : type de monture, interroge par le driver INDI a la connexion.
   // Doit passer AVANT le fourre-tout g1=='E' ci-dessous, qui l'avalait et
   // repondait "0#" : le driver tombait alors sur son cas par defaut (GEM)
