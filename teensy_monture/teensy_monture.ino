@@ -1946,7 +1946,22 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='T'&&c2=='Q'){ trackRate=0; out.write('1'); return; }
   if(c1=='T'&&c2=='L'){ trackRate=1; out.write('1'); return; }
   if(c1=='T'&&c2=='S'){ trackRate=2; out.write('1'); return; }
-  if(c1=='T'&&(c2=='R'||c2=='K'||c2=='r'||c2=='n'||c2=='+'||c2=='-')){ out.write('1'); return; }
+  // Commandes de suivi acquittees sans effet. Attention a la convention du
+  // driver INDI : sendOnStepCommand() renvoie (reponse == '0') et l'appelant
+  // teste !sendOnStepCommand(), donc c'est '1' qui fait passer l'interrupteur
+  // en OK. Une ABSENCE de reponse y arrive aussi, mais apres 2 s de timeout
+  // et un warning "Check connection" trompeur : d'ou ces bouchons.
+  //
+  // :T1#/:T2# (suivi mono-axe / bi-axes) : rien a selectionner ici, le nombre
+  // d'axes suivis decoule de la geometrie (les deux en AltAz, l'axe horaire
+  // seul en fourche equatoriale). Acquitter est donc exact.
+  if(c1=='T'&&(c2=='R'||c2=='K'||c2=='r'||c2=='n'||c2=='+'||c2=='-'
+               ||c2=='1'||c2=='2')){ out.write('1'); return; }
+  // :To# = compensation complete, refraction incluse. Non implementee (aucune
+  // correction de refraction dans ce firmware). On repond '0' plutot que '1' :
+  // l'interrupteur reste visible comme non valide cote Ekos au lieu d'afficher
+  // un mode inexistant. Pas de timeout non plus, puisqu'il y a une reponse.
+  if(c1=='T'&&c2=='o'){ out.write('0'); return; }
   if(c1=='A'&&c2=='P'){
     tracking=true; parked=false; enableMotors(true);
     if (trkRA == 0.0 && trkDec == 0.0) {
