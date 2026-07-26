@@ -1149,11 +1149,18 @@ class Mount:
                 gu=self._cmd(":GU")
                 if gu:
                     f=gu.rstrip('#')
+                    # 'P'/'G' ne sont plus ambigus : les lettres de type de
+                    # monture sont passées à 'E'/'K'/'A' côté firmware. Avant,
+                    # une ForkEq (lettre 'P') paraissait parquée en permanence
+                    # et une GermanEq (lettre 'G') paraissait guider sans fin.
                     self.state.parked            = 'P' in f
                     self.state.park_in_progress  = 'I' in f
                     self.state.at_home           = 'H' in f
                     self.state.guiding           = 'G' in f
-                    self.state.time_set          = 'F' not in f   # v5.1
+                    # Heure non réglée : '?' depuis le firmware v9.3. C'était
+                    # 'F', que le driver INDI lisait comme "Parking Failed" et
+                    # qui corrompait son code d'erreur en fin de chaîne.
+                    self.state.time_set          = '?' not in f
                     if 'N' in f: self.state.slewing = False
 
             gr=self._cmd(":GR"); gd=self._cmd(":GD")
@@ -1263,9 +1270,9 @@ class Mount:
     def detect_firmware(self):
         """Détecte le firmware (OnStep ou LX200 générique) à la connexion.
 
-        Critère : le format :GU# d'OnStep contient toujours soit 'N' soit 'n'
-        (slewing flag), suivi de 'p' ou 'P' (parked flag), avant le séparateur
-        '/A'. Un firmware non-OnStep répond généralement '0#' ou rien.
+        Critère : le format :GU# d'OnStep porte toujours le flag de parking,
+        'p' (non parqué) ou 'P' (parqué). Un firmware non-OnStep répond
+        généralement '0#' ou rien.
         """
         name = self._cmd(":GVP")
         ver  = self._cmd(":GVN")
@@ -1276,17 +1283,20 @@ class Mount:
         gu = self._cmd(":GU")
         if gu:
             f = gu.rstrip('#')
-            # Format OnStep attendu : commence par [Nn] suivi de [Pp]
-            self.state.is_onstep = (
-                len(f) >= 2
-                and f[0] in 'Nn'
-                and f[1] in 'Pp'
-            )
+            # Le flag de parking est le seul toujours émis : 'N' (pas de GOTO)
+            # et 'n' (suivi coupé) sont tous deux absents pendant un GOTO en
+            # suivi. L'ancien test exigeait [Nn] puis [Pp] en positions 0 et 1,
+            # ce qui échouait dès que le suivi était coupé — cas normal à la
+            # connexion : la chaîne commence alors par "nNp", donc f[1] valait
+            # 'N' et non 'p'.
+            self.state.is_onstep = any(c in f for c in 'pP')
         else:
             self.state.is_onstep = False
 
-        # Le nom contient "On-Step" ? c'est un autre indicateur fiable
-        if "on-step" in self.state.firmware_name.lower():
+        # Le nom du firmware est l'indicateur le plus fiable. Le test cherchait
+        # "on-step" dans le nom mis en minuscules, ce qui ne pouvait pas
+        # matcher "OnStep" (sans tiret) — la valeur que renvoie :GVP#.
+        if "onstep" in self.state.firmware_name.lower().replace('-', ''):
             self.state.is_onstep = True
 
         log.info(f"Firmware: {self.state.firmware_name} v{self.state.firmware_ver} "
