@@ -1409,7 +1409,7 @@ static void handleGX(const char* cmd, Print& out) {
   // Le driver lit :GX90# comme vitesse de guidage impulsionnel et l'affiche
   // dans GuideRate. Il renvoyait 15.0 (30x la valeur reelle).
   if(g1=='9'&&g2=='0'){ out.print(guideRate,2); out.write('#'); return; }
-  if(g1=='9'&&g2=='1'){ out.print(F("0.5#")); return; }
+  if(g1=='9'&&g2=='1'){ out.print(guideRate,2); out.write('#'); return; }
   if(g1=='9'&&g2=='2'){ out.print((int)maxSlewRate); out.write('#'); return; }
   if(g1=='9'&&g2=='3'){ out.print((int)maxSlewRate); out.write('#'); return; }
   if(g1=='9'&&g2=='4'){ out.print(F("A#")); return; }
@@ -1827,6 +1827,20 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='A'&&c2=='L'){ tracking=false; saveStateToEEPROM(); return; }
 
   if(c1=='R'){
+    // Extension GotoAndrivet : :Rg<x.xx># regle la vitesse de guidage
+    // impulsionnel, en multiple du sideral. Hors OnStep standard, ou la
+    // famille :R ne porte que les vitesses de slew et ne repond rien. Sans
+    // risque de desynchronisation : le driver INDI n'emet jamais cette
+    // commande (GuideRate y est declare IP_RO, donc en lecture seule), et
+    // le 'g' minuscule ne collisionne avec aucun :RG/:RC/:RM/:RS/:Rn.
+    // La valeur est relue par :GX90# et par la queue de :GU#, et prise en
+    // compte des l'impulsion :Mg suivante.
+    if(c2=='g'){
+      double r = atof(cmd+3);
+      if(r < 0.1 || r > 1.0){ out.write('0'); return; }
+      guideRate = r;
+      out.write('1'); return;
+    }
     switch(c2){
       case 'G':slowSpeed=2;break; case 'C':slowSpeed=4;break;
       case 'M':slowSpeed=8;break; case 'S':slowSpeed=16;break;
