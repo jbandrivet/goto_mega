@@ -105,7 +105,7 @@ static volatile bool slewing=false;  // Volatile because read in ISR
 static bool synced=false;
 static bool parked=false;
 static bool atHome=false;
-static bool guiding=false;
+static volatile bool guiding=false;   // ecrit aussi par l'ISR (fin d'impulsion)
 static volatile bool limitHit=false; // Volatile because modified in ISR
 static bool alarmActive = false;
 static bool buzzerEnabled = true;
@@ -1151,14 +1151,31 @@ static volatile bool   guidePendingRebase = false;
 void doTrackingISR() {
   const bool motionOK = tracking && !slewing && !alarmActive;
 
+  // Le decompte du guidage court quoi qu'il arrive. Si l'etat change en cours
+  // d'impulsion (suivi coupe, alarme levee, bouton de direction tenu), les
+  // ticks doivent quand meme s'ecouler : autrement ils restent armes
+  // indefiniment et l'impulsion repart au prochain changement d'etat. Seule
+  // la CONTRIBUTION au mouvement est conditionnee par motionOK.
+  long guideNetAz = 0, guideNetAlt = 0;
+  if (guideTicksAz > 0) {
+    if (motionOK && azMove == 0) guideNetAz = guideAddAz;
+    if (--guideTicksAz == 0) guideAddAz = 0;
+  }
+  if (guideTicksAlt > 0) {
+    if (motionOK && altMove == 0) guideNetAlt = guideAddAlt;
+    if (--guideTicksAlt == 0) guideAddAlt = 0;
+  }
+  // Fin d'impulsion : guiding retombe ici et non dans doTrack(), qui sort en
+  // amont des que le suivi est coupe et ne le verrait donc jamais.
+  if (guiding && guideTicksAz == 0 && guideTicksAlt == 0) {
+    guiding = false;
+    guidePendingRebase = true;
+  }
+
   // ---------------------------- Axe AZ / AD ---------------------------------
   if (azMove == 0) {
-    long net = 0;
-    if (motionOK && az_add > 0) net = (long)az_add * isr_az_dir;
-    if (motionOK && guideTicksAz > 0) {
-      net += guideAddAz;
-      if (--guideTicksAz == 0) { guideAddAz = 0; guidePendingRebase = true; }
-    }
+    long net = guideNetAz;
+    if (motionOK && az_add > 0) net += (long)az_add * isr_az_dir;
     if (net != 0) {
       az_accum += net;
       if (az_accum >= 1000000L) {
@@ -1175,12 +1192,8 @@ void doTrackingISR() {
 
   // --------------------------- Axe ALT / DEC --------------------------------
   if (altMove == 0) {
-    long net = 0;
-    if (motionOK && alt_add > 0) net = (long)alt_add * isr_alt_dir;
-    if (motionOK && guideTicksAlt > 0) {
-      net += guideAddAlt;
-      if (--guideTicksAlt == 0) { guideAddAlt = 0; guidePendingRebase = true; }
-    }
+    long net = guideNetAlt;
+    if (motionOK && alt_add > 0) net += (long)alt_add * isr_alt_dir;
     if (net != 0) {
       alt_accum += net;
       int8_t d = 0;
@@ -1192,7 +1205,15 @@ void doTrackingISR() {
         if (mountType == 0 && (nA < ALT_MIN || nA > ALT_MAX)) {
           limitHit = true;
           tracking = false;
+          // Butee : on avorte l'impulsion sur LES DEUX axes et on fait
+          // retomber guiding ici. tracking vient de passer a false, donc
+          // doTrack() sortira en amont et ne traitera pas le rebase ; on
+          // desarme aussi guidePendingRebase, il n'y a plus rien a recaler
+          // (la reprise du suivi repassera par trkStartLST == 0).
+          guideTicksAz  = 0; guideAddAz  = 0;
           guideTicksAlt = 0; guideAddAlt = 0;
+          guiding = false;
+          guidePendingRebase = false;
         } else {
           stepAxisAlt(d);
           altPos = nextAlt;
@@ -1725,7 +1746,10 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       out.write('1'); return;
     }
     if(c2=='g' && ci>=4){
-      if (alarmActive || slewing) return;
+      // Refuse hors suivi : l'ISR ne fait avancer le guidage que sous
+      // motionOK, une impulsion armee suivi coupe n'aurait aucun effet utile
+      // et PHD2/Ekos ne guident de toute facon jamais moteurs a l'arret.
+      if (alarmActive || slewing || !tracking) return;
       char dir=cmd[3]; unsigned long ms=0;
       for(uint8_t i=4;i<ci;i++) if(cmd[i]>='0'&&cmd[i]<='9') ms=ms*10+(cmd[i]-'0');
       if(ms>5000)ms=5000; if(ms==0)return;
