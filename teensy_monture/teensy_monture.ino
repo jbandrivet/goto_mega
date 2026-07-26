@@ -1425,6 +1425,38 @@ static void clk() {
 
 // ======================== :GU# ==============================
 
+// Index de vitesse de guidage attendu par le driver INDI : 0 = 0,25x,
+// 1 = 0,5x, 2 = 1x. On rend le plus proche de guideRate.
+static char guGuideRateIndex() {
+  if (guideRate < 0.375) return '0';
+  if (guideRate < 0.75)  return '1';
+  return '2';
+}
+
+// Index de vitesse de slew attendu par le driver :
+// 0=0,25x 1=0,5x 2=1x 3=2x 4=4x 5=8x 6=20x 7=48x 8=Half-Max 9=Max.
+// slowSpeed est un multiple du sideral (2/4/8/16 via :RG/:RC/:RM/:RS, ou 2n
+// via :Rn). On rend l'index dont la vitesse est la plus proche.
+static char guSlewRateIndex() {
+  if (slowSpeed <= 1)  return '2';
+  if (slowSpeed <= 3)  return '3';
+  if (slowSpeed <= 6)  return '4';
+  if (slowSpeed <= 13) return '5';
+  if (slowSpeed <= 33) return '6';
+  return '7';
+}
+
+// Chaine de statut OnStep.
+//
+// ATTENTION : le driver INDI lx200_OnStep cherche ces lettres par strstr()
+// sur toute la chaine. Chaque caractere emis ici est donc interprete selon SA
+// convention, ou qu'il se trouve. En particulier 'P' = parque et 'F' = echec
+// de parking : c'est pourquoi les lettres de type de monture sont 'E'/'K'/'A'
+// et pas 'G'/'P'/'A', et pourquoi l'heure non reglee est signalee par '?'.
+//
+// Les TROIS DERNIERS caracteres avant '#' sont lus positionnellement depuis
+// la fin : [-3] index de vitesse de guidage, [-2] index de vitesse de slew,
+// [-1] code d'erreur. Ne rien ajouter apres eux.
 static void sendGU(Print& out) {
   if(!tracking) out.write('n');
   if(!slewing)  out.write('N');
@@ -1432,10 +1464,11 @@ static void sendGU(Print& out) {
   if(atHome)    out.write('H');
   if(synced)    out.write('S');
   if(guiding)   out.write('G');
-  
-  if (mountType == 2) out.write('G');
-  else if (mountType == 1) out.write('P');
-  else out.write('A');
+
+  // Type de monture, convention du driver : E = GEM, K = fourche, A = AltAz.
+  if (mountType == 2)      out.write('E');
+  else if (mountType == 1) out.write('K');
+  else                     out.write('A');
   
   if (mountType == 2) {
     if (currAlt >= -90.0 && currAlt <= 90.0) out.write('e');
@@ -1443,12 +1476,15 @@ static void sendGU(Print& out) {
   } else {
     out.write('o'); 
   }
-  out.write('0'); 
-  out.write('0'); 
-  out.write('0'); 
+  // Extension GotoAndrivet : heure non reglee. Volontairement hors convention
+  // OnStep (le driver l'ignore) et place AVANT les chiffres de queue, pour ne
+  // pas etre relu comme code d'erreur. goto_andrivet.py cherche ce caractere.
+  if(!timeSet) out.write('?');
 
-  if(!timeSet) out.write('F');           
-  
+  out.write(guGuideRateIndex());
+  out.write(guSlewRateIndex());
+  out.write('0');                  // code d'erreur : ERR_NONE
+
   out.write('#');
 }
 
@@ -1470,7 +1506,9 @@ static void handleGX(const char* cmd, Print& out) {
     char b[12]; sprintf(b,"%02d/%02d/%02d#", um, ud, uy%100);
     out.print(b); return;
   }
-  if(g1=='9'&&g2=='0'){ out.print(F("15.0#")); return; }
+  // Le driver lit :GX90# comme vitesse de guidage impulsionnel et l'affiche
+  // dans GuideRate. Il renvoyait 15.0 (30x la valeur reelle).
+  if(g1=='9'&&g2=='0'){ out.print(guideRate,2); out.write('#'); return; }
   if(g1=='9'&&g2=='1'){ out.print(F("0.5#")); return; }
   if(g1=='9'&&g2=='2'){ out.print((int)maxSlewRate); out.write('#'); return; }
   if(g1=='9'&&g2=='3'){ out.print((int)maxSlewRate); out.write('#'); return; }
@@ -1481,6 +1519,16 @@ static void handleGX(const char* cmd, Print& out) {
   if(g1=='9'&&g2=='C'){ out.print(F("-360#")); return; }
   if(g1=='9'&&g2=='D'){ out.print(F("360#")); return; }
   if(g1=='9'&&g2=='F'){ out.print((int)maxSlewRate); out.write('#'); return; }
+  // :GXEM# : type de monture, interroge par le driver INDI a la connexion.
+  // Doit passer AVANT le fourre-tout g1=='E' ci-dessous, qui l'avalait et
+  // repondait "0#" : le driver tombait alors sur son cas par defaut (GEM)
+  // quel que soit le type reellement configure.
+  if(g1=='E'&&g2=='M'){
+    if (mountType == 2)      out.print(F("E#"));   // German Equatorial
+    else if (mountType == 1) out.print(F("K#"));   // Fork Equatorial
+    else                     out.print(F("A#"));   // AltAz
+    return;
+  }
   if(g1=='E'){ out.print(F("0#")); return; }
   if(g1=='F'){ out.print(F("20.0#")); return; }
   out.print(F("0#"));
