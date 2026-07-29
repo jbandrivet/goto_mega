@@ -405,12 +405,21 @@ class ConfigToolApp(tk.Tk):
         self.baud_menu["menu"].config(bg="#c0c0c0", fg="black", font=f_label)
         self.baud_menu.grid(row=0, column=3, padx=5, sticky="w")
 
+        self.lbl_board = tk.Label(conn_grid, text="Carte:", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_board.grid(row=0, column=4, sticky="e", padx=5)
+        self.board_var = tk.StringVar(value="Teensy 4.1")
+        self.board_menu = tk.OptionMenu(conn_grid, self.board_var, "Mega 2560", "Teensy 4.1", command=lambda _: self.update_speed_lbl())
+        self.board_menu.config(bg="#c0c0c0", fg="black", font=f_label, relief="raised", bd=2, activebackground="#d9d9d9", highlightthickness=0)
+        self.board_menu["menu"].config(bg="#c0c0c0", fg="black", font=f_label)
+        self.board_menu.grid(row=0, column=5, padx=5, sticky="w")
+
         self.conn_btn = tk.Button(conn_grid, text="Connect", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.toggle_connection, width=10)
-        self.conn_btn.grid(row=0, column=4, padx=10)
+        conn_grid.grid_columnconfigure(6, weight=1)
+        self.conn_btn.grid(row=0, column=6, padx=10)
 
         # Sunken status box
         status_frame = tk.Frame(conn_grid, bg="white", bd=2, relief="sunken", width=120, height=22)
-        status_frame.grid(row=0, column=5, padx=5)
+        status_frame.grid(row=0, column=7, padx=5)
         status_frame.pack_propagate(False)
         
         self.status_lbl = tk.Label(status_frame, text="Disconnected", bg="white", fg="red", font=f_label)
@@ -921,7 +930,8 @@ class ConfigToolApp(tk.Tk):
             az_ppd = (motor_steps * microstep * az_ratio) / 360.0
             
             if az_ppd > 0:
-                max_hw_speed = 1.0e6 / (az_ppd * 35.0)
+                min_delay = 5.0 if (hasattr(self, 'board_var') and self.board_var.get() == "Teensy 4.1") else 35.0
+                max_hw_speed = 1.0e6 / (az_ppd * min_delay)
                 limit = min(25.0, max_hw_speed)
                 
                 # Format to 1 decimal place to match slider resolution
