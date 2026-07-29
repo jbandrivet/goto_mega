@@ -1733,10 +1733,16 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   }
   if(c1=='G'&&c2=='L'){ sprintf(buf,"%02d:%02d:%02d#",dt_h,dt_mi,dt_s); out.print(buf); return; }
   if(c1=='G'&&c2=='C'){ sprintf(buf,"%02d/%02d/%02d#",dt_m,dt_d,dt_y%100); out.print(buf); return; }
-  if(c1=='G'&&c2=='S'){
+  if(c1=='G'&&c2=='S'&&(c3=='#'||c3=='\0')){
     double l=lst(); int h=(int)l,m=(int)((l-h)*60),s=(int)((l-h-m/60.0)*3600)%60;
     sprintf(buf,"%02d:%02d:%02d#",h,m,s); out.print(buf); return;
   }
+  if(c1=='G'&&c2=='S'&&c3=='p'){ out.print(motorStepsPerRev); out.write('#'); return; }
+  if(c1=='G'&&c2=='S'&&c3=='m'){ out.print(microstep); out.write('#'); return; }
+  if(c1=='G'&&c2=='G'&&c3=='a'){ out.print(gearRatioAZ); out.write('#'); return; }
+  if(c1=='G'&&c2=='G'&&c3=='e'){ out.print(gearRatioALT); out.write('#'); return; }
+  if(c1=='G'&&c2=='Q'&&c3=='a'){ out.print(parkAlt); out.write('#'); return; }
+  if(c1=='G'&&c2=='Q'&&c3=='z'){ out.print(parkAz); out.write('#'); return; }
 
   // ============ SET TARGET ============
   if(c1=='S'&&c2=='r'){
