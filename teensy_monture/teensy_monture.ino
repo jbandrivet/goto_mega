@@ -1721,7 +1721,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     sprintf(buf,"%c%03d*%02d:%02d#", siteLon>=0?'-':'+', d, m, s);
     out.print(buf); return;
   }
-  if(c1=='G'&&c2=='G'){
+  if(c1=='G'&&c2=='G'&&(c3=='#'||c3=='\0')){
     double ho = utcOff;
     if(ho == (int)ho) sprintf(buf,"%+03d#",(int)ho);
     else {
