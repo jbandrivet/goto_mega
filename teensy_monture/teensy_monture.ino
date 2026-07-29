@@ -34,7 +34,7 @@ static void recalculatePPD() {
 uint8_t mountType = 1; // 0=AltAz, 1=ForkEq, 2=GermanEq (configure par defaut en equatorial pour la monture)
 
 // === VITESSES (microsecondes) ===
-#define STEP_DELAY_FAST   35      // 28.5 kHz max - clamp to avoid loop jitter on Mega 2560
+#define STEP_DELAY_FAST   5       // 200 kHz max - Teensy 4.1 can handle it easily
 #define STEP_DELAY_SLOW  100      // 10 kHz  -> 0.3 deg/s manuel
 #define MAX_DELAY        500      // 2 kHz   -> 0.06 deg/s depart rampe
 #define DEFAULT_SLEW_RATE 3.0
