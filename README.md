@@ -71,7 +71,7 @@ Câblez votre contrôleur principal en suivant ce schéma (les broches sont iden
 | **Moteur Focuseur** | **Pin 11** | **Pin 11** | `PUL+` (Pulse/Step) |
 | | **Pin 12** | **Pin 12** | `DIR+` (Direction) |
 | | **Pin 13** | **Pin 13** | `ENB+` (Enable) |
-| **Buzzer** | **Pin 49** | **Pin 20** | Borne `+` (via résistance 100 Ω) |
+| **Buzzer** | **Pin 49** | **Pin 20** | Borne `+` (actif : direct / passif : via résistance 100 Ω) |
 | **Raquette Teensy** | **Pin 15 (RX3)** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
 | | **Pin 14 (TX3)** | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
 | **Module GPS** | **Pin 17 (RX2)** | **Pin 17 (RX4)** | `TX` du module GPS |
@@ -120,7 +120,7 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 * **Boutons Raquette** :
   * 5 boutons poussoirs momentanés (Haut, Bas, Gauche, Droite, Validation).
 * **Alerte Sonore** :
-  * Un **Buzzer actif 5V**.
+  * Un **Buzzer actif 5V** ou un **Buzzer passif**. (Si vous utilisez un buzzer actif, câblez-le directement ; si vous utilisez un buzzer passif, ajoutez une résistance de 100 Ω en série avec le signal).
 
 *Note concernant la raquette physique : La construction de la raquette matérielle (carte Teensy, écran LCD et boutons) n'est **pas obligatoire**. Si vous utilisez la monture en mode "remote", ou que vous la pilotez exclusivement depuis un PC, un planétarium, ou un boîtier type ASIAIR, l'Arduino Mega suffit à lui seul pour tout gérer via la connexion USB.*
 
