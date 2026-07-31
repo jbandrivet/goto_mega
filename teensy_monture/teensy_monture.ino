@@ -122,6 +122,8 @@ static long derotPos = 0;
 static double derotTarget = 0.0;
 
 static bool focusEnabled = false;
+static uint16_t backlashAz = 0;
+static uint16_t backlashAlt = 0;
 static int focusSpeed = 1000;
 static int8_t focusMove = 0;
 static uint8_t slowSpeed=8;
@@ -172,6 +174,8 @@ const uint16_t EEPROM_ADDR_DEROT_EN   = 86;
 const uint16_t EEPROM_ADDR_DEROT_PPD  = 87;
 const uint16_t EEPROM_ADDR_FOCUS_EN   = 95;
 const uint16_t EEPROM_ADDR_GPS_EN     = 96;
+const uint16_t EEPROM_ADDR_BACKLASH_AZ = 97;
+const uint16_t EEPROM_ADDR_BACKLASH_ALT = 99;
 const byte     EEPROM_MAGIC         = 0x5F;
 
 template <typename T>
@@ -216,6 +220,8 @@ static void saveStateToEEPROM() {
   eepromWrite(EEPROM_ADDR_DEROT_PPD, derotPPD);
   EEPROM.update(EEPROM_ADDR_FOCUS_EN, focusEnabled ? 1 : 0);
   EEPROM.update(EEPROM_ADDR_GPS_EN, gpsEnabled ? 1 : 0);
+  eepromWrite(EEPROM_ADDR_BACKLASH_AZ, backlashAz);
+  eepromWrite(EEPROM_ADDR_BACKLASH_ALT, backlashAlt);
 }
 
 static void loadStateFromEEPROM() {
@@ -237,6 +243,10 @@ static void loadStateFromEEPROM() {
     eepromRead(EEPROM_ADDR_DEROT_PPD, derotPPD);
     focusEnabled = (EEPROM.read(EEPROM_ADDR_FOCUS_EN) == 1);
     gpsEnabled = (EEPROM.read(EEPROM_ADDR_GPS_EN) == 1);
+    eepromRead(EEPROM_ADDR_BACKLASH_AZ, backlashAz);
+    eepromRead(EEPROM_ADDR_BACKLASH_ALT, backlashAlt);
+    if(backlashAz > 10000) backlashAz = 0;
+    if(backlashAlt > 10000) backlashAlt = 0;
     recalculatePPD();
     if(isnan(derotPPD) || derotPPD < 1.0) derotPPD = 100.0;
     if (isnan(parkAlt) || parkAlt < -90.0 || parkAlt > 90.0) parkAlt = (mountType >= 1) ? 90.0 : 0.0;
@@ -835,16 +845,30 @@ static inline void setDirAz(int8_t dir) {
   int8_t lvl = ((dir > 0) ^ azReversed) ? 1 : 0;
   if (lvl == lastLvlAz) return;        // deja au bon niveau : pas de delai
   digitalWrite(AZ_DIR, lvl ? HIGH : LOW);
+  bool applyBacklash = (lastLvlAz != -1);
   lastLvlAz = lvl;
   delayMicroseconds(DIR_SETUP_US);     // etablissement avant le prochain PUL
+  if (applyBacklash && backlashAz > 0) {
+      for(uint16_t i=0; i<backlashAz; i++) {
+          digitalWriteFast(AZ_STEP, HIGH); delayMicroseconds(3);
+          digitalWriteFast(AZ_STEP, LOW); delayMicroseconds(3);
+      }
+  }
 }
 
 static inline void setDirAlt(int8_t dir) {
   int8_t lvl = ((dir > 0) ^ altReversed) ? 1 : 0;
   if (lvl == lastLvlAlt) return;
   digitalWrite(ALT_DIR, lvl ? HIGH : LOW);
+  bool applyBacklash = (lastLvlAlt != -1);
   lastLvlAlt = lvl;
   delayMicroseconds(DIR_SETUP_US);
+  if (applyBacklash && backlashAlt > 0) {
+      for(uint16_t i=0; i<backlashAlt; i++) {
+          digitalWriteFast(ALT_STEP, HIGH); delayMicroseconds(3);
+          digitalWriteFast(ALT_STEP, LOW); delayMicroseconds(3);
+      }
+  }
 }
 
 static inline void stepAxisAz(int8_t dir) {
@@ -1679,7 +1703,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   if(c1=='G'&&c2=='a'){ sprintf(buf,"%02d:%02d:%02d#", (dt_h%12==0)?12:(dt_h%12), dt_mi, dt_s); out.print(buf); return; }
   if(c1=='G'&&c2=='L'){ sprintf(buf,"%02d:%02d:%02d#", dt_h, dt_mi, dt_s); out.print(buf); return; }
   if(c1=='G'&&c2=='C'){ sprintf(buf,"%02d/%02d/%02d#", dt_m, dt_d, dt_y%100); out.print(buf); return; }
-  if(c1=='G'&&c2=='S'&&strlen(cmd)<=4){
+  if(c1=='G'&&c2=='S'&&(c3=='\0'||c3=='#')){
     double l = lst(); int h = (int)l;
     double mm = (l - h) * 60.0; int m = (int)mm;
     int s = (int)((mm - m) * 60.0 + 0.5);
@@ -1731,12 +1755,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     }
     out.print(buf); return;
   }
-  if(c1=='G'&&c2=='L'){ sprintf(buf,"%02d:%02d:%02d#",dt_h,dt_mi,dt_s); out.print(buf); return; }
-  if(c1=='G'&&c2=='C'){ sprintf(buf,"%02d/%02d/%02d#",dt_m,dt_d,dt_y%100); out.print(buf); return; }
-  if(c1=='G'&&c2=='S'&&(c3=='#'||c3=='\0')){
-    double l=lst(); int h=(int)l,m=(int)((l-h)*60),s=(int)((l-h-m/60.0)*3600)%60;
-    sprintf(buf,"%02d:%02d:%02d#",h,m,s); out.print(buf); return;
-  }
+
   if(c1=='G'&&c2=='S'&&c3=='p'){ out.print(motorStepsPerRev); out.write('#'); return; }
   if(c1=='G'&&c2=='S'&&c3=='m'){ out.print(microstep); out.write('#'); return; }
   if(c1=='G'&&c2=='G'&&c3=='a'){ out.print(gearRatioAZ); out.write('#'); return; }
@@ -1944,6 +1963,13 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
         out.write('1'); return; 
     }
   }
+  
+  if(c1=='X'&&c2=='B'){
+    if(c3=='z') { backlashAz=atoi(cmd+4); saveStateToEEPROM(); out.write('1'); return; }
+    if(c3=='a') { backlashAlt=atoi(cmd+4); saveStateToEEPROM(); out.write('1'); return; }
+  }
+  if(c1=='G'&&c2=='B'&&c3=='z') { out.print(backlashAz); out.write('#'); return; }
+  if(c1=='G'&&c2=='B'&&c3=='a') { out.print(backlashAlt); out.write('#'); return; }
 
   // Commands for Derotator and Focus
   if(c1=='X'&&c2=='D'){
