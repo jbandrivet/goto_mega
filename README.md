@@ -102,7 +102,22 @@ Si vous fabriquez la raquette physique avec un Teensy 4.1, voici le câblage à 
 
 *ATTENTION : Le Teensy est alimenté par la pin 5V du Mega via VIN. Ne pas brancher l'USB du Teensy en même temps, sauf si le pad VUSB a été coupé au préalable.*
 
-### 5. Matériel Compatible
+### 5. Arduino Mega 2560 vs Teensy 4.1 (Contrôleur de Monture)
+
+Le projet vous permet de choisir le cerveau principal de la monture. Bien que le câblage soit quasiment identique, voici les différences pour vous aider à choisir :
+
+| Caractéristique | Arduino Mega 2560 | Teensy 4.1 |
+| :--- | :--- | :--- |
+| **Vitesse de calcul** | 16 MHz (8-bit) | **600 MHz** (32-bit ARM) |
+| **Précision (Maths)** | Flottants 32-bit lents | **Flottants 64-bit (double)** natifs ultra-rapides |
+| **Microstepping & Vitesse max**| Limité (saturera à très haut microstepping) | **Parfait** (génère des impulsions à plus de 200kHz sans sourciller) |
+| **Modèle de pointage** | Basique | **N-Étoiles** (50 points mémorisés avec calculs IDW) |
+| **Evolutivité (Futur)** | Faible | **Très haute** (Port USB Host pour Manette/Gamepad) |
+| **Coût** | ~15-20€ (Clones pas chers) | ~35-40€ |
+
+**Recommandation** : Si vous utilisez de petits drivers (1/16 ou 1/32 de pas) et voulez un système économique, le **Mega 2560** fait parfaitement le travail. Si vous utilisez des drivers modernes (TMC2209, M542) à fort microstepping (1/128, 1/256), que vous voulez des déplacements GoTo ultra-rapides et silencieux, et le modèle de pointage multi-étoiles intégré, optez sans hésiter pour le **Teensy 4.1**.
+
+### 6. Matériel Compatible
 
 Pour monter votre système GotoAndrivet, les composants matériels suivants sont compatibles et recommandés :
 
@@ -128,7 +143,7 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 
 ## Fonctionnalités Avancées
 
-* **Modèle de Pointage N-Étoiles (Teensy Monture uniquement)** : Interpolation des erreurs de suivi et de pointage par IDW (Inverse Distance Weighting) jusqu'à 20 étoiles mémorisées. Support de la commande de remise à zéro `:CML#`.
+* **Modèle de Pointage N-Étoiles (Teensy Monture uniquement)** : Interpolation des erreurs de suivi et de pointage par IDW (Inverse Distance Weighting) jusqu'à 50 étoiles mémorisées. Support de la commande de remise à zéro `:CML#`.
 * **Ajout du type de monture `GermanEq`** : Le firmware de l'Arduino Mega calcule automatiquement les inversions d'axes (Ascension Droite et Déclinaison) lors du franchissement du méridien.
 * **Commande standard `:Gm#` implémentée** : Renvoie le *Pier Side* (`E#` pour l'Est, `W#` pour l'Ouest, `N#` pour les autres modes) requis pour les logiciels de guidage comme Ekos/INDI.
 * **Intégration complète dans les interfaces** : Le sélecteur de monture dans `goto_andrivet_config_tool.py`, `goto_andrivet.py` et la raquette physique Teensy supporte désormais les trois options distinctes (`AltAz`, `ForkEq`, `GermanEq`).
