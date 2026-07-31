@@ -106,6 +106,8 @@ static long derotPos = 0;
 static double derotTarget = 0.0;
 
 static bool focusEnabled = false;
+static uint16_t backlashAz = 0;
+static uint16_t backlashAlt = 0;
 static int focusSpeed = 1000;
 static int8_t focusMove = 0;
 static uint8_t slowSpeed=8;
@@ -156,6 +158,8 @@ const uint16_t EEPROM_ADDR_DEROT_EN   = 58;
 const uint16_t EEPROM_ADDR_DEROT_PPD  = 59;
 const uint16_t EEPROM_ADDR_FOCUS_EN   = 63;
 const uint16_t EEPROM_ADDR_GPS_EN     = 64;
+const uint16_t EEPROM_ADDR_BACKLASH_AZ = 65;
+const uint16_t EEPROM_ADDR_BACKLASH_ALT = 67;
 const byte     EEPROM_MAGIC         = 0x5E;
 
 template <typename T>
@@ -200,6 +204,8 @@ static void saveStateToEEPROM() {
   eepromWrite(EEPROM_ADDR_DEROT_PPD, derotPPD);
   EEPROM.update(EEPROM_ADDR_FOCUS_EN, focusEnabled ? 1 : 0);
   EEPROM.update(EEPROM_ADDR_GPS_EN, gpsEnabled ? 1 : 0);
+  eepromWrite(EEPROM_ADDR_BACKLASH_AZ, backlashAz);
+  eepromWrite(EEPROM_ADDR_BACKLASH_ALT, backlashAlt);
 }
 
 static void loadStateFromEEPROM() {
@@ -221,6 +227,10 @@ static void loadStateFromEEPROM() {
     eepromRead(EEPROM_ADDR_DEROT_PPD, derotPPD);
     focusEnabled = (EEPROM.read(EEPROM_ADDR_FOCUS_EN) == 1);
     gpsEnabled = (EEPROM.read(EEPROM_ADDR_GPS_EN) == 1);
+    eepromRead(EEPROM_ADDR_BACKLASH_AZ, backlashAz);
+    eepromRead(EEPROM_ADDR_BACKLASH_ALT, backlashAlt);
+    if(backlashAz > 10000) backlashAz = 0;
+    if(backlashAlt > 10000) backlashAlt = 0;
     recalculatePPD();
     if(isnan(derotPPD) || derotPPD < 1.0) derotPPD = 100.0;
     if (isnan(parkAlt) || parkAlt < -90.0 || parkAlt > 90.0) parkAlt = (mountType >= 1) ? 90.0 : 0.0;
@@ -737,16 +747,30 @@ static inline void setDirAz(int8_t dir) {
   int8_t lvl = ((dir > 0) ^ azReversed) ? 1 : 0;
   if (lvl == lastLvlAz) return;        // deja au bon niveau : pas de delai
   dirWrite(AZ_DIR, lvl);
+  bool applyBacklash = (lastLvlAz != -1);
   lastLvlAz = lvl;
   delayMicroseconds(DIR_SETUP_US);     // etablissement avant le prochain PUL
+  if (applyBacklash && backlashAz > 0) {
+      for(uint16_t i=0; i<backlashAz; i++) {
+          stepPulse(AZ_STEP);
+          delayMicroseconds(2); // Laisser un petit temps
+      }
+  }
 }
 
 static inline void setDirAlt(int8_t dir) {
   int8_t lvl = ((dir > 0) ^ altReversed) ? 1 : 0;
   if (lvl == lastLvlAlt) return;
   dirWrite(ALT_DIR, lvl);
+  bool applyBacklash = (lastLvlAlt != -1);
   lastLvlAlt = lvl;
   delayMicroseconds(DIR_SETUP_US);
+  if (applyBacklash && backlashAlt > 0) {
+      for(uint16_t i=0; i<backlashAlt; i++) {
+          stepPulse(ALT_STEP);
+          delayMicroseconds(2);
+      }
+  }
 }
 
 static inline void stepAxisAz(int8_t dir)  { setDirAz(dir);  stepPulse(AZ_STEP); }
@@ -1807,6 +1831,13 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
         out.write('1'); return; 
     }
   }
+  
+  if(c1=='X'&&c2=='B'){
+    if(c3=='z') { backlashAz=atoi(cmd+4); saveStateToEEPROM(); out.write('1'); return; }
+    if(c3=='a') { backlashAlt=atoi(cmd+4); saveStateToEEPROM(); out.write('1'); return; }
+  }
+  if(c1=='G'&&c2=='B'&&c3=='z') { out.print(backlashAz); out.write('#'); return; }
+  if(c1=='G'&&c2=='B'&&c3=='a') { out.print(backlashAlt); out.write('#'); return; }
 
   // Commands for Derotator and Focus
   if(c1=='X'&&c2=='D'){
