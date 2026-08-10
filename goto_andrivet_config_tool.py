@@ -760,6 +760,9 @@ class ConfigToolApp(tk.Tk):
         self.pa_btn = tk.Button(self.astro_btns_frame, text="4. Mise en Station (PA)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_polar_alignment)
         self.pa_btn.pack(side="left", fill="x", expand=True, padx=(2, 0))
 
+        self.astro_progress = ttk.Progressbar(self.astro_inner, orient="horizontal", mode="determinate")
+        self.astro_progress.pack(fill="x", pady=(5,0), padx=5)
+
         self.toggle_blind_solving()
         self.toggle_auto_gain()
         self.toggle_astrometry_ui()
@@ -1665,6 +1668,24 @@ print(json.dumps(res))
         s = int((rem - m) * 60.0)
         return f"{sign}{deg:02d}*{m:02d}:{s:02d}"
 
+    def start_capture_progress(self, duration_sec):
+        self.astro_progress['value'] = 0
+        self.astro_progress['maximum'] = 100
+        steps = 50
+        delay_ms = int((duration_sec * 1000) / steps)
+        
+        def step(i):
+            if i <= steps:
+                self.astro_progress['value'] = (i / steps) * 100
+                self.after(delay_ms, lambda: step(i+1))
+            else:
+                self.astro_progress['value'] = 100
+                
+        if delay_ms > 0:
+            step(1)
+        else:
+            self.astro_progress['value'] = 100
+
     def run_capture_only(self):
         def task():
             try:
@@ -1677,6 +1698,8 @@ print(json.dumps(res))
                     self.after(0, lambda: messagebox.showerror("Erreur", "Valeurs invalides dans les champs astrométrie."))
                     return
                 auto_gain = self.auto_gain_var.get()
+                
+                self.after(0, lambda: self.start_capture_progress(exp))
                 
                 script = f"""
 import sys
