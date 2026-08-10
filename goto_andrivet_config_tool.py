@@ -1019,19 +1019,40 @@ class ConfigToolApp(tk.Tk):
     def detect_zwo_cameras(self):
         def task():
             self.after(0, lambda: self.detect_cam_btn.config(state="disabled", text="..."))
-            script = "import zwoasi as asi\nasi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')\nprint(asi.list_cameras())"
+            script = """
+import zwoasi as asi
+import json
+asi.init('/usr/lib/x86_64-linux-gnu/libASICamera2.so')
+cams = asi.list_cameras()
+res = {"cams": cams}
+if len(cams) > 0:
+    try:
+        camera = asi.Camera(0)
+        props = camera.get_camera_property()
+        res["pixel"] = props.get("PixelSize", None)
+        res["width"] = props.get("MaxWidth", None)
+    except:
+        pass
+print(json.dumps(res))
+"""
             try:
-                import subprocess, os, ast, sys
+                import subprocess, os, json, sys
                 from pathlib import Path
                 venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
                 python_path = venv_python if os.path.exists(venv_python) else sys.executable
                 res = subprocess.run([python_path, "-c", script], capture_output=True, text=True)
                 if res.returncode == 0:
-                    cams = ast.literal_eval(res.stdout.strip())
-                    if cams:
-                        self.after(0, lambda: self.update_astro_cam_combo(cams))
-                    else:
-                        self.after(0, lambda: messagebox.showinfo("ZWO", "Aucune caméra ZWO détectée."))
+                    try:
+                        data = json.loads(res.stdout.strip())
+                        cams = data.get("cams", [])
+                        pixel = data.get("pixel")
+                        width = data.get("width")
+                        if cams:
+                            self.after(0, lambda: self.update_astro_cam_combo(cams, pixel, width))
+                        else:
+                            self.after(0, lambda: messagebox.showinfo("ZWO", "Aucune caméra ZWO détectée."))
+                    except Exception as parse_e:
+                        self.after(0, lambda: messagebox.showerror("Erreur", "Erreur de parsing: " + str(parse_e)))
                 else:
                     self.after(0, lambda: messagebox.showerror("Erreur", "Erreur lors de la détection: " + res.stderr))
             except Exception as e:
@@ -1236,10 +1257,17 @@ class ConfigToolApp(tk.Tk):
 
         threading.Thread(target=task, daemon=True).start()
 
-    def update_astro_cam_combo(self, cameras):
+    def update_astro_cam_combo(self, cameras, pixel=None, width=None):
         self.cam_combo['values'] = cameras
-        self.cam_combo.current(0)
+        if cameras:
+            self.cam_combo.current(0)
         
+        if pixel is not None and hasattr(self, 'px_entry'):
+            self.px_entry.delete(0, tk.END)
+            self.px_entry.insert(0, str(pixel))
+        if width is not None and hasattr(self, 'width_entry'):
+            self.width_entry.delete(0, tk.END)
+            self.width_entry.insert(0, str(width))
     def get_selected_camera_idx(self):
         idx = self.cam_combo.current()
         if idx >= 0:
