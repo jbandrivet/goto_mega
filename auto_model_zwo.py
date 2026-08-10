@@ -36,6 +36,17 @@ class AutoModelApp:
         self.running = False
         self.modeling = False
         
+        # Load config to prefill values
+        self.settings = {}
+        import json
+        from pathlib import Path
+        config_path = Path.home() / ".config" / "goto_andrivet" / "config_tool_settings.json"
+        if config_path.exists():
+            try:
+                self.settings = json.loads(config_path.read_text())
+            except:
+                pass
+        
         self.setup_ui()
         
         if not ZWO_AVAILABLE or not EPHEM_AVAILABLE:
@@ -69,15 +80,15 @@ class AutoModelApp:
         fr_optics.pack(fill=tk.X, pady=5)
         
         ttk.Label(fr_optics, text="Focale (mm):").grid(row=0, column=0, padx=5, pady=2)
-        self.focale_var = tk.StringVar(value="400")
+        self.focale_var = tk.StringVar(value=str(self.settings.get("astro_focal", 400)))
         ttk.Entry(fr_optics, textvariable=self.focale_var, width=8).grid(row=0, column=1, padx=5, pady=2)
         
         ttk.Label(fr_optics, text="Taille Pixel (um):").grid(row=0, column=2, padx=5, pady=2)
-        self.pixel_var = tk.StringVar(value="3.75")
+        self.pixel_var = tk.StringVar(value=str(self.settings.get("astro_pixel", 3.75)))
         ttk.Entry(fr_optics, textvariable=self.pixel_var, width=8).grid(row=0, column=3, padx=5, pady=2)
         
         ttk.Label(fr_optics, text="Largeur Capteur (px):").grid(row=0, column=4, padx=5, pady=2)
-        self.width_var = tk.StringVar(value="1280")
+        self.width_var = tk.StringVar(value=str(self.settings.get("astro_width", 1280)))
         ttk.Entry(fr_optics, textvariable=self.width_var, width=8).grid(row=0, column=5, padx=5, pady=2)
         
         ttk.Button(fr_optics, text="Calculer FOV & Index", command=self.calc_fov).grid(row=0, column=6, padx=10, pady=2)
