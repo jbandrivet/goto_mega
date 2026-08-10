@@ -20,7 +20,7 @@ import serial.tools.list_ports
 class AutoguideSpectroApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Autoguidage Spectro ZWO - GotoAndrivet")
+        self.root.title("Autoguidage ZWO - GotoAndrivet")
         
         self.ser = None
         self.camera = None
@@ -74,11 +74,18 @@ class AutoguideSpectroApp:
         self.gain_var = tk.StringVar(value="150")
         ttk.Entry(fr_param, textvariable=self.gain_var, width=5).pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(fr_param, text="Détecter Fente Auto", command=self.auto_detect_slit).pack(side=tk.LEFT, padx=5)
-        ttk.Button(fr_param, text="Centrage Astrométrie", command=self.center_via_astrometry).pack(side=tk.LEFT, padx=5)
+        self.spectro_mode_var = tk.BooleanVar(value=False)
+        self.chk_spectro = ttk.Checkbutton(fr_param, text="Mode Spectro", variable=self.spectro_mode_var, command=self.toggle_spectro_mode)
+        self.chk_spectro.pack(side=tk.LEFT, padx=5)
+
+        self.spectro_frame = ttk.Frame(fr_param)
+        ttk.Button(self.spectro_frame, text="Détecter Fente Auto", command=self.auto_detect_slit).pack(side=tk.LEFT, padx=2)
+        ttk.Button(self.spectro_frame, text="Centrage Astrométrie", command=self.center_via_astrometry).pack(side=tk.LEFT, padx=2)
         
-        ttk.Button(fr_param, text="Démarrer Guidage", command=self.start_guiding).pack(side=tk.LEFT, padx=10)
-        ttk.Button(fr_param, text="Stop", command=self.stop_guiding).pack(side=tk.LEFT, padx=5)
+        self.btn_start = ttk.Button(fr_param, text="Démarrer Guidage", command=self.start_guiding)
+        self.btn_start.pack(side=tk.LEFT, padx=10)
+        self.btn_stop = ttk.Button(fr_param, text="Stop", command=self.stop_guiding)
+        self.btn_stop.pack(side=tk.LEFT, padx=5)
         
         self.lbl_status = ttk.Label(fr_param, text="Prêt.", foreground="blue")
         self.lbl_status.pack(side=tk.RIGHT, padx=10)
@@ -89,7 +96,18 @@ class AutoguideSpectroApp:
         self.canvas.bind("<Button-1>", self.on_click_set_target)
         self.canvas.bind("<Button-3>", self.on_click_set_star)
         
-        ttk.Label(frm, text="Clic Gauche = Placer la cible (Fente/Fibre) | Clic Droit = Sélectionner l'étoile guide").pack()
+        self.lbl_info = ttk.Label(frm, text="Mode Normal : Clic Gauche = Sélectionner l'étoile guide (verrouille la cible)")
+        self.lbl_info.pack()
+
+    def toggle_spectro_mode(self):
+        if self.spectro_mode_var.get():
+            self.spectro_frame.pack(side=tk.LEFT, before=self.btn_start, padx=5)
+            self.lbl_info.config(text="Mode Spectro : Clic Gauche = Placer cible (Fente) | Clic Droit = Sélectionner étoile guide")
+        else:
+            self.spectro_frame.pack_forget()
+            self.lbl_info.config(text="Mode Normal : Clic Gauche = Sélectionner l'étoile guide (verrouille la cible)")
+            self.target_x = None
+            self.target_y = None
 
     def connect_mount(self):
         try:
@@ -248,16 +266,25 @@ class AutoguideSpectroApp:
             self.root.after(0, lambda: self.lbl_status.config(text="Erreur astrométrie.", foreground="red"))
 
     def on_click_set_target(self, event):
-        """Clic gauche pour positionner la cible de la fente/fibre"""
-        self.target_x = event.x
-        self.target_y = event.y
-        self.lbl_status.config(text=f"Cible Fente définie sur: ({self.target_x}, {self.target_y})")
+        if getattr(self, 'spectro_mode_var', None) and self.spectro_mode_var.get():
+            """Clic gauche pour positionner la cible de la fente/fibre"""
+            self.target_x = event.x
+            self.target_y = event.y
+            self.lbl_status.config(text=f"Cible Fente définie sur: ({self.target_x}, {self.target_y})")
+        else:
+            """Mode Normal: Clic gauche sélectionne l'étoile ET fixe la cible ici"""
+            self.star_x = event.x
+            self.star_y = event.y
+            self.target_x = event.x
+            self.target_y = event.y
+            self.lbl_status.config(text=f"Cible verrouillée sur: ({self.target_x}, {self.target_y})")
 
     def on_click_set_star(self, event):
-        """Clic droit pour sélectionner manuellement l'étoile guide"""
-        self.star_x = event.x
-        self.star_y = event.y
-        self.lbl_status.config(text=f"Étoile guide définie sur: ({self.star_x}, {self.star_y})")
+        if getattr(self, 'spectro_mode_var', None) and self.spectro_mode_var.get():
+            """Clic droit pour sélectionner manuellement l'étoile guide"""
+            self.star_x = event.x
+            self.star_y = event.y
+            self.lbl_status.config(text=f"Étoile guide définie sur: ({self.star_x}, {self.star_y})")
 
     def start_guiding(self):
         if not self.ser or not self.camera:
@@ -355,10 +382,13 @@ class AutoguideSpectroApp:
                 # Affichage RGB pour dessiner les croix
                 img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
                 
-                # Dessin Cible Fente (Croix Rouge)
+                # Dessin Cible Fente/Lock
                 if self.target_x is not None:
-                    cv2.drawMarker(img_rgb, (self.target_x, self.target_y), (0, 0, 255), cv2.MARKER_CROSS, 20, 2)
-                    cv2.circle(img_rgb, (self.target_x, self.target_y), 10, (0, 0, 255), 1)
+                    if getattr(self, 'spectro_mode_var', None) and self.spectro_mode_var.get():
+                        cv2.drawMarker(img_rgb, (self.target_x, self.target_y), (0, 0, 255), cv2.MARKER_CROSS, 20, 2)
+                        cv2.circle(img_rgb, (self.target_x, self.target_y), 10, (0, 0, 255), 1)
+                    else:
+                        cv2.drawMarker(img_rgb, (self.target_x, self.target_y), (0, 255, 255), cv2.MARKER_CROSS, 15, 1)
                     
                 # Dessin Etoile (Carré Vert)
                 if self.star_x is not None:
