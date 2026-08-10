@@ -1,0 +1,269 @@
+import sys
+import time
+import threading
+import math
+import tkinter as tk
+from tkinter import ttk, messagebox
+import cv2
+import numpy as np
+from PIL import Image, ImageTk
+
+try:
+    import zwoasi as asi
+    ZWO_AVAILABLE = True
+except ImportError:
+    ZWO_AVAILABLE = False
+
+import serial
+import serial.tools.list_ports
+
+class AutoguideSpectroApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Autoguidage Spectro ZWO - GotoAndrivet")
+        
+        self.ser = None
+        self.camera = None
+        
+        self.running = False
+        self.guiding = False
+        
+        # Coordonnées
+        self.target_x = 320  # Position de la fente/fibre (défaut au centre)
+        self.target_y = 240
+        
+        self.star_x = None   # Position de l'étoile suivie
+        self.star_y = None
+        
+        # Paramètres de guidage
+        self.agressivite_x = 0.5
+        self.agressivite_y = 0.5
+        self.ms_per_pixel_x = 50  # ms de guidage pour 1 pixel d'erreur
+        self.ms_per_pixel_y = 50
+        
+        self.setup_ui()
+        
+    def setup_ui(self):
+        frm = ttk.Frame(self.root, padding=10)
+        frm.pack(fill=tk.BOTH, expand=True)
+        
+        # --- Ligne 1: Connexion ---
+        fr_conn = ttk.LabelFrame(frm, text="1. Matériel", padding=5)
+        fr_conn.pack(fill=tk.X, pady=5)
+        
+        self.port_var = tk.StringVar()
+        ports = [p.device for p in serial.tools.list_ports.comports()]
+        self.cb_ports = ttk.Combobox(fr_conn, textvariable=self.port_var, values=ports, width=15)
+        if ports: self.cb_ports.current(0)
+        self.cb_ports.pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(fr_conn, text="Connecter Monture", command=self.connect_mount).pack(side=tk.LEFT, padx=5)
+        ttk.Button(fr_conn, text="Init Caméra ZWO", command=self.init_camera).pack(side=tk.LEFT, padx=20)
+        
+        ttk.Button(fr_conn, text="Reset Modèle Pointage", command=self.reset_pointing_model).pack(side=tk.RIGHT, padx=5)
+        
+        # --- Ligne 2: Paramètres Caméra & Guidage ---
+        fr_param = ttk.LabelFrame(frm, text="2. Paramètres", padding=5)
+        fr_param.pack(fill=tk.X, pady=5)
+        
+        ttk.Label(fr_param, text="Exp (ms):").pack(side=tk.LEFT)
+        self.exp_var = tk.StringVar(value="500")
+        ttk.Entry(fr_param, textvariable=self.exp_var, width=5).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Label(fr_param, text="Gain:").pack(side=tk.LEFT)
+        self.gain_var = tk.StringVar(value="150")
+        ttk.Entry(fr_param, textvariable=self.gain_var, width=5).pack(side=tk.LEFT, padx=5)
+        
+        ttk.Button(fr_param, text="Détecter Fente Auto", command=self.auto_detect_slit).pack(side=tk.LEFT, padx=20)
+        
+        ttk.Button(fr_param, text="Démarrer Guidage", command=self.start_guiding).pack(side=tk.LEFT, padx=20)
+        ttk.Button(fr_param, text="Stop", command=self.stop_guiding).pack(side=tk.LEFT, padx=5)
+        
+        self.lbl_status = ttk.Label(fr_param, text="Prêt.", foreground="blue")
+        self.lbl_status.pack(side=tk.RIGHT, padx=10)
+        
+        # --- Video Feed ---
+        self.canvas = tk.Canvas(frm, width=640, height=480, bg="black", cursor="cross")
+        self.canvas.pack(pady=10)
+        self.canvas.bind("<Button-1>", self.on_click_set_target)
+        self.canvas.bind("<Button-3>", self.on_click_set_star)
+        
+        ttk.Label(frm, text="Clic Gauche = Placer la cible (Fente/Fibre) | Clic Droit = Sélectionner l'étoile guide").pack()
+
+    def connect_mount(self):
+        try:
+            self.ser = serial.Serial(self.port_var.get(), 38400, timeout=1)
+            self.lbl_status.config(text="Monture connectée", foreground="green")
+        except Exception as e:
+            messagebox.showerror("Erreur", str(e))
+
+    def init_camera(self):
+        if not ZWO_AVAILABLE:
+            messagebox.showerror("Erreur", "Module zwoasi manquant.")
+            return
+        try:
+            if asi.get_num_cameras() == 0:
+                raise Exception("Aucune caméra ZWO détectée.")
+            self.camera = asi.Camera(0)
+            self.camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
+            self.camera.disable_dark_subtract()
+            self.lbl_status.config(text="Caméra ZWO initialisée", foreground="green")
+            
+            self.running = True
+            threading.Thread(target=self.video_loop, daemon=True).start()
+        except Exception as e:
+            messagebox.showerror("Erreur ZWO", str(e))
+
+    def send_cmd(self, cmd):
+        if self.ser:
+            self.ser.write(cmd.encode('ascii'))
+            time.sleep(0.05)
+
+    def reset_pointing_model(self):
+        """Réinitialise le modèle de pointage lors d'un déplacement manuel"""
+        if messagebox.askyesno("Reset", "Voulez-vous vraiment effacer le modèle de pointage actuel (si vous avez déplacé la monture manuellement) ?"):
+            # Envoi de la commande pour effacer l'alignement
+            # Dans OnStep, ":EK#" efface le modèle d'alignement ou ":ENVRESET#" selon la config.
+            # On envoie :A0# ou une suite de commandes pour clear le sync.
+            self.send_cmd(":EK#") # Souvent utilisé pour clear model
+            self.lbl_status.config(text="Modèle de pointage réinitialisé.", foreground="blue")
+
+    def auto_detect_slit(self):
+        """Tente de trouver la fente/fibre (ex: ligne sombre ou spot spécifique)"""
+        # Pour l'instant, on simule en mettant au centre. À adapter selon l'image réelle.
+        self.target_x = 320
+        self.target_y = 240
+        self.lbl_status.config(text="Fente détectée (centrée).", foreground="blue")
+
+    def on_click_set_target(self, event):
+        """Clic gauche pour positionner la cible de la fente/fibre"""
+        self.target_x = event.x
+        self.target_y = event.y
+        self.lbl_status.config(text=f"Cible Fente définie sur: ({self.target_x}, {self.target_y})")
+
+    def on_click_set_star(self, event):
+        """Clic droit pour sélectionner manuellement l'étoile guide"""
+        self.star_x = event.x
+        self.star_y = event.y
+        self.lbl_status.config(text=f"Étoile guide définie sur: ({self.star_x}, {self.star_y})")
+
+    def start_guiding(self):
+        if not self.ser or not self.camera:
+            messagebox.showwarning("Attention", "Connectez la monture et la caméra.")
+            return
+        if self.target_x is None:
+            messagebox.showwarning("Attention", "Veuillez définir la position de la fente (clic gauche).")
+            return
+        self.guiding = True
+        self.lbl_status.config(text="Guidage en cours...", foreground="red")
+
+    def stop_guiding(self):
+        self.guiding = False
+        self.lbl_status.config(text="Guidage arrêté.", foreground="blue")
+
+    def track_star(self, img_gray):
+        """Trouve l'étoile guide proche de l'ancienne position"""
+        if self.star_x is None or self.star_y is None:
+            # Cherche l'étoile la plus brillante si pas définie
+            blur = cv2.GaussianBlur(img_gray, (5, 5), 0)
+            _, thresh = cv2.threshold(blur, 200, 255, cv2.THRESH_BINARY)
+            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                c = max(contours, key=cv2.contourArea)
+                M = cv2.moments(c)
+                if M["m00"] != 0:
+                    self.star_x = int(M["m10"] / M["m00"])
+                    self.star_y = int(M["m01"] / M["m00"])
+            return
+
+        # Tracking local autour de star_x, star_y
+        h, w = img_gray.shape
+        r = 30 # Rayon de recherche
+        x1, x2 = max(0, self.star_x - r), min(w, self.star_x + r)
+        y1, y2 = max(0, self.star_y - r), min(h, self.star_y + r)
+        
+        roi = img_gray[y1:y2, x1:x2]
+        blur = cv2.GaussianBlur(roi, (5, 5), 0)
+        _, thresh = cv2.threshold(blur, 150, 255, cv2.THRESH_BINARY)
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours:
+            c = max(contours, key=cv2.contourArea)
+            M = cv2.moments(c)
+            if M["m00"] != 0:
+                cx = int(M["m10"] / M["m00"])
+                cy = int(M["m01"] / M["m00"])
+                self.star_x = x1 + cx
+                self.star_y = y1 + cy
+
+    def apply_guiding_pulse(self, dx, dy):
+        """Envoie les commandes de guidage LX200 à la monture"""
+        # dx, dy = Erreur en pixels (Target - Star)
+        pulse_x = int(abs(dx) * self.ms_per_pixel_x * self.agressivite_x)
+        pulse_y = int(abs(dy) * self.ms_per_pixel_y * self.agressivite_y)
+        
+        # Limite max de pulse (ex: 2000 ms)
+        pulse_x = min(pulse_x, 2000)
+        pulse_y = min(pulse_y, 2000)
+        
+        if pulse_x > 50:
+            if dx > 0:
+                self.send_cmd(f":Mge{pulse_x}#") # Est (à adapter selon orientation caméra)
+            else:
+                self.send_cmd(f":Mgw{pulse_x}#") # Ouest
+                
+        if pulse_y > 50:
+            if dy > 0:
+                self.send_cmd(f":Mgn{pulse_y}#") # Nord
+            else:
+                self.send_cmd(f":Mgs{pulse_y}#") # Sud
+
+    def video_loop(self):
+        while self.running:
+            try:
+                exp_us = int(self.exp_var.get()) * 1000
+                self.camera.set_control_value(asi.ASI_EXPOSURE, exp_us)
+                self.camera.set_control_value(asi.ASI_GAIN, int(self.gain_var.get()))
+                
+                img = self.camera.capture()
+                if img.dtype == np.uint16:
+                    img = (img / 256).astype(np.uint8)
+                
+                if self.guiding:
+                    self.track_star(img)
+                    if self.star_x is not None:
+                        dx = self.target_x - self.star_x
+                        dy = self.target_y - self.star_y
+                        self.apply_guiding_pulse(dx, dy)
+                else:
+                    # En mode non-guidage, on peut quand même tracker l'étoile pour voir si on la perd pas
+                    self.track_star(img)
+                    
+                # Affichage RGB pour dessiner les croix
+                img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+                
+                # Dessin Cible Fente (Croix Rouge)
+                if self.target_x is not None:
+                    cv2.drawMarker(img_rgb, (self.target_x, self.target_y), (0, 0, 255), cv2.MARKER_CROSS, 20, 2)
+                    cv2.circle(img_rgb, (self.target_x, self.target_y), 10, (0, 0, 255), 1)
+                    
+                # Dessin Etoile (Carré Vert)
+                if self.star_x is not None:
+                    cv2.rectangle(img_rgb, (self.star_x - 10, self.star_y - 10), (self.star_x + 10, self.star_y + 10), (0, 255, 0), 2)
+                
+                img_resized = cv2.resize(img_rgb, (640, 480))
+                pi = Image.fromarray(img_resized)
+                pimg = ImageTk.PhotoImage(image=pi)
+                
+                self.canvas.create_image(0, 0, anchor=tk.NW, image=pimg)
+                self.canvas.image = pimg
+                
+            except Exception as e:
+                print(e)
+                time.sleep(1)
+            time.sleep(0.1)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = AutoguideSpectroApp(root)
+    root.mainloop()
