@@ -1952,16 +1952,16 @@ try:
             with open('/tmp/zwo_preview_exp.txt', 'r') as f:
                 new_exp = int(float(f.read().strip()) * 1000000)
                 if new_exp != last_exp and new_exp > 0:
+                    camera.stop_video_capture()
                     camera.set_control_value(asi.ASI_EXPOSURE, new_exp)
+                    camera.start_video_capture()
                     last_exp = new_exp
         except:
             pass
         try:
             frame = camera.capture_video_frame(timeout=int(last_exp/1000) + 5000)
         except Exception as e:
-            if "Timeout" in str(e) or "ZWO_CaptureError" in str(type(e).__name__):
-                continue
-            raise e
+            continue
         h, w = frame.shape
         scale = 640.0 / w
         if scale < 1.0:
