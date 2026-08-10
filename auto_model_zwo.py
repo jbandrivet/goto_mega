@@ -137,8 +137,16 @@ class AutoModelApp:
             self.camera = asi.Camera(0)
             self.camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, self.camera.get_controls()['BandWidth']['MinValue'])
             self.camera.disable_dark_subtract()
+            
+            # Fetch properties to auto-fill pixel size and sensor width
+            props = self.camera.get_camera_property()
+            if 'PixelSize' in props:
+                self.pixel_var.set(str(props['PixelSize']))
+            if 'MaxWidth' in props:
+                self.width_var.set(str(props['MaxWidth']))
+            
             self.lbl_cam.config(text="Caméra prête", foreground="green")
-            self.log("Caméra ZWO initialisée.")
+            self.log(f"Caméra ZWO initialisée: Pixel {self.pixel_var.get()}µm, Largeur {self.width_var.get()}px.")
         except Exception as e:
             messagebox.showerror("Erreur ZWO", str(e))
 
