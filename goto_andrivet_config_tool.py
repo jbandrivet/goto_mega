@@ -746,6 +746,15 @@ class ConfigToolApp(tk.Tk):
         self.pa_btn = tk.Button(self.astro_btns_frame, text="4. Mise en Station (PA)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_polar_alignment)
         self.pa_btn.pack(side="left", fill="x", expand=True, padx=(2, 0))
 
+        self.astro_btns_frame2 = tk.Frame(self.astro_inner, bg="#c0c0c0")
+        self.astro_btns_frame2.pack(pady=(5,0), fill="x", expand=True)
+        
+        self.auto_model_btn = tk.Button(self.astro_btns_frame2, text="5. Modèle Auto ZWO", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_auto_model)
+        self.auto_model_btn.pack(side="left", fill="x", expand=True, padx=(0, 2))
+        
+        self.spectro_btn = tk.Button(self.astro_btns_frame2, text="6. Autoguidage Spectro", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_spectro_autoguide)
+        self.spectro_btn.pack(side="left", fill="x", expand=True, padx=(2, 0))
+
         self.toggle_blind_solving()
         self.toggle_auto_gain()
         self.toggle_astrometry_ui()
@@ -801,6 +810,32 @@ class ConfigToolApp(tk.Tk):
             subprocess.Popen([py_exe, str(script_path)])
         except Exception as e:
             messagebox.showerror("Error", f"Failed to launch Virtual Handpad:\n{e}")
+
+    def open_auto_model(self):
+        try:
+            import subprocess
+            import sys
+            import os
+            from pathlib import Path
+            script_path = Path(__file__).parent / "auto_model_zwo.py"
+            venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
+            py_exe = venv_python if os.path.exists(venv_python) else sys.executable
+            subprocess.Popen([py_exe, str(script_path)])
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to launch Auto-Model:\n{e}")
+
+    def open_spectro_autoguide(self):
+        try:
+            import subprocess
+            import sys
+            import os
+            from pathlib import Path
+            script_path = Path(__file__).parent / "autoguide_spectro_zwo.py"
+            venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
+            py_exe = venv_python if os.path.exists(venv_python) else sys.executable
+            subprocess.Popen([py_exe, str(script_path)])
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to launch Spectro Autoguide:\n{e}")
 
     def change_language(self, new_lang):
         self.settings["language"] = new_lang
