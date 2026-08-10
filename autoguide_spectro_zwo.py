@@ -60,8 +60,6 @@ class AutoguideSpectroApp:
         ttk.Button(fr_conn, text="Connecter Monture", command=self.connect_mount).pack(side=tk.LEFT, padx=5)
         ttk.Button(fr_conn, text="Init Caméra ZWO", command=self.init_camera).pack(side=tk.LEFT, padx=20)
         
-        ttk.Button(fr_conn, text="Reset Modèle Pointage", command=self.reset_pointing_model).pack(side=tk.RIGHT, padx=5)
-        
         # --- Ligne 2: Paramètres Caméra & Guidage ---
         fr_param = ttk.LabelFrame(frm, text="2. Paramètres", padding=5)
         fr_param.pack(fill=tk.X, pady=5)
@@ -161,13 +159,6 @@ class AutoguideSpectroApp:
         m = int((deg - d) * 60)
         s = int((deg - d - m/60.0) * 3600)
         return f"{sign}{d:02d}*{m:02d}'{s:02d}"
-
-    def reset_pointing_model(self):
-        """Réinitialise le modèle de pointage lors d'un déplacement manuel"""
-        if messagebox.askyesno("Reset", "Voulez-vous vraiment effacer le modèle de pointage actuel (si vous avez déplacé la monture manuellement) ?"):
-            # Envoi de la commande pour effacer l'alignement
-            self.send_cmd(":EK#") # Clear model / alignement (OnStep/LX200)
-            self.lbl_status.config(text="Modèle de pointage réinitialisé.", foreground="blue")
 
     def auto_detect_slit(self):
         """Tente de trouver la fente/fibre (trait noir ou cercle noir)"""
