@@ -770,7 +770,7 @@ class ConfigToolApp(tk.Tk):
         self.auto_model_btn = tk.Button(row2, text="Modèle Auto ZWO", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.open_auto_model)
         self.auto_model_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
 
-        self.spectro_btn = tk.Button(row2, text="Autoguidage Spectro", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.open_spectro_autoguide)
+        self.spectro_btn = tk.Button(row2, text="Autoguidage ZWO", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.open_spectro_autoguide)
         self.spectro_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
 
         # Signature
