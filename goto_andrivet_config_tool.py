@@ -1921,9 +1921,13 @@ if img is not None:
         try:
             cam_idx = self.get_selected_camera_idx()
             gain = int(self.gain_entry.get())
+            exp = float(self.exp_entry.get())
         except ValueError:
-            messagebox.showerror("Erreur", "Valeur gain invalide.")
+            messagebox.showerror("Erreur", "Valeur gain ou expo invalide.")
             return
+
+        with open('/tmp/zwo_preview_exp.txt', 'w') as f:
+            f.write(str(exp))
 
         script = f"""
 import sys, os, time
@@ -1937,12 +1941,22 @@ try:
     controls = camera.get_controls()
     if 'BandWidth' in controls:
         camera.set_control_value(asi.ASI_BANDWIDTHOVERLOAD, controls['BandWidth']['MinValue'])
-    camera.set_control_value(asi.ASI_EXPOSURE, 200000)
+    exp_us = int({exp} * 1000000)
+    camera.set_control_value(asi.ASI_EXPOSURE, exp_us)
     camera.set_control_value(asi.ASI_GAIN, {gain}, auto=True)
     camera.set_image_type(asi.ASI_IMG_RAW8)
     camera.start_video_capture()
+    last_exp = exp_us
     while True:
-        frame = camera.capture_video_frame(timeout=5000)
+        try:
+            with open('/tmp/zwo_preview_exp.txt', 'r') as f:
+                new_exp = int(float(f.read().strip()) * 1000000)
+                if new_exp != last_exp and new_exp > 0:
+                    camera.set_control_value(asi.ASI_EXPOSURE, new_exp)
+                    last_exp = new_exp
+        except:
+            pass
+        frame = camera.capture_video_frame(timeout=int(last_exp/1000) + 5000)
         h, w = frame.shape
         scale = 640.0 / w
         if scale < 1.0:
@@ -1988,6 +2002,23 @@ finally:
         
         self.sharpness_lbl = tk.Label(self.preview_top, text="Focus Score: 0.00", font=("Arial", 14, "bold"), fg="red")
         self.sharpness_lbl.pack(pady=5)
+        
+        exp_frame = tk.Frame(self.preview_top, bg="#c0c0c0")
+        exp_frame.pack(pady=5)
+        tk.Label(exp_frame, text="Temps de pose (s):", bg="#c0c0c0", font=("Arial", 10)).pack(side="left")
+        self.preview_exp_var = tk.StringVar(value=str(exp))
+        tk.Entry(exp_frame, textvariable=self.preview_exp_var, width=6, font=("Arial", 10)).pack(side="left", padx=5)
+        
+        def update_preview_exp():
+            try:
+                val = float(self.preview_exp_var.get())
+                with open('/tmp/zwo_preview_exp.txt', 'w') as f:
+                    f.write(str(val))
+            except ValueError:
+                pass
+                
+        tk.Button(exp_frame, text="Appliquer", command=update_preview_exp).pack(side="left")
+        
         
         foc_frame = tk.Frame(self.preview_top, bg="#c0c0c0")
         foc_frame.pack(fill="x", padx=10, pady=(0,10))
