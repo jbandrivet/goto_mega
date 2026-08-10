@@ -746,30 +746,32 @@ class ConfigToolApp(tk.Tk):
         self.pa_btn = tk.Button(self.astro_btns_frame, text="4. Mise en Station (PA)", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_polar_alignment)
         self.pa_btn.pack(side="left", fill="x", expand=True, padx=(2, 0))
 
-        self.astro_btns_frame2 = tk.Frame(self.astro_inner, bg="#c0c0c0")
-        self.astro_btns_frame2.pack(pady=(5,0), fill="x", expand=True)
-        
-        self.auto_model_btn = tk.Button(self.astro_btns_frame2, text="5. Modèle Auto ZWO", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_auto_model)
-        self.auto_model_btn.pack(side="left", fill="x", expand=True, padx=(0, 2))
-        
-        self.spectro_btn = tk.Button(self.astro_btns_frame2, text="6. Autoguidage Spectro", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.open_spectro_autoguide)
-        self.spectro_btn.pack(side="left", fill="x", expand=True, padx=(2, 0))
-
         self.toggle_blind_solving()
         self.toggle_auto_gain()
         self.toggle_astrometry_ui()
 
         # 5. Buttons Actions Panel
-        actions_frame = tk.Frame(main_container, bg="#c0c0c0")
-        actions_frame.pack(fill="x", side="bottom", pady=10)
+        actions_container = tk.Frame(main_container, bg="#c0c0c0")
+        actions_container.pack(fill="x", side="bottom", pady=10)
 
         f_big_button = ("MS Sans Serif", 10, "bold")
 
-        self.apply_btn = tk.Button(actions_frame, text="Apply & Save to Arduino", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.apply_config_to_arduino, state="disabled")
+        row1 = tk.Frame(actions_container, bg="#c0c0c0")
+        row1.pack(fill="x", pady=2)
+        row2 = tk.Frame(actions_container, bg="#c0c0c0")
+        row2.pack(fill="x", pady=2)
+
+        self.apply_btn = tk.Button(row1, text="Apply & Save to Arduino", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.apply_config_to_arduino, state="disabled")
         self.apply_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
 
-        self.launch_pad_btn = tk.Button(actions_frame, text="Virtual Handpad", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.launch_virtual_handpad)
+        self.launch_pad_btn = tk.Button(row1, text="Virtual Handpad", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.launch_virtual_handpad)
         self.launch_pad_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
+
+        self.auto_model_btn = tk.Button(row2, text="Modèle Auto ZWO", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.open_auto_model)
+        self.auto_model_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
+
+        self.spectro_btn = tk.Button(row2, text="Autoguidage Spectro", font=f_big_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=3, command=self.open_spectro_autoguide)
+        self.spectro_btn.pack(side="left", padx=5, ipady=8, fill="x", expand=True)
 
         # Signature
         author_lbl = tk.Label(main_container, text="Créé par Andrivet Jean-Baptiste", font=("Helvetica", 8, "italic"), bg="#e0e0e0", fg="#555555")
