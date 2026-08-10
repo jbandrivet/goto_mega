@@ -727,6 +727,20 @@ class ConfigToolApp(tk.Tk):
         self.foc_entry.insert(0, str(foc_val) if foc_val else "")
         self.foc_entry.pack(side="left", padx=5)
         
+        self.lbl_px = tk.Label(self.astro_row2, text="Pixel (µm):", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_px.pack(side="left")
+        self.px_entry = tk.Entry(self.astro_row2, width=5, font=f_entry, bg="white", fg="black", bd=2, relief="sunken")
+        px_val = self.settings.get("astro_pixel", "3.76")
+        self.px_entry.insert(0, str(px_val) if px_val else "3.76")
+        self.px_entry.pack(side="left", padx=5)
+
+        self.lbl_width = tk.Label(self.astro_row2, text="Largeur (px):", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_width.pack(side="left")
+        self.width_entry = tk.Entry(self.astro_row2, width=6, font=f_entry, bg="white", fg="black", bd=2, relief="sunken")
+        width_val = self.settings.get("astro_width", "1280")
+        self.width_entry.insert(0, str(width_val) if width_val else "1280")
+        self.width_entry.pack(side="left", padx=5)
+
         self.blind_var = tk.BooleanVar(value=self.settings.get("astro_blind", False))
         self.blind_chk = tk.Checkbutton(self.astro_row2, text="Blind Solving", variable=self.blind_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=self.toggle_blind_solving)
         self.blind_chk.pack(side="left", padx=(10,0))
@@ -1800,10 +1814,10 @@ if img is not None:
                 blind = self.blind_var.get()
                 
                 pixel_size = 3.76
-                if os.path.exists('/tmp/astro_px_size.txt'):
-                    with open('/tmp/astro_px_size.txt', 'r') as f_px:
-                        try: pixel_size = float(f_px.read().strip())
-                        except: pass
+                try:
+                    pixel_size = float(self.px_entry.get())
+                except:
+                    pass
                 
                 sf_cmd = ["solve-field", "/tmp/capture_astro.png", "--overwrite", "--no-plots", "--cpulimit", "30"]
                 
@@ -2232,6 +2246,8 @@ finally:
                 self.settings["astro_exp"] = float(self.exp_entry.get())
                 self.settings["astro_gain"] = int(self.gain_entry.get())
                 self.settings["astro_focal"] = float(self.foc_entry.get())
+                self.settings["astro_pixel"] = float(self.px_entry.get())
+                self.settings["astro_width"] = float(self.width_entry.get())
                 self.settings["astro_blind"] = self.blind_var.get()
                 self.settings["astro_auto_gain"] = self.auto_gain_var.get()
             except ValueError:
