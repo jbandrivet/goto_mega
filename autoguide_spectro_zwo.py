@@ -74,9 +74,10 @@ class AutoguideSpectroApp:
         self.gain_var = tk.StringVar(value="150")
         ttk.Entry(fr_param, textvariable=self.gain_var, width=5).pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(fr_param, text="Détecter Fente Auto", command=self.auto_detect_slit).pack(side=tk.LEFT, padx=20)
+        ttk.Button(fr_param, text="Détecter Fente Auto", command=self.auto_detect_slit).pack(side=tk.LEFT, padx=5)
+        ttk.Button(fr_param, text="Centrage Astrométrie", command=self.center_via_astrometry).pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(fr_param, text="Démarrer Guidage", command=self.start_guiding).pack(side=tk.LEFT, padx=20)
+        ttk.Button(fr_param, text="Démarrer Guidage", command=self.start_guiding).pack(side=tk.LEFT, padx=10)
         ttk.Button(fr_param, text="Stop", command=self.stop_guiding).pack(side=tk.LEFT, padx=5)
         
         self.lbl_status = ttk.Label(fr_param, text="Prêt.", foreground="blue")
@@ -119,21 +120,132 @@ class AutoguideSpectroApp:
             self.ser.write(cmd.encode('ascii'))
             time.sleep(0.05)
 
+    def read_resp(self):
+        resp = b""
+        if self.ser:
+            while True:
+                c = self.ser.read(1)
+                if not c or c == b'#':
+                    break
+                resp += c
+        return resp.decode('ascii')
+
+    def ra_to_meade(self, hours):
+        h = int(hours)
+        m = int((hours - h) * 60)
+        s = int((hours - h - m/60.0) * 3600)
+        return f"{h:02d}:{m:02d}:{s:02d}"
+
+    def dec_to_meade(self, deg):
+        sign = '+' if deg >= 0 else '-'
+        deg = abs(deg)
+        d = int(deg)
+        m = int((deg - d) * 60)
+        s = int((deg - d - m/60.0) * 3600)
+        return f"{sign}{d:02d}*{m:02d}'{s:02d}"
+
     def reset_pointing_model(self):
         """Réinitialise le modèle de pointage lors d'un déplacement manuel"""
         if messagebox.askyesno("Reset", "Voulez-vous vraiment effacer le modèle de pointage actuel (si vous avez déplacé la monture manuellement) ?"):
             # Envoi de la commande pour effacer l'alignement
-            # Dans OnStep, ":EK#" efface le modèle d'alignement ou ":ENVRESET#" selon la config.
-            # On envoie :A0# ou une suite de commandes pour clear le sync.
-            self.send_cmd(":EK#") # Souvent utilisé pour clear model
+            self.send_cmd(":EK#") # Clear model / alignement (OnStep/LX200)
             self.lbl_status.config(text="Modèle de pointage réinitialisé.", foreground="blue")
 
     def auto_detect_slit(self):
-        """Tente de trouver la fente/fibre (ex: ligne sombre ou spot spécifique)"""
-        # Pour l'instant, on simule en mettant au centre. À adapter selon l'image réelle.
-        self.target_x = 320
-        self.target_y = 240
-        self.lbl_status.config(text="Fente détectée (centrée).", foreground="blue")
+        """Tente de trouver la fente/fibre (trait noir ou cercle noir)"""
+        if not hasattr(self, 'last_img') or self.last_img is None:
+            messagebox.showwarning("Erreur", "Aucune image disponible.")
+            return
+            
+        blur = cv2.GaussianBlur(self.last_img, (5, 5), 0)
+        # Seuil sur les pixels les plus sombres (on inverse pour que le noir devienne blanc)
+        min_val = np.min(blur)
+        _, thresh = cv2.threshold(blur, min_val + 30, 255, cv2.THRESH_BINARY_INV)
+        
+        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            c = max(contours, key=cv2.contourArea)
+            if cv2.contourArea(c) > 10:
+                M = cv2.moments(c)
+                if M["m00"] != 0:
+                    self.target_x = int(M["m10"] / M["m00"])
+                    self.target_y = int(M["m01"] / M["m00"])
+                    self.lbl_status.config(text=f"Fente trouvée ({self.target_x}, {self.target_y}).", foreground="green")
+                    return
+                    
+        self.lbl_status.config(text="Échec détection. Cliquez sur l'image pour placer la cible.", foreground="red")
+
+    def center_via_astrometry(self):
+        """Centre l'objet actuel sur la fente via astrométrie"""
+        if not self.ser or not hasattr(self, 'last_img'):
+            messagebox.showwarning("Attention", "Connectez la monture et attendez une image.")
+            return
+        if self.target_x is None:
+            messagebox.showwarning("Attention", "Définissez d'abord la position de la fente.")
+            return
+            
+        self.lbl_status.config(text="Centrage Astrométrique en cours...", foreground="red")
+        threading.Thread(target=self.astrometry_center_process, daemon=True).start()
+
+    def astrometry_center_process(self):
+        try:
+            img_path = "/tmp/spectro_astro.png"
+            cv2.imwrite(img_path, self.last_img)
+            
+            # Lire la cible actuelle de la monture (où est censé être l'objet)
+            self.send_cmd(":Gr#")
+            ra_str = self.read_resp()
+            self.send_cmd(":Gd#")
+            dec_str = self.read_resp()
+            
+            import subprocess, re
+            cmd = ["solve-field", img_path, "--overwrite", "--no-plots", "--cpulimit", "30"]
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            
+            match = re.search(r"Field center: \(RA,Dec\) = \(([\d.]+),\s*([-\d.]+)\)", result.stdout)
+            match_scale = re.search(r"pixel scale: ([\d.]+) arcsec/pix", result.stdout)
+            match_rot = re.search(r"Up is ([\d.]+) degrees E of N", result.stdout)
+            
+            if match and match_scale:
+                ra_center = float(match.group(1))
+                dec_center = float(match.group(2))
+                scale = float(match_scale.group(1)) / 3600.0 # deg/pixel
+                rot = float(match_rot.group(1)) if match_rot else 0.0
+                rot_rad = math.radians(rot)
+                
+                h, w = self.last_img.shape
+                # Différence centre -> fente
+                dx = self.target_x - w/2.0
+                dy = -(self.target_y - h/2.0) # Inversé car l'axe y de l'image descend
+                
+                # Rotation du champ
+                delta_ra = (dx * math.cos(rot_rad) - dy * math.sin(rot_rad)) * scale
+                delta_dec = (dx * math.sin(rot_rad) + dy * math.cos(rot_rad)) * scale
+                
+                slit_ra_deg = ra_center + delta_ra / math.cos(math.radians(dec_center))
+                slit_dec_deg = dec_center + delta_dec
+                
+                # Sync sur la fente
+                s_ra_str = self.ra_to_meade(slit_ra_deg / 15.0)
+                s_dec_str = self.dec_to_meade(slit_dec_deg)
+                
+                self.send_cmd(f":Sr{s_ra_str}#")
+                self.send_cmd(f":Sd{s_dec_str}#")
+                self.send_cmd(":CM#")
+                time.sleep(0.5)
+                
+                # GoTo vers l'objet
+                if ra_str and dec_str:
+                    self.send_cmd(f":Sr{ra_str}#")
+                    self.send_cmd(f":Sd{dec_str}#")
+                    self.send_cmd(":MS#")
+                
+                self.root.after(0, lambda: self.lbl_status.config(text="Centrage terminé.", foreground="green"))
+            else:
+                self.root.after(0, lambda: self.lbl_status.config(text="Échec résolution astrométrique.", foreground="red"))
+        except Exception as e:
+            print("Erreur astrometrie:", e)
+            self.root.after(0, lambda: self.lbl_status.config(text="Erreur astrométrie.", foreground="red"))
 
     def on_click_set_target(self, event):
         """Clic gauche pour positionner la cible de la fente/fibre"""
@@ -228,6 +340,7 @@ class AutoguideSpectroApp:
                 img = self.camera.capture()
                 if img.dtype == np.uint16:
                     img = (img / 256).astype(np.uint8)
+                self.last_img = img
                 
                 if self.guiding:
                     self.track_star(img)
