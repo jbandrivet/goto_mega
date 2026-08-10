@@ -94,6 +94,12 @@ class AutoguideSpectroApp:
         self.canvas.bind("<Button-1>", self.on_click_set_target)
         self.canvas.bind("<Button-3>", self.on_click_set_star)
         
+        # Nudge keys
+        self.root.bind("<Up>", self.nudge_up)
+        self.root.bind("<Down>", self.nudge_down)
+        self.root.bind("<Left>", self.nudge_left)
+        self.root.bind("<Right>", self.nudge_right)
+        
         self.lbl_info = ttk.Label(frm, text="Mode Normal : Clic Gauche = Sélectionner l'étoile guide (verrouille la cible)")
         self.lbl_info.pack()
 
@@ -256,6 +262,15 @@ class AutoguideSpectroApp:
             print("Erreur astrometrie:", e)
             self.root.after(0, lambda: self.lbl_status.config(text="Erreur astrométrie.", foreground="red"))
 
+    def nudge_up(self, event):
+        if self.target_y is not None: self.target_y -= 1
+    def nudge_down(self, event):
+        if self.target_y is not None: self.target_y += 1
+    def nudge_left(self, event):
+        if self.target_x is not None: self.target_x -= 1
+    def nudge_right(self, event):
+        if self.target_x is not None: self.target_x += 1
+
     def on_click_set_target(self, event):
         if getattr(self, 'spectro_mode_var', None) and self.spectro_mode_var.get():
             """Clic gauche pour positionner la cible de la fente/fibre"""
@@ -308,23 +323,25 @@ class AutoguideSpectroApp:
 
         # Tracking local autour de star_x, star_y
         h, w = img_gray.shape
-        r = 30 # Rayon de recherche
+        r = 25 # Rayon de recherche plus serré pour éviter les autres étoiles
         x1, x2 = max(0, self.star_x - r), min(w, self.star_x + r)
         y1, y2 = max(0, self.star_y - r), min(h, self.star_y + r)
         
-        roi = img_gray[y1:y2, x1:x2]
-        blur = cv2.GaussianBlur(roi, (5, 5), 0)
-        _, thresh = cv2.threshold(blur, 150, 255, cv2.THRESH_BINARY)
-        contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        roi = img_gray[y1:y2, x1:x2].astype(np.float32)
         
-        if contours:
-            c = max(contours, key=cv2.contourArea)
-            M = cv2.moments(c)
-            if M["m00"] != 0:
-                cx = int(M["m10"] / M["m00"])
-                cy = int(M["m01"] / M["m00"])
-                self.star_x = x1 + cx
-                self.star_y = y1 + cy
+        # Soustraction du fond de ciel (médiane) pour ne garder que le signal de l'étoile
+        bg = np.median(roi)
+        roi_clean = np.maximum(roi - bg, 0)
+        
+        # Calcul du Centre de Gravité (Centroid) directement sur les intensités
+        # C'est la méthode de CCDCiel : très stable même si l'étoile est coupée en deux par la fente !
+        M = cv2.moments(roi_clean)
+        
+        if M["m00"] > 0:
+            cx = M["m10"] / M["m00"]
+            cy = M["m01"] / M["m00"]
+            self.star_x = int(x1 + cx)
+            self.star_y = int(y1 + cy)
 
     def apply_guiding_pulse(self, dx, dy):
         """Envoie les commandes de guidage LX200 à la monture"""
