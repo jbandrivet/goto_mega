@@ -2047,6 +2047,9 @@ finally:
                 
         tk.Button(exp_frame, text="Appliquer", command=update_preview_exp).pack(side="left")
         
+        self.preview_progress = ttk.Progressbar(self.preview_top, orient="horizontal", mode="determinate")
+        self.preview_progress.pack(fill="x", padx=10, pady=(0,5))
+        self.preview_progress_start_time = time.time()
         
         foc_frame = tk.Frame(self.preview_top, bg="#c0c0c0")
         foc_frame.pack(fill="x", padx=10, pady=(0,10))
@@ -2172,13 +2175,27 @@ finally:
             return
         try:
             import os
+            import time
             if os.path.exists('/tmp/capture_astro_stream.ppm'):
-                if not hasattr(self, 'preview_photo'):
-                    self.preview_photo = tk.PhotoImage(file='/tmp/capture_astro_stream.ppm')
-                    self.preview_lbl.config(image=self.preview_photo)
-                else:
-                    self.preview_photo.configure(file='/tmp/capture_astro_stream.ppm')
-                    
+                mtime = os.path.getmtime('/tmp/capture_astro_stream.ppm')
+                if getattr(self, 'last_stream_mtime', 0) != mtime:
+                    self.last_stream_mtime = mtime
+                    self.preview_progress_start_time = time.time()
+                    if not hasattr(self, 'preview_photo'):
+                        self.preview_photo = tk.PhotoImage(file='/tmp/capture_astro_stream.ppm')
+                        self.preview_lbl.config(image=self.preview_photo)
+                    else:
+                        self.preview_photo.configure(file='/tmp/capture_astro_stream.ppm')
+            
+            if hasattr(self, 'preview_progress_start_time'):
+                try:
+                    exp = float(self.preview_exp_var.get())
+                except:
+                    exp = 0.2
+                elapsed = time.time() - self.preview_progress_start_time
+                progress = min(100, (elapsed / exp) * 100) if exp > 0 else 100
+                self.preview_progress['value'] = progress
+                
             if os.path.exists('/tmp/zwo_sharpness.txt'):
                 mtime = os.path.getmtime('/tmp/zwo_sharpness.txt')
                 with open('/tmp/zwo_sharpness.txt', 'r') as f:
