@@ -104,8 +104,8 @@ class AutoModelApp:
         fr_model.pack(fill=tk.X, pady=5)
         
         ttk.Label(fr_model, text="Nombre d'étoiles/points:").grid(row=0, column=0, padx=5, pady=5)
-        self.pts_var = tk.StringVar(value="10")
-        ttk.Entry(fr_model, textvariable=self.pts_var, width=5).grid(row=0, column=1, padx=5, pady=5)
+        self.pts_var = tk.StringVar(value="50")
+        tk.Spinbox(fr_model, from_=3, to=100, textvariable=self.pts_var, width=5).grid(row=0, column=1, padx=5, pady=5)
         
         ttk.Label(fr_model, text="Exposition (ms):").grid(row=0, column=2, padx=5, pady=5)
         self.exp_var = tk.StringVar(value="2000")
