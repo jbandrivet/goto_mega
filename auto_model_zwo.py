@@ -92,6 +92,7 @@ class AutoModelApp:
         ttk.Entry(fr_optics, textvariable=self.width_var, width=8).grid(row=0, column=5, padx=5, pady=2)
         
         ttk.Button(fr_optics, text="Calculer FOV & Index", command=self.calc_fov).grid(row=0, column=6, padx=10, pady=2)
+        ttk.Button(fr_optics, text="Télécharger Index", command=self.download_indexes).grid(row=0, column=7, padx=5, pady=2)
         
         self.lbl_fov = ttk.Label(fr_optics, text="FOV: -- arcmin", font=("Arial", 10, "bold"))
         self.lbl_fov.grid(row=1, column=0, columnspan=3, padx=5, pady=5)
@@ -174,6 +175,55 @@ class AutoModelApp:
             
         except ValueError:
             messagebox.showerror("Erreur", "Valeurs optiques invalides.")
+
+    def download_indexes(self):
+        try:
+            focale = float(self.focale_var.get())
+            pixel = float(self.pixel_var.get())
+            width = float(self.width_var.get())
+            sensor_w_mm = (pixel * width) / 1000.0
+            fov_deg = math.degrees(2 * math.atan(sensor_w_mm / (2 * focale)))
+            fov_arcmin = fov_deg * 60.0
+            min_index = fov_arcmin * 0.1
+            max_index = fov_arcmin * 1.0
+        except ValueError:
+            messagebox.showerror("Erreur", "Calculez d'abord le FOV.")
+            return
+
+        target_scales = []
+        scales_map = {
+            19: [1400, 2000], 18: [970, 1400], 17: [680, 1000], 16: [470, 680],
+            15: [330, 480], 14: [230, 340], 13: [160, 240], 12: [110, 170],
+            11: [80, 120], 10: [55, 85], 9: [40, 60], 8: [28, 42], 7: [20, 30]
+        }
+        for sc, r in scales_map.items():
+            if r[1] >= min_index and r[0] <= max_index:
+                target_scales.append(sc)
+        if not target_scales: target_scales = [11,12,13]
+        
+        min_sc = max(7, min(target_scales) - 1)
+        max_sc = min(19, max(target_scales) + 1)
+        scales = list(range(min_sc, max_sc + 1))
+        
+        script = f"""
+import tkinter as tk
+from goto_andrivet_config_tool import ConfigToolApp
+app = ConfigToolApp()
+app.withdraw()
+app.download_astrometry_indexes({scales})
+def check_toplevels():
+    if not any(isinstance(w, tk.Toplevel) for w in app.winfo_children()):
+        app.destroy()
+    else:
+        app.after(500, check_toplevels)
+app.after(500, check_toplevels)
+app.mainloop()
+"""
+        import subprocess, os
+        from pathlib import Path
+        venv_python = str(Path.home() / ".goto_andrivet" / "venv" / "bin" / "python3")
+        python_path = venv_python if os.path.exists(venv_python) else sys.executable
+        subprocess.Popen([python_path, "-c", script], cwd=str(Path(__file__).parent))
 
     def send_cmd(self, cmd, wait_resp=False):
         if self.ser:
