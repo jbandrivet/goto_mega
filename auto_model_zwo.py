@@ -285,8 +285,8 @@ app.mainloop()
             
             # Position locale
             obs = ephem.Observer()
-            obs.lat = ephem.degrees('45.0') # FIXME: Prendre du GPS/Raquette
-            obs.lon = ephem.degrees('0.0')
+            obs.lat = ephem.degrees(str(self.cfg.get('latitude', '45.0')))
+            obs.lon = ephem.degrees(str(self.cfg.get('longitude', '0.0')))
             
             success_count = 0
             

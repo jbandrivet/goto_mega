@@ -838,6 +838,9 @@ static inline void stepPulse(uint8_t pin) {
 // azReversed / altReversed change en cours de session, le niveau recalcule
 // differe du cache et la broche est bien reecrite.
 // -1 = etat inconnu depuis le boot, force la premiere ecriture.
+volatile uint16_t pendingBacklashAz = 0;
+volatile uint16_t pendingBacklashAlt = 0;
+volatile bool inISR = false;
 static volatile int8_t lastLvlAz  = -1;
 static volatile int8_t lastLvlAlt = -1;
 
@@ -849,9 +852,13 @@ static inline void setDirAz(int8_t dir) {
   lastLvlAz = lvl;
   delayMicroseconds(DIR_SETUP_US);     // etablissement avant le prochain PUL
   if (applyBacklash && backlashAz > 0) {
-      for(uint16_t i=0; i<backlashAz; i++) {
-          digitalWriteFast(AZ_STEP, HIGH); delayMicroseconds(3);
-          digitalWriteFast(AZ_STEP, LOW); delayMicroseconds(3);
+      if (inISR) {
+          pendingBacklashAz += backlashAz;
+      } else {
+          for(uint16_t i=0; i<backlashAz; i++) {
+              digitalWriteFast(AZ_STEP, HIGH); delayMicroseconds(3);
+              digitalWriteFast(AZ_STEP, LOW); delayMicroseconds(3);
+          }
       }
   }
 }
@@ -864,9 +871,13 @@ static inline void setDirAlt(int8_t dir) {
   lastLvlAlt = lvl;
   delayMicroseconds(DIR_SETUP_US);
   if (applyBacklash && backlashAlt > 0) {
-      for(uint16_t i=0; i<backlashAlt; i++) {
-          digitalWriteFast(ALT_STEP, HIGH); delayMicroseconds(3);
-          digitalWriteFast(ALT_STEP, LOW); delayMicroseconds(3);
+      if (inISR) {
+          pendingBacklashAlt += backlashAlt;
+      } else {
+          for(uint16_t i=0; i<backlashAlt; i++) {
+              digitalWriteFast(ALT_STEP, HIGH); delayMicroseconds(3);
+              digitalWriteFast(ALT_STEP, LOW); delayMicroseconds(3);
+          }
       }
   }
 }
@@ -1176,6 +1187,19 @@ static volatile bool   guidePendingRebase = false;
 
 
 void doTrackingISR() {
+  inISR = true;
+  if (pendingBacklashAz > 0) {
+    digitalWriteFast(AZ_STEP, HIGH); delayMicroseconds(STEP_PULSE_US); digitalWriteFast(AZ_STEP, LOW);
+    pendingBacklashAz--;
+  }
+  if (pendingBacklashAlt > 0) {
+    digitalWriteFast(ALT_STEP, HIGH); delayMicroseconds(STEP_PULSE_US); digitalWriteFast(ALT_STEP, LOW);
+    pendingBacklashAlt--;
+  }
+  if (pendingBacklashAz > 0 || pendingBacklashAlt > 0) {
+    inISR = false;
+    return;
+  }
   const bool motionOK = tracking && !slewing && !alarmActive;
 
   // Le decompte du guidage court quoi qu'il arrive. Si l'etat change en cours

@@ -455,18 +455,6 @@ class VirtualTeensyApp(tk.Tk):
                 self.ser.read_until(b"#")
                 
                 # 3.5 Sync Mechanical Settings FROM Mega to PC
-                self.ser.write(b":BSm#")
-                time.sleep(0.05)
-                if self.ser.in_waiting:
-                    try: self.cfg.set("microstep", int(self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')))
-                    except: pass
-                
-                self.ser.write(b":BSp#")
-                time.sleep(0.05)
-                if self.ser.in_waiting:
-                    try: self.cfg.set("steps_per_rev_motor", int(self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')))
-                    except: pass
-                
                 self.ser.write(b":BGa#")
                 time.sleep(0.05)
                 if self.ser.in_waiting:
@@ -1346,7 +1334,7 @@ class VirtualTeensyApp(tk.Tk):
                         else:
                             self.set_msg(" MOTEURS EN PAUSE ", "                ", "", "", 1500, self.UI_MAIN)
                     else:
-                        if hasattr(self, 'target_ra') and hasattr(self, 'target_dec') and self.target_ra >= 0 and self.target_dec >= -90:
+                        if hasattr(self, 'target_ra') and hasattr(self, 'target_dec') and self.target_ra is not None and self.target_dec is not None and self.target_ra >= 0 and self.target_dec >= -90:
                             ra_str = Astro.fmt_ra_lx(self.target_ra)
                             dec_str = Astro.fmt_dec_lx(self.target_dec)
                             self.send_cmd(f":Sr{ra_str}#")
@@ -1484,7 +1472,7 @@ class VirtualTeensyApp(tk.Tk):
             elif btn == "ENTER":
                 self.cfg.set("gear_ratio_alt", self.temp_ratio_alt)
                 self.cfg.save()
-                self.send_cmd(f":BGb{self.temp_ratio_alt}#")
+                self.send_cmd(f":BGe{self.temp_ratio_alt}#")
                 lang = self.cfg.get("language", "fr")
                 is_altaz = (self.cfg.get("mount_type", "AltAz") == "AltAz")
                 if lang == "en":

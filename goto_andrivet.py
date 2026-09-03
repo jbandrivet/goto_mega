@@ -1334,6 +1334,8 @@ class Derotator:
 
     def set_mount(self, m): self._mount=m
 
+    def set_offset(self, o): self.offset=o
+
     def connect(self, port, baud=9600, sim=True):
         self._sim=sim; self._rev=self.cfg.get("derot_reversed",False)
         if not sim and HAS_SERIAL:
@@ -1365,7 +1367,7 @@ class Derotator:
                     if last_pa is None or abs(self.pa-last_pa)>0.1:
                         self.target=tgt
                         if self.cfg.get("derot_mega_en", False):
-                            self._mount.conn.send_cmd(f":XDa{tgt:.2f}#")
+                            self._mount._cmd(f":XDa{tgt:.2f}#", reply=False)
                         else:
                             self._send(f"SETPOS:{tgt:.2f}\r\n")
                         last_pa=self.pa
@@ -1385,7 +1387,7 @@ class Derotator:
     def goto_angle(self, a):
         self.target=a%360; self.moving=True
         if self.cfg.get("derot_mega_en", False) and self._mount and self._mount.state.connected:
-            self._mount.conn.send_cmd(f":XDa{a%360:.2f}#")
+            self._mount._cmd(f":XDa{a%360:.2f}#", reply=False)
         else:
             self._send(f"SETPOS:{a%360:.2f}\r\n")
 

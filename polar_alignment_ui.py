@@ -199,7 +199,9 @@ except Exception as e:
             return
             
         n = n / norm
-        if n[2] < 0: n = -n # Point to North
+        is_south = float(self.cfg.get("latitude", 45.0)) < 0
+        if is_south and n[2] > 0: n = -n
+        elif not is_south and n[2] < 0: n = -n
         
         dec_cor = math.degrees(math.asin(n[2]))
         ra_cor = math.degrees(math.atan2(n[1], n[0]))

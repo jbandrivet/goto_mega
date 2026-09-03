@@ -2210,10 +2210,10 @@ void handleButtons(){
             mega_cmd(":Qs", false); manualSlewing[1] = false;
         }
         if(btnReleased[BTN_IDX_LEFT] && manualSlewing[2]) {
-            mega_cmd(":Qw", false); manualSlewing[2] = false;
+            mega_cmd(":Qe", false); manualSlewing[2] = false;
         }
         if(btnReleased[BTN_IDX_RIGHT] && manualSlewing[3]) {
-            mega_cmd(":Qe", false); manualSlewing[3] = false;
+            mega_cmd(":Qw", false); manualSlewing[3] = false;
         }
         
         // Safety: If for some reason multiple keys are released, ensure we stop

@@ -740,6 +740,9 @@ static inline void dirWrite(uint8_t pin, bool level) {
 // azReversed / altReversed change en cours de session, le niveau recalcule
 // differe du cache et la broche est bien reecrite.
 // -1 = etat inconnu depuis le boot, force la premiere ecriture.
+volatile uint16_t pendingBacklashAz = 0;
+volatile uint16_t pendingBacklashAlt = 0;
+volatile bool inISR = false;
 static volatile int8_t lastLvlAz  = -1;
 static volatile int8_t lastLvlAlt = -1;
 
@@ -751,9 +754,13 @@ static inline void setDirAz(int8_t dir) {
   lastLvlAz = lvl;
   delayMicroseconds(DIR_SETUP_US);     // etablissement avant le prochain PUL
   if (applyBacklash && backlashAz > 0) {
-      for(uint16_t i=0; i<backlashAz; i++) {
-          stepPulse(AZ_STEP);
-          delayMicroseconds(2); // Laisser un petit temps
+      if (inISR) {
+          pendingBacklashAz += backlashAz;
+      } else {
+          for(uint16_t i=0; i<backlashAz; i++) {
+              stepPulse(AZ_STEP);
+              delayMicroseconds(2); // Laisser un petit temps
+          }
       }
   }
 }
@@ -766,9 +773,13 @@ static inline void setDirAlt(int8_t dir) {
   lastLvlAlt = lvl;
   delayMicroseconds(DIR_SETUP_US);
   if (applyBacklash && backlashAlt > 0) {
-      for(uint16_t i=0; i<backlashAlt; i++) {
-          stepPulse(ALT_STEP);
-          delayMicroseconds(2);
+      if (inISR) {
+          pendingBacklashAlt += backlashAlt;
+      } else {
+          for(uint16_t i=0; i<backlashAlt; i++) {
+              stepPulse(ALT_STEP);
+              delayMicroseconds(2);
+          }
       }
   }
 }
@@ -1077,6 +1088,19 @@ static volatile bool   guidePendingRebase = false;
 
 
 ISR(TIMER1_COMPA_vect) {
+  inISR = true;
+  if (pendingBacklashAz > 0) {
+    stepPulse(AZ_STEP);
+    pendingBacklashAz--;
+  }
+  if (pendingBacklashAlt > 0) {
+    stepPulse(ALT_STEP);
+    pendingBacklashAlt--;
+  }
+  if (pendingBacklashAz > 0 || pendingBacklashAlt > 0) {
+    inISR = false;
+    return;
+  }
   const bool motionOK = tracking && !slewing && !alarmActive;
 
   // Le decompte du guidage court quoi qu'il arrive. Si l'etat change en cours
