@@ -1272,6 +1272,7 @@ void doTrackingISR() {
       }
     }
   }
+  inISR = false;
 }
 
 static void doTrack() {

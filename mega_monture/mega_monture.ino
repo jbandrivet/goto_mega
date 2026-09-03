@@ -1173,6 +1173,7 @@ ISR(TIMER1_COMPA_vect) {
       }
     }
   }
+  inISR = false;
 }
 
 static void doTrack() {
