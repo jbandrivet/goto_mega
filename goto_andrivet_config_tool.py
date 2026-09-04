@@ -1509,8 +1509,9 @@ print(json.dumps(res))
                 self.ser.write(b":GL#")
                 time_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
                 
-                if len(date_raw) >= 8 and len(time_raw) >= 8:
-                    mm, dd, yy = date_raw.split('/')
+                parts = date_raw.split('/')
+                if len(date_raw) >= 8 and len(time_raw) >= 8 and len(parts) == 3:
+                    mm, dd, yy = parts
                     # 20YY assumption
                     full_date = f"20{yy}-{mm}-{dd} {time_raw}"
                     
@@ -1553,35 +1554,7 @@ print(json.dumps(res))
                 # Query Mount Type
                 self.ser.write(b":GM#")
                 gm_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
-                if gm_raw in ("AltAz", "ForkEq", "GermanEq"):
-                    self.mount_type_var.set(gm_raw)
-                    self.on_mount_type_changed(gm_raw)
                 
-                self.rev_az_var.set(rev_az_raw == '1')
-                self.rev_alt_var.set(rev_alt_raw == '1')
-                
-                # Parse coordinates to floats if possible
-                try:
-                    lat_val = self.parse_lx_coords(lat_raw)
-                    self.lat_entry.delete(0, tk.END)
-                    self.lat_entry.insert(0, f"{lat_val:.4f}")
-                except Exception:
-                    pass
-                    
-                try:
-                    lon_val = self.parse_lx_coords(lon_raw)
-                    self.lon_entry.delete(0, tk.END)
-                    self.lon_entry.insert(0, f"{lon_val:.4f}")
-                except Exception:
-                    pass
-                    
-                try:
-                    s_val = int(speed_raw) / 10.0
-                    self.speed_scale.set(s_val)
-                    self.update_speed_lbl(s_val)
-                except Exception:
-                    pass
-                    
                 # Gear ratios and motor steps
                 self.ser.write(b":GGa#")
                 gear_az_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
@@ -1592,41 +1565,77 @@ print(json.dumps(res))
                 self.ser.write(b":GSm#")
                 micro_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
                 
-                try:
-                    if gear_az_raw:
-                        self.gear_az_entry.delete(0, tk.END)
-                        self.gear_az_entry.insert(0, f"{float(gear_az_raw):.1f}")
-                    if gear_alt_raw:
-                        self.gear_alt_entry.delete(0, tk.END)
-                        self.gear_alt_entry.insert(0, f"{float(gear_alt_raw):.1f}")
-                    if steps_raw:
-                        self.steps_entry.delete(0, tk.END)
-                        self.steps_entry.insert(0, str(int(steps_raw)))
-                    if micro_raw:
-                        self.microstep_var.set(str(int(micro_raw)))
-                except Exception:
-                    pass
-                
                 # Park Alt/Az
                 self.ser.write(b":GQa#")
                 park_alt_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
                 self.ser.write(b":GQz#")
                 park_az_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
-                
-                try:
+
+                def _update_ui():
+                    if gm_raw in ("AltAz", "ForkEq", "GermanEq"):
+                        self.mount_type_var.set(gm_raw)
+                        self.on_mount_type_changed(gm_raw)
+                    self.rev_az_var.set(rev_az_raw == '1')
+                    self.rev_alt_var.set(rev_alt_raw == '1')
+                    
+                    try:
+                        lat_val = self.parse_lx_coords(lat_raw)
+                        self.lat_entry.delete(0, tk.END)
+                        self.lat_entry.insert(0, f"{lat_val:.4f}")
+                    except: pass
+                        
+                    try:
+                        lon_val = self.parse_lx_coords(lon_raw)
+                        self.lon_entry.delete(0, tk.END)
+                        self.lon_entry.insert(0, f"{lon_val:.4f}")
+                    except: pass
+                        
+                    try:
+                        s_val = int(speed_raw) / 10.0
+                        self.speed_scale.set(s_val)
+                        self.update_speed_lbl(s_val)
+                    except: pass
+                        
+                    if gear_az_raw:
+                        try:
+                            v = f"{float(gear_az_raw):.1f}"
+                            self.gear_az_entry.delete(0, tk.END)
+                            self.gear_az_entry.insert(0, v)
+                        except: pass
+                    if gear_alt_raw:
+                        try:
+                            v = f"{float(gear_alt_raw):.1f}"
+                            self.gear_alt_entry.delete(0, tk.END)
+                            self.gear_alt_entry.insert(0, v)
+                        except: pass
+                    if steps_raw:
+                        try:
+                            v = str(int(steps_raw))
+                            self.steps_entry.delete(0, tk.END)
+                            self.steps_entry.insert(0, v)
+                        except: pass
+                    if micro_raw:
+                        try:
+                            self.microstep_var.set(str(int(micro_raw)))
+                        except: pass
                     if park_alt_raw:
-                        self.park_alt_entry.delete(0, tk.END)
-                        self.park_alt_entry.insert(0, f"{float(park_alt_raw):.1f}")
+                        try:
+                            v = f"{float(park_alt_raw):.1f}"
+                            self.park_alt_entry.delete(0, tk.END)
+                            self.park_alt_entry.insert(0, v)
+                        except: pass
                     if park_az_raw:
-                        self.park_az_entry.delete(0, tk.END)
-                        self.park_az_entry.insert(0, f"{float(park_az_raw):.1f}")
-                except Exception:
-                    pass
-                
-                
-                messagebox.showinfo("Read Config", "Configuration successfully loaded from Arduino!")
+                        try:
+                            v = f"{float(park_az_raw):.1f}"
+                            self.park_az_entry.delete(0, tk.END)
+                            self.park_az_entry.insert(0, v)
+                        except: pass
+
+                self.after(0, _update_ui)
+                # messagebox.showinfo is already shown in toggle_connection, but let's keep it if needed. Actually it was here.
+                # I'll just remove it from here since toggle_connection shows it, to avoid duplicate dialogs.
             except Exception as e:
-                self.handle_serial_error(e)
+                self.after(0, lambda err=e: self.handle_serial_error(err))
 
     def parse_lx_coords(self, raw):
         sign = -1.0 if raw[0] == '-' else 1.0

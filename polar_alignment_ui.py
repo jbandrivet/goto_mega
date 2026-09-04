@@ -203,7 +203,7 @@ except Exception as e:
         if is_south and n[2] > 0: n = -n
         elif not is_south and n[2] < 0: n = -n
         
-        dec_cor = math.degrees(math.asin(n[2]))
+        dec_cor = math.degrees(math.asin(max(-1.0, min(1.0, n[2]))))
         ra_cor = math.degrees(math.atan2(n[1], n[0]))
         if ra_cor < 0: ra_cor += 360
         
