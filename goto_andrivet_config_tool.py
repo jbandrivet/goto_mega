@@ -2460,7 +2460,7 @@ finally:
             fqbn = "arduino:avr:mega"
             additional_args = []
         else:
-            sketch_path = script_dir / "goto_andrivet_raquette" / "teensy_raquette_v62"
+            sketch_path = script_dir / "teensy_raquette"
             fqbn = "teensy:avr:teensy41"
             additional_args = ["--additional-urls", "https://www.pjrc.com/teensy/package_teensy_index.json"]
 

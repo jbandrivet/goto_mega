@@ -866,7 +866,7 @@ class Astro:
             c = (math.sin(alt)-math.sin(dec)*math.sin(lat))/(cd*math.cos(lat))
             ha = math.acos(max(-1.0, min(1.0, c)))
         else: ha = 0.0
-        if math.sin(az) < 0: ha = 2*math.pi - ha
+        if math.sin(az) > 0: ha = 2*math.pi - ha
         ra = (lst_h - ha*RAD/15.0) % 24
         if ra < 0: ra += 24
         return ra, dec*RAD
