@@ -1363,9 +1363,10 @@ class Derotator:
             if self._mount and self._mount.state.connected:
                 self.pa=self._mount.parallactic_angle()
                 if self.enabled:
-                    tgt=(-(self.pa+self.offset))%360
+                    if self._rev: tgt = (self.pa + self.offset) % 360
+                    else: tgt = (-(self.pa + self.offset)) % 360
                     if last_pa is None or abs(self.pa-last_pa)>0.1:
-                        self.target=tgt
+                        self.target=tgt; self.moving=True
                         if self.cfg.get("derot_mega_en", False):
                             self._mount._cmd(f":XDa{tgt:.2f}#", reply=False)
                         else:
@@ -1383,6 +1384,8 @@ class Derotator:
     def enable(self, on):
         self.enabled=on
         if not on: self.moving=False
+        if self.cfg.get("derot_mega_en", False) and self._mount and self._mount.state.connected:
+            self._mount._cmd(f":XDe{1 if on else 0}#", reply=False)
 
     def goto_angle(self, a):
         self.target=a%360; self.moving=True

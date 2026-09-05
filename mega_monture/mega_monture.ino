@@ -2536,8 +2536,13 @@ void loop() {
 
   // Handle Derotator
   if(derotEnabled && mountType == 0) { // Only in Alt-Az
+    long stepsPerRev = (long)(360.0 * derotPPD);
     long targetPos = (long)(derotTarget * derotPPD);
     long diff = targetPos - derotPos;
+    if (stepsPerRev > 0) {
+      while (diff > stepsPerRev / 2) diff -= stepsPerRev;
+      while (diff < -stepsPerRev / 2) diff += stepsPerRev;
+    }
     if(abs(diff) > 0) {
       digitalWrite(DEROT_EN, LOW);
       digitalWrite(DEROT_DIR, diff > 0 ? HIGH : LOW);
