@@ -2400,7 +2400,7 @@ finally:
     def open_flash_dialog(self):
         flash_top = tk.Toplevel(self)
         flash_top.title("Mise à jour du Firmware")
-        flash_top.geometry("400x280")
+        flash_top.geometry("400x320")
         flash_top.configure(bg="#c0c0c0")
         flash_top.resizable(False, False)
         
@@ -2429,21 +2429,32 @@ finally:
                 messagebox.showerror("Erreur", "Veuillez sélectionner un port.")
                 return
             flash_top.destroy()
-            self.flash_firmware("mega", selected_port)
+            self.flash_firmware("mega_monture", selected_port)
             
-        def choose_teensy():
+        def choose_teensy_monture():
             selected_port = port_combo.get()
             if not selected_port:
                 messagebox.showerror("Erreur", "Veuillez sélectionner un port.")
                 return
             flash_top.destroy()
-            self.flash_firmware("teensy", selected_port)
+            self.flash_firmware("teensy_monture", selected_port)
             
-        btn_m = tk.Button(btn_frame, text="Arduino Mega 2560", font=("Arial", 11), width=18, command=choose_mega)
-        btn_m.pack(side="left", expand=True, padx=10)
+        def choose_teensy_raquette():
+            selected_port = port_combo.get()
+            if not selected_port:
+                messagebox.showerror("Erreur", "Veuillez sélectionner un port.")
+                return
+            flash_top.destroy()
+            self.flash_firmware("teensy_raquette", selected_port)
+            
+        btn_m = tk.Button(btn_frame, text="Mega 2560 (Monture)", font=("Arial", 11), command=choose_mega)
+        btn_m.pack(side="top", pady=5, fill="x", padx=40)
         
-        btn_t = tk.Button(btn_frame, text="Teensy 4.1 (Raquette)", font=("Arial", 11), width=18, command=choose_teensy)
-        btn_t.pack(side="left", expand=True, padx=10)
+        btn_tm = tk.Button(btn_frame, text="Teensy 4.1 (Monture)", font=("Arial", 11), command=choose_teensy_monture)
+        btn_tm.pack(side="top", pady=5, fill="x", padx=40)
+        
+        btn_t = tk.Button(btn_frame, text="Teensy 4.1 (Raquette)", font=("Arial", 11), command=choose_teensy_raquette)
+        btn_t.pack(side="top", pady=5, fill="x", padx=40)
 
     def flash_firmware(self, target, flash_port):
         cli = self.find_arduino_cli()
@@ -2460,11 +2471,15 @@ finally:
         import subprocess
         script_dir = Path(__file__).parent
         
-        if target == "mega":
+        if target == "mega_monture":
             sketch_path = script_dir / "mega_monture"
             fqbn = "arduino:avr:mega"
             additional_args = []
-        else:
+        elif target == "teensy_monture":
+            sketch_path = script_dir / "teensy_monture"
+            fqbn = "teensy:avr:teensy41"
+            additional_args = ["--additional-urls", "https://www.pjrc.com/teensy/package_teensy_index.json"]
+        else: # teensy_raquette
             sketch_path = script_dir / "teensy_raquette"
             fqbn = "teensy:avr:teensy41"
             additional_args = ["--additional-urls", "https://www.pjrc.com/teensy/package_teensy_index.json"]
