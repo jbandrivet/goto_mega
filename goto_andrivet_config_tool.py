@@ -977,6 +977,11 @@ class ConfigToolApp(tk.Tk):
         return ports if ports else ["/dev/ttyACM0", "/dev/ttyUSB0"]
 
     def update_speed_lbl(self, val=None):
+        if hasattr(self, 'board_var') and hasattr(self, 'chk_focus_mega'):
+            bname = "Teensy" if self.board_var.get() == "Teensy 4.1" else "Mega"
+            self.chk_focus_mega.config(text=f"Focuseur ({bname})")
+            if hasattr(self, 'chk_derot_mega'):
+                self.chk_derot_mega.config(text=f"Dérotateur ({bname}) [AltAz uniquement]")
         try:
             az_ratio = float(self.gear_az_entry.get())
             motor_steps = int(self.steps_entry.get())
