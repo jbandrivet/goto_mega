@@ -35,7 +35,10 @@ class InstallerApp(tk.Tk):
     def run_install(self):
         try:
             import shutil
-            source_dir = Path(__file__).parent.resolve()
+            if getattr(sys, 'frozen', False):
+                source_dir = Path(sys.executable).parent.resolve()
+            else:
+                source_dir = Path(__file__).parent.resolve()
             install_dir = Path.home() / ".goto_andrivet"
             install_dir.mkdir(parents=True, exist_ok=True)
             venv_dir = install_dir / "venv"
@@ -44,6 +47,9 @@ class InstallerApp(tk.Tk):
             self.update_status("Copie des fichiers dans le dossier personnel...", 5)
             for f in source_dir.glob("*.py"):
                 shutil.copy2(f, install_dir)
+            for d in ["mega_monture", "teensy_monture", "teensy_raquette"]:
+                if (source_dir / d).exists():
+                    shutil.copytree(source_dir / d, install_dir / d, dirs_exist_ok=True)
 
             
             # 1. Créer le venv
