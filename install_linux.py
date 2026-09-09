@@ -55,17 +55,18 @@ class InstallerApp(tk.Tk):
             # 1. Créer le venv
             self.update_status("Création de l'environnement virtuel...", 15)
             # Use --copies just in case, though home is usually ext4
-            subprocess.run([sys.executable, "-m", "venv", "--copies", str(venv_dir)], check=True)
+            python_bin = shutil.which('python3') or 'python3'
+            subprocess.run([python_bin, "-m", "venv", "--copies", str(venv_dir)], capture_output=True, text=True, check=True)
             
             # 2. Installer les dépendances
             self.update_status("Installation des dépendances (cela peut prendre un moment)...", 30)
             pip_exe = venv_dir / "bin" / "pip"
-            subprocess.run([str(pip_exe), "install", "--upgrade", "pip"], check=True)
+            subprocess.run([str(pip_exe), "install", "--upgrade", "pip"], capture_output=True, text=True, check=True)
             
             reqs = ["pyserial", "pillow", "zwoasi", "numpy", "requests", "ephem", "opencv-python-headless"]
             for i, req in enumerate(reqs):
                 self.update_status(f"Installation de {req}...", 30 + (i * 10))
-                subprocess.run([str(pip_exe), "install", req], check=True)
+                subprocess.run([str(pip_exe), "install", req], capture_output=True, text=True, check=True)
                 
             # 3. Créer le raccourci Desktop
             self.update_status("Création du raccourci...", 90)
