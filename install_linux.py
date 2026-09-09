@@ -44,8 +44,7 @@ class InstallerApp(tk.Tk):
             self.update_status("Copie des fichiers dans le dossier personnel...", 5)
             for f in source_dir.glob("*.py"):
                 shutil.copy2(f, install_dir)
-            if (source_dir / "astrometry_data").exists():
-                shutil.copytree(source_dir / "astrometry_data", install_dir / "astrometry_data", dirs_exist_ok=True)
+
             
             # 1. Créer le venv
             self.update_status("Création de l'environnement virtuel...", 15)
