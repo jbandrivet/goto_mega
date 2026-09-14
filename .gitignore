@@ -17,3 +17,8 @@ app_log.txt
 # Gemini Agent Configuration
 .gemini/
 astrometry_data/
+
+# Fichiers STEP complets volumineux
+pcb/monture/monture.step
+pcb/raquette/raquette.step
+
