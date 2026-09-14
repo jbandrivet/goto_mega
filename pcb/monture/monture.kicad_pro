@@ -1,0 +1,10 @@
+{
+  "meta": {
+    "filename": "monture.kicad_pro",
+    "version": 1
+  },
+  "boards": [
+    "monture.kicad_pcb"
+  ],
+  "sheets": []
+}
