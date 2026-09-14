@@ -57,10 +57,10 @@ module boitier_base() {
                 cube([22, wall + 2, 14]);
         }
 
-        // B. Bord bas (Y = 0) : Connecteur USB-A Host (PC / Accessoires)
-        // Centré à X = 81.5mm sur le PCB, au ras du bord bas
-        translate([wall + clearance + 81.5 - 8.5, -1, wall + standoff_h])
-            cube([17, wall + 2, 9]);
+        // B. Bord bas (Y = 0) : Connecteur USB-B Femelle (Liaison PC)
+        // Centré à X = 78.0mm sur le PCB, au ras du bord bas
+        translate([wall + clearance + 78.0 - 7.5, -1, wall + standoff_h])
+            cube([15.0, wall + 2, 13.0]);
 
         // C. Flanc gauche (X = 0) : Entrée 36V
         // J_PWR_36V à Y_kicad = 60mm -> Y_scad = 100 - 60 = 40mm
