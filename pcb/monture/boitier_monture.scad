@@ -50,30 +50,32 @@ module boitier_base() {
         // --- DÉCOUPES DE PASSAGE DES CONNECTEURS EXTÉRIEURS ---
 
         // A. 4 Ouvertures Moteurs sur le bord haut (Y = max)
-        // Moteurs AZ, ALT, DEROT, FOCUS
+        // Moteurs AZ, ALT, DEROT, FOCUS (Y_kicad = 8mm -> Y_scad = 100 - 8 = 92mm)
         motor_x = [20, 54, 88, 122];
         for (mx = motor_x) {
             translate([wall + clearance + mx - 11, outer_h - wall - 1, wall + standoff_h])
                 cube([22, wall + 2, 14]);
         }
 
-        // B. Flanc gauche (X = 0) : Entrée 36V et Port USB Teensy
-        // Entrée 36V
-        translate([-1, wall + clearance + 56 - 7, wall + standoff_h])
+        // B. Bord bas (Y = 0) : Connecteur USB-A Host (PC / Accessoires)
+        // Centré à X = 81.5mm sur le PCB, au ras du bord bas
+        translate([wall + clearance + 81.5 - 8.5, -1, wall + standoff_h])
+            cube([17, wall + 2, 9]);
+
+        // C. Flanc gauche (X = 0) : Entrée 36V
+        // J_PWR_36V à Y_kicad = 60mm -> Y_scad = 100 - 60 = 40mm
+        translate([-1, wall + clearance + 40 - 7, wall + standoff_h])
             cube([wall + 2, 14, 12]);
-        // Port Micro-USB Teensy
-        translate([-1, wall + clearance + 75 - 7, wall + standoff_h])
-            cube([wall + 2, 14, 10]);
 
-        // C. Flanc droit (X = max) : Raquette DIN et GPS
-        // Connecteur Raquette
-        translate([outer_w - wall - 1, wall + clearance + 60 - 8, wall + standoff_h])
+        // D. Flanc droit (X = max) : Raquette DIN et GPS
+        // Connecteur Raquette (Y_kicad = 60mm -> Y_scad = 100 - 60 = 40mm)
+        translate([outer_w - wall - 1, wall + clearance + 40 - 8, wall + standoff_h])
             cube([wall + 2, 16, 12]);
-        // Connecteur GPS
-        translate([outer_w - wall - 1, wall + clearance + 75 - 8, wall + standoff_h])
+        // Connecteur GPS (Y_kicad = 75mm -> Y_scad = 100 - 75 = 25mm)
+        translate([outer_w - wall - 1, wall + clearance + 25 - 8, wall + standoff_h])
             cube([wall + 2, 16, 12]);
 
-        // D. Trous de vis de fixation du couvercle dans les 4 coins
+        // E. Trous de vis de fixation du couvercle dans les 4 coins
         corners = [
             [wall + 4, wall + 4],
             [outer_w - wall - 4, wall + 4],
@@ -88,10 +90,11 @@ module boitier_base() {
 
     // Piliers / Entretoises de support pour visser le PCB
     for (p = pcb_holes) {
-        translate([wall + p[0], wall + p[1], wall]) {
+        translate([wall + p[0], wall + p[1], wall - 0.2]) {
             difference() {
-                cylinder(d=7.0, h=standoff_h);
-                cylinder(d=2.8, h=standoff_h + 1); // Trou vis PCB M3
+                cylinder(d=7.0, h=standoff_h + 0.2);
+                translate([0, 0, -0.1])
+                    cylinder(d=2.8, h=standoff_h + 1); // Trou vis PCB M3
             }
         }
     }
@@ -104,9 +107,9 @@ module boitier_base() {
         [outer_w - wall - 4, outer_h - wall - 4]
     ];
     for (c = corners) {
-        translate([c[0], c[1], wall]) {
+        translate([c[0], c[1], wall - 0.2]) {
             difference() {
-                cylinder(d=8.0, h=box_h - wall);
+                cylinder(d=8.0, h=box_h - wall + 0.2);
                 translate([0, 0, box_h - wall - 12])
                     cylinder(d=2.8, h=13);
             }
@@ -151,10 +154,11 @@ module boitier_couvercle() {
         }
 
         // Grilles d'aération au-dessus des 4 drivers TMC5160 pour dissipation thermique
-        for (gx = [18, 52, 86, 120]) {
-            for (gy = [0 : 5 : 25]) {
-                translate([wall + clearance + gx, wall + clearance + 20 + gy, -1])
-                    cube([18, 2.5, lid_thick + 2]);
+        // Les drivers sont à Y_kicad = 35mm -> Y_scad = 100 - 35 = 65mm
+        for (cx = [20, 54, 88, 122]) {
+            for (gy = [-12 : 4 : 12]) {
+                translate([wall + clearance + cx - 9, wall + clearance + 65 + gy, -1])
+                    cube([18, 2.2, lid_thick + 2]);
             }
         }
     }
