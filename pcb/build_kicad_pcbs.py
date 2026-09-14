@@ -85,6 +85,23 @@ def connect_pad(fp, pad_num, net):
         if pad.GetNumber() == str(pad_num):
             pad.SetNet(net)
 
+def add_track(board, start_x, start_y, end_x, end_y, width_mm, layer, net):
+    t = pcbnew.PCB_TRACK(board)
+    t.SetStart(pcbnew.VECTOR2I(pcbnew.FromMM(start_x), pcbnew.FromMM(start_y)))
+    t.SetEnd(pcbnew.VECTOR2I(pcbnew.FromMM(end_x), pcbnew.FromMM(end_y)))
+    t.SetWidth(pcbnew.FromMM(width_mm))
+    t.SetLayer(layer)
+    t.SetNet(net)
+    board.Add(t)
+
+def add_via(board, x, y, net, size_mm=0.8, drill_mm=0.4):
+    v = pcbnew.PCB_VIA(board)
+    v.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x), pcbnew.FromMM(y)))
+    v.SetWidth(pcbnew.FromMM(size_mm))
+    v.SetDrill(pcbnew.FromMM(drill_mm))
+    v.SetNet(net)
+    board.Add(v)
+
 def create_monture_pcb_36v(output_dir):
     os.makedirs(output_dir, exist_ok=True)
     board = pcbnew.BOARD()
@@ -293,11 +310,12 @@ def create_monture_pcb_36v(output_dir):
     connect_pad(teensy, 14, nets["FOCUS_DIR"])
     connect_pad(teensy, 35, nets["FOCUS_EN"])
 
-    # Broches USB Host du Teensy 4.1
-    connect_pad(teensy, 55, nets["+5V"])         # 5V USB
+    # Broches USB Host du Teensy 4.1 (Header 5 pins : 5V, D-, D+, GND, GND)
+    connect_pad(teensy, 55, nets["+5V"])         # 5V USB Host
     connect_pad(teensy, 56, nets["USB_HOST_DM"]) # D-
     connect_pad(teensy, 57, nets["USB_HOST_DP"]) # D+
     connect_pad(teensy, 58, nets["GND"])         # GND
+    connect_pad(teensy, 59, nets["GND"])         # GND (2ème pin GND)
 
     # =========================================================================
     # 4. CONNECTEUR USB-B FEMELLE PARFAITEMENT CENTRE (X=75mm, Y=110mm)
@@ -311,13 +329,50 @@ def create_monture_pcb_36v(output_dir):
     usb_b.SetOrientationDegrees(270)
     usb_b.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(76.25), pcbnew.FromMM(95)))
     board.Add(usb_b)
-    add_label(board, "USB-B (LIAISON PC)", 61, 89, size_mm=0.8)
+    add_label(board, "USB-B (LIAISON / HOST)", 58, 89, size_mm=0.8)
     add_label(board, "V PRISE USB-B VERS LE BAS V", 62, 108, size_mm=0.6)
     connect_pad(usb_b, 1, nets["+5V"])          # Pin 1 = VBUS (+5V)
     connect_pad(usb_b, 2, nets["USB_HOST_DM"])   # Pin 2 = D-
     connect_pad(usb_b, 3, nets["USB_HOST_DP"])   # Pin 3 = D+
     connect_pad(usb_b, 4, nets["GND"])           # Pin 4 = GND
     connect_pad(usb_b, 5, nets["GND"])           # Shield tabs = GND
+
+    # =========================================================================
+    # ROUTAGE PHYSIQUE PISTES CUIVRE USB HOST (TEENSY U1 -> J_USB_PC)
+    # =========================================================================
+    # 1. Piste +5V (B.Cu, 0.6mm) : sort au Sud entre pins Teensy, file sous D-/D+, rejoint Pad 1 au Nord
+    add_track(board, 52.09, 74.57, 52.09, 86.50, 0.6, pcbnew.B_Cu, nets["+5V"])
+    add_track(board, 52.09, 86.50, 53.59, 88.00, 0.6, pcbnew.B_Cu, nets["+5V"])
+    add_track(board, 53.59, 88.00, 75.25, 88.00, 0.6, pcbnew.B_Cu, nets["+5V"])
+    add_track(board, 75.25, 88.00, 76.25, 89.00, 0.6, pcbnew.B_Cu, nets["+5V"])
+    add_track(board, 76.25, 89.00, 76.25, 95.00, 0.6, pcbnew.B_Cu, nets["+5V"])
+
+    # 2. Piste USB_HOST_DM (F.Cu, 0.35mm) : sort au Sud entre pins Teensy, diagonale vers Pad 2
+    add_track(board, 54.63, 74.57, 54.63, 92.50, 0.35, pcbnew.F_Cu, nets["USB_HOST_DM"])
+    add_track(board, 54.63, 92.50, 57.13, 95.00, 0.35, pcbnew.F_Cu, nets["USB_HOST_DM"])
+    add_track(board, 57.13, 95.00, 73.75, 95.00, 0.35, pcbnew.F_Cu, nets["USB_HOST_DM"])
+
+    # 3. Piste USB_HOST_DP (F.Cu -> Via -> B.Cu, 0.35mm) : sort au Sud, via de saut, rejoint Pad 3
+    add_track(board, 57.17, 74.57, 57.17, 91.50, 0.35, pcbnew.F_Cu, nets["USB_HOST_DP"])
+    add_via(board, 57.17, 91.50, nets["USB_HOST_DP"], size_mm=0.8, drill_mm=0.4)
+    add_track(board, 57.17, 91.50, 57.17, 94.50, 0.35, pcbnew.B_Cu, nets["USB_HOST_DP"])
+    add_track(board, 57.17, 94.50, 59.67, 97.00, 0.35, pcbnew.B_Cu, nets["USB_HOST_DP"])
+    add_track(board, 59.67, 97.00, 73.75, 97.00, 0.35, pcbnew.B_Cu, nets["USB_HOST_DP"])
+
+    # 4. Piste GND (F.Cu, 0.6mm) : relie pins 58 et 59, contourne par l'Est et alimente Pad 4 et blindage
+    add_track(board, 59.71, 74.57, 59.71, 80.50, 0.4, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 62.25, 74.57, 62.25, 80.50, 0.4, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 59.71, 80.50, 62.25, 80.50, 0.4, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 62.25, 80.50, 63.75, 82.00, 0.6, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 63.75, 82.00, 82.50, 82.00, 0.6, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 82.50, 82.00, 83.50, 83.00, 0.6, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 83.50, 83.00, 83.50, 101.50, 0.6, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 83.50, 101.50, 82.50, 102.50, 0.6, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 82.50, 102.50, 68.98, 102.50, 0.6, pcbnew.F_Cu, nets["GND"])
+    # Piquages vers Pad 4 (GND) et languettes de blindage (Shield Pad 5)
+    add_track(board, 81.02, 102.50, 81.02, 99.71, 0.6, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 76.25, 102.50, 76.25, 97.00, 0.6, pcbnew.F_Cu, nets["GND"])
+    add_track(board, 68.98, 102.50, 68.98, 99.71, 0.6, pcbnew.F_Cu, nets["GND"])
 
     # =========================================================================
     # 5. CONNECTEURS PÉRIPHÉRIQUES FLANC DROIT (ALIGNÉS VERTICALEMENT AVEC REPERES)
