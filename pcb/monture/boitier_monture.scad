@@ -6,8 +6,8 @@
 $fn = 40;
 
 // Dimensions du PCB
-pcb_w = 145;
-pcb_h = 100;
+pcb_w = 150;
+pcb_h = 110;
 pcb_thick = 1.6;
 
 // Paramètres du boîtier
@@ -47,32 +47,29 @@ module boitier_base() {
         translate([wall, wall, wall])
             cube([inner_w, inner_h, box_h + 1]);
 
-        // --- DÉCOUPES DE PASSAGE DES CONNECTEURS EXTÉRIEURS ---
+        // --- DÉCOUPES DE PASSAGE DES CONNECTEURS EXTÉRIEURS (PARFAITEMENT CENTRÉES) ---
 
-        // A. 4 Ouvertures Moteurs sur le bord haut (Y = max)
-        // Moteurs AZ, ALT, DEROT, FOCUS (Y_kicad = 8mm -> Y_scad = 100 - 8 = 92mm)
-        motor_x = [20, 54, 88, 122];
+        // A. 4 Ouvertures Moteurs sur le bord haut (Y = max, centrés à X = 30, 60, 90, 120)
+        motor_x = [30, 60, 90, 120];
         for (mx = motor_x) {
             translate([wall + clearance + mx - 11, outer_h - wall - 1, wall + standoff_h])
                 cube([22, wall + 2, 14]);
         }
 
-        // B. Bord bas (Y = 0) : Connecteur USB-B Femelle (Liaison PC)
-        // Centré à X = 78.0mm sur le PCB, au ras du bord bas
-        translate([wall + clearance + 78.0 - 7.5, -1, wall + standoff_h])
+        // B. Bord bas (Y = 0) : Connecteur USB-B Femelle (Parfaitement centré à X = 75.0mm)
+        translate([wall + clearance + 75.0 - 7.5, -1, wall + standoff_h])
             cube([15.0, wall + 2, 13.0]);
 
-        // C. Flanc gauche (X = 0) : Entrée 36V
-        // J_PWR_36V à Y_kicad = 60mm -> Y_scad = 100 - 60 = 40mm
-        translate([-1, wall + clearance + 40 - 7, wall + standoff_h])
+        // C. Flanc gauche (X = 0) : Entrée 36V (Centré verticalement à Y = 55.0mm)
+        translate([-1, wall + clearance + 55.0 - 7, wall + standoff_h])
             cube([wall + 2, 14, 12]);
 
-        // D. Flanc droit (X = max) : Raquette DIN et GPS
-        // Connecteur Raquette (Y_kicad = 60mm -> Y_scad = 100 - 60 = 40mm)
-        translate([outer_w - wall - 1, wall + clearance + 40 - 8, wall + standoff_h])
+        // D. Flanc droit (X = max) : Raquette DIN et GPS (Centrés symétriquement autour de Y = 55mm)
+        // Connecteur Raquette (Y_kicad = 45mm -> Y_scad = 110 - 45 = 65mm)
+        translate([outer_w - wall - 1, wall + clearance + 65.0 - 8, wall + standoff_h])
             cube([wall + 2, 16, 12]);
-        // Connecteur GPS (Y_kicad = 75mm -> Y_scad = 100 - 75 = 25mm)
-        translate([outer_w - wall - 1, wall + clearance + 25 - 8, wall + standoff_h])
+        // Connecteur GPS (Y_kicad = 65mm -> Y_scad = 110 - 65 = 45mm)
+        translate([outer_w - wall - 1, wall + clearance + 45.0 - 8, wall + standoff_h])
             cube([wall + 2, 16, 12]);
 
         // E. Trous de vis de fixation du couvercle dans les 4 coins
@@ -154,10 +151,10 @@ module boitier_couvercle() {
         }
 
         // Grilles d'aération au-dessus des 4 drivers TMC5160 pour dissipation thermique
-        // Les drivers sont à Y_kicad = 35mm -> Y_scad = 100 - 35 = 65mm
-        for (cx = [20, 54, 88, 122]) {
+        // Les drivers sont à Y_kicad = 36mm -> Y_scad = 110 - 36 = 74mm
+        for (cx = [30, 60, 90, 120]) {
             for (gy = [-12 : 4 : 12]) {
-                translate([wall + clearance + cx - 9, wall + clearance + 65 + gy, -1])
+                translate([wall + clearance + cx - 9, wall + clearance + 74 + gy, -1])
                     cube([18, 2.2, lid_thick + 2]);
             }
         }
