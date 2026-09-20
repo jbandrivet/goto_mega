@@ -112,21 +112,22 @@ module raquette_face_avant() {
             cube([inner_w, inner_h, top_h - wall + 1]);
 
         // A. Fenêtre de l'Écran LCD 2004 / 1602 avec chanfrein esthétique
-        // Centrée à Y = wall + clearance + 40
-        lcd_y = wall + clearance + 40;
+        // Centrée à Y = 110 (puisque dans KiCad l'écran est à Y=40, et la carte fait 150)
+        lcd_y = wall + clearance + 110;
         translate([cx - 38, lcd_y - 13, -1]) {
             cube([76, 26, top_h + 2]);
         }
 
         // B. 5 Trous circulaires pour les boutons du D-Pad (10 mm pour capuchons)
-        btn_y = wall + clearance + 135;
+        // Centrés à Y = 30 (puisque dans KiCad ENTER est à Y=120, et la carte fait 150)
+        btn_y = wall + clearance + 30;
         btn_spacing = 15;
         buttons = [
-            [cx, btn_y - btn_spacing],              // HAUT
+            [cx, btn_y + btn_spacing],              // HAUT (plus haut en Y)
             [cx - btn_spacing, btn_y],              // GAUCHE
             [cx, btn_y],                            // ENTER / OK
             [cx + btn_spacing, btn_y],              // DROITE
-            [cx, btn_y + btn_spacing]               // BAS
+            [cx, btn_y - btn_spacing]               // BAS (plus bas en Y)
         ];
         for (b = buttons) {
             translate([b[0], b[1], -1])
