@@ -308,7 +308,7 @@ def create_monture_pcb_36v(output_dir):
     connect_pad(teensy, 12, nets["DEROT_EN"])
     connect_pad(teensy, 13, nets["FOCUS_STEP"])
     connect_pad(teensy, 14, nets["FOCUS_DIR"])
-    connect_pad(teensy, 35, nets["FOCUS_EN"])
+    connect_pad(teensy, 43, nets["FOCUS_EN"])
 
     # Broches USB Host du Teensy 4.1 (Header 5 pins : 5V, D-, D+, GND, GND)
     connect_pad(teensy, 55, nets["+5V"])         # 5V USB Host
