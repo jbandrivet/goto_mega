@@ -19,6 +19,7 @@ import pcbnew
 
 LIB_TEENSY = "/home/jean-baptiste/kicad_libs/Teensy.pretty"
 LIB_HEADER = "/usr/share/kicad/footprints/Connector_PinHeader_2.54mm.pretty"
+LIB_WIRE = "/usr/share/kicad/footprints/Connector_Wire.pretty"
 LIB_SOCKET = "/usr/share/kicad/footprints/Connector_PinSocket_2.54mm.pretty"
 LIB_SWITCH = "/usr/share/kicad/footprints/Button_Switch_THT.pretty"
 LIB_BUZZER = "/usr/share/kicad/footprints/Buzzer_Beeper.pretty"
@@ -453,10 +454,10 @@ def create_raquette_pcb(output_dir):
     lcd_conn = pcbnew.FootprintLoad(LIB_HEADER, "PinHeader_1x04_P2.54mm_Vertical")
     lcd_conn.SetReference("J_LCD_I2C")
     lcd_conn.SetValue("LCD Backpack I2C")
-    lcd_conn.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(12), pcbnew.FromMM(14)))
+    lcd_conn.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(12), pcbnew.FromMM(85)))
     board.Add(lcd_conn)
-    add_label(board, "I2C LCD", 8, 9, size_mm=0.9)
-    add_label(board, "GND VCC SDA SCL", 4, 19, size_mm=0.7)
+    add_label(board, "I2C LCD", 8, 80, size_mm=0.9)
+    add_label(board, "GND VCC SDA SCL", 4, 90, size_mm=0.7)
     connect_pad(lcd_conn, 1, nets["GND"])
     connect_pad(lcd_conn, 2, nets["+5V"])
     connect_pad(lcd_conn, 3, nets["I2C_SDA"])
@@ -465,10 +466,10 @@ def create_raquette_pcb(output_dir):
     grove = pcbnew.FootprintLoad(LIB_HEADER, "PinHeader_1x04_P2.54mm_Vertical")
     grove.SetReference("J_GROVE")
     grove.SetValue("Grove I2C Aux")
-    grove.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(93), pcbnew.FromMM(14)))
+    grove.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(93), pcbnew.FromMM(85)))
     board.Add(grove)
-    add_label(board, "GROVE I2C", 87, 9, size_mm=0.9)
-    add_label(board, "SCL SDA VCC GND", 84, 19, size_mm=0.7)
+    add_label(board, "GROVE I2C", 87, 80, size_mm=0.9)
+    add_label(board, "SCL SDA VCC GND", 84, 90, size_mm=0.7)
     connect_pad(grove, 1, nets["I2C_SCL"])
     connect_pad(grove, 2, nets["I2C_SDA"])
     connect_pad(grove, 3, nets["+5V"])
@@ -504,11 +505,11 @@ def create_raquette_pcb(output_dir):
 
     add_rect_silk(board, btn_cx - 25, btn_cy - 22, btn_cx + 25, btn_cy + 22, width_mm=0.2)
 
-    din = pcbnew.FootprintLoad(LIB_HEADER, "PinHeader_1x04_P2.54mm_Vertical")
+    din = pcbnew.FootprintLoad(LIB_WIRE, "SolderWire-0.5sqmm_1x04_P4.8mm_D0.9mm_OD2.3mm")
     din.SetReference("J_DIN")
     din.SetValue("CABLE MONTURE")
     din.SetOrientationDegrees(270)
-    din.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(lcd_cx), pcbnew.FromMM(143)))
+    din.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(lcd_cx - 7.2), pcbnew.FromMM(143)))
     board.Add(din)
     add_label(board, "V CABLE VERS MONTURE (BAS) V", lcd_cx - 24, 139, size_mm=0.8)
     connect_pad(din, 1, nets["GND"])
