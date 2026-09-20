@@ -119,6 +119,7 @@ def create_monture_pcb_36v(output_dir):
         "FOCUS_1A", "FOCUS_1B", "FOCUS_2A", "FOCUS_2B",
         "RAQUETTE_TX", "RAQUETTE_RX",
         "GPS_TX", "GPS_RX",
+        "PC_TX", "PC_RX",
         "BUZZER"
     ]
     nets = {}
@@ -372,6 +373,8 @@ def create_monture_pcb_36v(output_dir):
     connect_pad(teensy, 37, nets["RAQUETTE_RX"])
     connect_pad(teensy, 38, nets["GPS_RX"])
     connect_pad(teensy, 39, nets["GPS_TX"])
+    connect_pad(teensy, 17, nets["PC_TX"])
+    connect_pad(teensy, 18, nets["PC_RX"])
     connect_pad(teensy, 42, nets["BUZZER"])
     connect_pad(teensy, 47, nets["GND"])
     connect_pad(teensy, 48, nets["+5V"])

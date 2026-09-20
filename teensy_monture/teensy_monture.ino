@@ -320,6 +320,7 @@ static char lxDEC[14]="+90*00:00#";
 #define CMD_MAX 40
 static char cmdUsb[CMD_MAX];   static uint8_t ciUsb=0;
 static char cmdRj[CMD_MAX];    static uint8_t ciRj=0;
+static char cmdPc[CMD_MAX];    static uint8_t ciPc=0;
 
 static Print* slewOut = nullptr;
 
@@ -1045,7 +1046,8 @@ static int slewToAA(double tAlt, double tAz) {
 
   static char sbUsb[CMD_MAX]; static uint8_t sbiUsb=0;
   static char sbRj [CMD_MAX]; static uint8_t sbiRj=0;
-  sbiUsb=0; sbiRj=0;
+  static char sbPc[CMD_MAX];  static uint8_t sbiPc=0;
+  sbiUsb=0; sbiRj=0; sbiPc=0;
 
   unsigned long err = maxS / 2;
   bool azIsMajor = (aAS >= aLS);
@@ -1124,6 +1126,7 @@ static int slewToAA(double tAlt, double tAz) {
     if ((i & 31) == 0) {
       slewServeOne(Serial,  Serial,  sbUsb, sbiUsb);
       slewServeOne(Serial3, Serial3, sbRj,  sbiRj);
+      slewServeOne(Serial6, Serial6, sbPc,  sbiPc);
       if(!slewing && wasSlewing && !interrupting) { 
         interrupting = true;
         interrupted = true; 
@@ -2481,7 +2484,8 @@ void updateBuzzer(){
 
 void setup() {
   Serial.begin(38400);                    
-  Serial3.begin(38400);                   
+  Serial3.begin(38400);
+  Serial6.begin(38400);   // Port Serie PC                   
   Serial4.begin(9600);   // [FIX] Port GPS sur Serial4 (Pin 16 RX4, Pin 17 TX4)
 
   pinMode(AZ_STEP,OUTPUT); pinMode(AZ_DIR,OUTPUT); pinMode(AZ_EN,OUTPUT);
@@ -2514,6 +2518,7 @@ void setup() {
   delay(100);
   while(Serial.available() > 0) Serial.read();
   while(Serial3.available() > 0) Serial3.read();
+  while(Serial6.available() > 0) Serial6.read();
 }
 
 static void serveStream(Stream& in, Print& out, char* buf, uint8_t& bi) {
@@ -2629,7 +2634,7 @@ void loop() {
                 }
                 break;
             }
-            if (Serial3.available() > 0 || Serial.available() > 0) {
+            if (Serial3.available() > 0 || Serial.available() > 0 || Serial6.available() > 0) {
                 break;
             }
         }
@@ -2692,4 +2697,5 @@ void loop() {
   serveStream(Serial,  Serial,  cmdUsb, ciUsb);
 
   serveStream(Serial3, Serial3, cmdRj,  ciRj);
+  serveStream(Serial6, Serial6, cmdPc,  ciPc);
 }
