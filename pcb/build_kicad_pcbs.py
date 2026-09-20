@@ -477,7 +477,6 @@ def create_raquette_pcb(output_dir):
     teensy = pcbnew.FootprintLoad(LIB_TEENSY, "Teensy41")
     teensy.SetReference("U1")
     teensy.SetValue("Teensy 4.1")
-    teensy.SetOrientationDegrees(90)
     teensy.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(lcd_cx), pcbnew.FromMM(80)))
     board.Add(teensy)
     add_label(board, "<- USB TEENSY 4.1", lcd_cx - 45, 80, size_mm=0.9)
