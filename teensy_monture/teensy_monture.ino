@@ -2485,7 +2485,7 @@ void updateBuzzer(){
 void setup() {
   Serial.begin(38400);                    
   Serial3.begin(38400);
-  Serial6.begin(38400);   // Port Serie PC                   
+  Serial6.begin(38400);   // Port Serie PC
   Serial4.begin(9600);   // [FIX] Port GPS sur Serial4 (Pin 16 RX4, Pin 17 TX4)
 
   pinMode(AZ_STEP,OUTPUT); pinMode(AZ_DIR,OUTPUT); pinMode(AZ_EN,OUTPUT);
