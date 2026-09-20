@@ -60,7 +60,7 @@ static double         maxSlewRate   = DEFAULT_SLEW_RATE;
 
 #define FOCUS_STEP 11
 #define FOCUS_DIR  12
-#define FOCUS_EN   13
+#define FOCUS_EN   21  // [FIX] Pin 21 (libere Pin 13 pour LED_BUILTIN sans conflit)
 
 // === LIMITES ===
 #define ALT_MIN  -1.0
@@ -379,8 +379,8 @@ static void handleGPS() {
     }
   }
 
-  while (Serial2.available() > 0) {
-    char c = Serial2.read();
+  while (Serial4.available() > 0) {
+    char c = Serial4.read();
     if (!gpsEnabled) continue;
 
     if (gps.encode(c)) {
@@ -2482,7 +2482,7 @@ void updateBuzzer(){
 void setup() {
   Serial.begin(38400);                    
   Serial3.begin(38400);                   
-  Serial2.begin(9600);   // [ADD] Initialisation du port GPS
+  Serial4.begin(9600);   // [FIX] Port GPS sur Serial4 (Pin 16 RX4, Pin 17 TX4)
 
   pinMode(AZ_STEP,OUTPUT); pinMode(AZ_DIR,OUTPUT); pinMode(AZ_EN,OUTPUT);
   pinMode(ALT_STEP,OUTPUT);pinMode(ALT_DIR,OUTPUT);pinMode(ALT_EN,OUTPUT);
