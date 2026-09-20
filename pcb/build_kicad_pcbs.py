@@ -423,7 +423,7 @@ def create_raquette_pcb(output_dir):
         board.Add(net)
         nets[name] = net
 
-    W, H = 105, 145
+    W, H = 105, 150
     add_outline_and_holes(board, W, H)
 
     add_label(board, "GOTO-ANDRIVET : TELECOMMANDE RAQUETTE", 18, 5, size_mm=1.3)
@@ -477,12 +477,12 @@ def create_raquette_pcb(output_dir):
     teensy = pcbnew.FootprintLoad(LIB_TEENSY, "Teensy41")
     teensy.SetReference("U1")
     teensy.SetValue("Teensy 4.1")
-    teensy.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(lcd_cx), pcbnew.FromMM(80)))
+    teensy.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(lcd_cx), pcbnew.FromMM(85)))
     board.Add(teensy)
-    add_label(board, "<- USB TEENSY 4.1", lcd_cx - 45, 80, size_mm=0.9)
+    add_label(board, "<- USB TEENSY 4.1", lcd_cx - 45, 85, size_mm=0.9)
 
     btn_cx = lcd_cx
-    btn_cy = 115.0
+    btn_cy = 120.0
     btn_spacing = 15.0
 
     buttons = [
@@ -508,9 +508,9 @@ def create_raquette_pcb(output_dir):
     din.SetReference("J_DIN")
     din.SetValue("CABLE MONTURE")
     din.SetOrientationDegrees(270)
-    din.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(lcd_cx), pcbnew.FromMM(138)))
+    din.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(lcd_cx), pcbnew.FromMM(143)))
     board.Add(din)
-    add_label(board, "V CABLE VERS MONTURE (BAS) V", lcd_cx - 24, 134, size_mm=0.8)
+    add_label(board, "V CABLE VERS MONTURE (BAS) V", lcd_cx - 24, 139, size_mm=0.8)
     connect_pad(din, 1, nets["GND"])
     connect_pad(din, 2, nets["+5V"])
     connect_pad(din, 3, nets["RAQ_TX"])
