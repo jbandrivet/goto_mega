@@ -154,11 +154,11 @@ module boitier_couvercle() {
         }
 
         // Grilles d'aération au-dessus des 4 drivers TMC5160 pour dissipation thermique
-        // Les drivers sont à Y_kicad = 36mm -> Y_scad = 110 - 36 = 74mm
+        // Changement d'orientation (rotation à 90°) suite à la demande
         for (cx = [30, 60, 90, 120]) {
-            for (gy = [-12 : 4 : 12]) {
-                translate([wall + clearance + cx - 9, wall + clearance + 74 + gy, -1])
-                    cube([18, 2.2, lid_thick + 2]);
+            for (gx = [-8 : 4 : 8]) {
+                translate([wall + clearance + cx + gx - 1.1, wall + clearance + 74 - 12, -1])
+                    cube([2.2, 24, lid_thick + 2]);
             }
         }
     }
