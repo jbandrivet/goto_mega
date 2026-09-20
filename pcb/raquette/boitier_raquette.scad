@@ -11,7 +11,7 @@ pcb_h = 150;
 
 // Paramètres du boîtier
 wall = 2.5;
-clearance = 1.5;
+clearance = 4.0;
 standoff_h = 5.0;
 base_h = 16.0;      // Hauteur coque arrière
 top_h = 14.0;       // Hauteur face avant
@@ -47,11 +47,11 @@ module raquette_base() {
 
         // Trous filetés M3 dans les 4 coins pour la fermeture
         corners = [
-            [wall + 4, wall + 4],
-            [outer_w - wall - 4, wall + 4],
-            [wall + 4, outer_h - wall - 4],
-            [outer_w - wall - 4, outer_h - wall - 4]
-        ];
+        [wall + 1.5, wall + 1.5],
+        [outer_w - wall - 1.5, wall + 1.5],
+        [wall + 1.5, outer_h - wall - 1.5],
+        [outer_w - wall - 1.5, outer_h - wall - 1.5]
+    ];
         for (c = corners) {
             translate([c[0], c[1], base_h - 10])
                 cylinder(d=2.8, h=12);
@@ -76,15 +76,15 @@ module raquette_base() {
 
     // Renforts des 4 coins
     corners = [
-        [wall + 4, wall + 4],
-        [outer_w - wall - 4, wall + 4],
-        [wall + 4, outer_h - wall - 4],
-        [outer_w - wall - 4, outer_h - wall - 4]
+        [wall + 1.5, wall + 1.5],
+        [outer_w - wall - 1.5, wall + 1.5],
+        [wall + 1.5, outer_h - wall - 1.5],
+        [outer_w - wall - 1.5, outer_h - wall - 1.5]
     ];
     for (c = corners) {
         translate([c[0], c[1], wall]) {
             difference() {
-                cylinder(d=8.0, h=base_h - wall);
+                cylinder(d=6.0, h=base_h - wall);
                 translate([0, 0, base_h - wall - 10])
                     cylinder(d=2.8, h=11);
             }
@@ -136,11 +136,11 @@ module raquette_face_avant() {
 
         // C. Trous de passage des 4 vis de fermeture M3 chanfreinées
         corners = [
-            [wall + 4, wall + 4],
-            [outer_w - wall - 4, wall + 4],
-            [wall + 4, outer_h - wall - 4],
-            [outer_w - wall - 4, outer_h - wall - 4]
-        ];
+        [wall + 1.5, wall + 1.5],
+        [outer_w - wall - 1.5, wall + 1.5],
+        [wall + 1.5, outer_h - wall - 1.5],
+        [outer_w - wall - 1.5, outer_h - wall - 1.5]
+    ];
         for (c = corners) {
             translate([c[0], c[1], -1]) {
                 cylinder(d=3.4, h=top_h + 2);

@@ -12,7 +12,7 @@ pcb_thick = 1.6;
 
 // Paramètres du boîtier
 wall = 2.5;         // Épaisseur des parois
-clearance = 1.5;    // Jeu autour du PCB
+clearance = 4.0;    // Jeu autour du PCB
 standoff_h = 5.0;   // Hauteur des entretoises sous le PCB
 box_h = 32.0;       // Hauteur totale interne du boîtier
 lid_thick = 2.5;    // Épaisseur du couvercle
@@ -74,10 +74,10 @@ module boitier_base() {
 
         // E. Trous de vis de fixation du couvercle dans les 4 coins
         corners = [
-            [wall + 4, wall + 4],
-            [outer_w - wall - 4, wall + 4],
-            [wall + 4, outer_h - wall - 4],
-            [outer_w - wall - 4, outer_h - wall - 4]
+            [wall + 1.5, wall + 1.5],
+            [outer_w - wall - 1.5, wall + 1.5],
+            [wall + 1.5, outer_h - wall - 1.5],
+            [outer_w - wall - 1.5, outer_h - wall - 1.5]
         ];
         for (c = corners) {
             translate([c[0], c[1], box_h - 12])
@@ -98,15 +98,15 @@ module boitier_base() {
 
     // Renforts de coins pour les vis de fermeture du couvercle
     corners = [
-        [wall + 4, wall + 4],
-        [outer_w - wall - 4, wall + 4],
-        [wall + 4, outer_h - wall - 4],
-        [outer_w - wall - 4, outer_h - wall - 4]
+        [wall + 1.5, wall + 1.5],
+        [outer_w - wall - 1.5, wall + 1.5],
+        [wall + 1.5, outer_h - wall - 1.5],
+        [outer_w - wall - 1.5, outer_h - wall - 1.5]
     ];
     for (c = corners) {
         translate([c[0], c[1], wall - 0.2]) {
             difference() {
-                cylinder(d=8.0, h=box_h - wall + 0.2);
+                cylinder(d=6.0, h=box_h - wall + 0.2);
                 translate([0, 0, box_h - wall - 12])
                     cylinder(d=2.8, h=13);
             }
@@ -138,10 +138,10 @@ module boitier_couvercle() {
 
         // Trous de passage de vis M3 chanfreinés dans les 4 coins
         corners = [
-            [wall + 4, wall + 4],
-            [outer_w - wall - 4, wall + 4],
-            [wall + 4, outer_h - wall - 4],
-            [outer_w - wall - 4, outer_h - wall - 4]
+            [wall + 1.5, wall + 1.5],
+            [outer_w - wall - 1.5, wall + 1.5],
+            [wall + 1.5, outer_h - wall - 1.5],
+            [outer_w - wall - 1.5, outer_h - wall - 1.5]
         ];
         for (c = corners) {
             translate([c[0], c[1], -1]) {
