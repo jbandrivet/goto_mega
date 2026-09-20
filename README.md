@@ -70,7 +70,7 @@ Câblez votre contrôleur principal en suivant ce schéma (les broches sont iden
 | | **Pin 10** | **Pin 10** | `ENB+` (Enable) |
 | **Moteur Focuseur** | **Pin 11** | **Pin 11** | `PUL+` (Pulse/Step) |
 | | **Pin 12** | **Pin 12** | `DIR+` (Direction) |
-| | **Pin 13** | **Pin 13** | `ENB+` (Enable) |
+| | **Pin 13** | **Pin 21** | `ENB+` (Enable) |
 | **Buzzer** | **Pin 49** | **Pin 20** | Borne `+` (actif : direct / passif : via résistance 100 Ω) |
 | **Raquette Teensy** | **Pin 15 (RX3)** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
 | | **Pin 14 (TX3)** | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
