@@ -146,7 +146,10 @@ module boitier_couvercle() {
         for (c = corners) {
             translate([c[0], c[1], -1]) {
                 cylinder(d=3.4, h=lid_thick + 5);
-                cylinder(d1=6.5, d2=3.4, h=2.5); // Fraisage tête de vis
+                // Le couvercle est modélisé à l'envers (face extérieure à Z=0)
+                // On place la base large (d1=6.5) exactement à Z=0 (donc Z=+1 dans le translate -1)
+                translate([0, 0, 1])
+                    cylinder(d1=6.5, d2=3.4, h=2.5); // Fraisage tête de vis
             }
         }
 

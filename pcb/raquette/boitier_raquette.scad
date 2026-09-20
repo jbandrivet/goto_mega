@@ -144,7 +144,9 @@ module raquette_face_avant() {
         for (c = corners) {
             translate([c[0], c[1], -1]) {
                 cylinder(d=3.4, h=top_h + 2);
-                translate([0, 0, top_h - 2])
+                // Le chanfrein doit atteindre exactement la surface (Z = top_h)
+                // Puisqu'on est dans un translate Z=-1, on le place à top_h + 1 - hauteur
+                translate([0, 0, top_h + 1 - 2.5])
                     cylinder(d1=3.4, d2=6.5, h=2.5);
             }
         }
