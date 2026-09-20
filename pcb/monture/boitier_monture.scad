@@ -56,9 +56,7 @@ module boitier_base() {
                 cube([22, wall + 2, 14]);
         }
 
-        // B. Bord bas (Y = 0) : Connecteur USB-B Femelle (Parfaitement centré à X = 75.0mm)
-        translate([wall + clearance + 75.0 - 7.5, -1, wall + standoff_h])
-            cube([15.0, wall + 2, 13.0]);
+        // (Trou USB-B supprimé à la demande de l'utilisateur)
 
         // C. Flanc gauche (X = 0) : Entrée 36V (Centré verticalement à Y = 55.0mm)
         translate([-1, wall + clearance + 55.0 - 7, wall + standoff_h])
