@@ -27,7 +27,8 @@ Le projet **Goto-Andrivet** propose désormais deux versions différentes pour l
 ## 2. Caractéristiques de Communication
 
 *   **Liaison USB (PC / ASIAir / INDI) :** **38 400 bauds** (Vitesse optimisée pour la télémétrie en temps réel).
-*   **Liaison Raquette (Connecteur DIN 4 broches) :** **38 400 bauds**.
+*   **Liaison Série PC (Connecteur PCB 4 broches / Serial6) :** **38 400 bauds** (Idéal pour câbles très longs avec adaptateur TTL/RS485).
+*   **Liaison Raquette (Connecteur DIN 4 broches / Serial3) :** **38 400 bauds**.
 *   **Protocole :** Meade LX200 avec extensions OnStep (supporté par KStars/Ekos, Stellarium, SkySafari).
 
 ---

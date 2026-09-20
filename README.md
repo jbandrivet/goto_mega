@@ -72,6 +72,8 @@ Câblez votre contrôleur principal en suivant ce schéma (les broches sont iden
 | | **Pin 12** | **Pin 12** | `DIR+` (Direction) |
 | | **Pin 13** | **Pin 21** | `ENB+` (Enable) |
 | **Buzzer** | **Pin 49** | **Pin 20** | Borne `+` (actif : direct / passif : via résistance 100 Ω) |
+| **Port Série PC** | **Non dispo** | **Pin 25 (RX6)** | `TX` de l'adaptateur USB/Série TTL (Câble long) |
+| | **Non dispo** | **Pin 24 (TX6)** | `RX` de l'adaptateur USB/Série TTL |
 | **Raquette Teensy** | **Pin 15 (RX3)** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
 | | **Pin 14 (TX3)** | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
 | **Module GPS** | **Pin 17 (RX2)** | **Pin 17 (RX4)** | `TX` du module GPS |
