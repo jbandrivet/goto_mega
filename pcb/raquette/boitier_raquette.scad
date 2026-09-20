@@ -7,7 +7,7 @@ $fn = 40;
 
 // Dimensions du PCB
 pcb_w = 105;
-pcb_h = 165;
+pcb_h = 150;
 
 // Paramètres du boîtier
 wall = 2.5;
