@@ -1324,13 +1324,14 @@ class Mount:
 #  SECTION 5 : DÉROTATEUR ZWO
 # ════════════════════════════════════════════════════════════════
 class Derotator:
-    def __init__(self, cfg: Settings, on_state=None):
+    def __init__(self, cfg, on_state=None):
         self.cfg=cfg; self.on_state=on_state
         self.angle=0.0; self.target=0.0; self.pa=0.0
         self.moving=False; self.enabled=False; self.connected=False
         self.offset=0.0; self._mount=None
         self._ser=None; self._th=None; self._running=False; self._sim=True
         self._rev=False
+        self._zwo_caa=None
 
     def set_mount(self, m): self._mount=m
 
@@ -1338,10 +1339,30 @@ class Derotator:
 
     def connect(self, port, baud=9600, sim=True):
         self._sim=sim; self._rev=self.cfg.get("derot_reversed",False)
-        if not sim and HAS_SERIAL:
+        self._zwo_caa = None
+        
+        # SUPPORT NATIF ZWO CAA SDK
+        if "ZWO" in str(port).upper():
+            try:
+                import zwocaa
+                if zwocaa.CAA.get_num() > 0:
+                    self._zwo_caa = zwocaa.CAA(0)
+                    self._zwo_caa.open()
+                    self._sim = False
+                    self.connected = True
+                    print("Connecté au SDK ZWO CAA")
+                else:
+                    print("Aucun dérotateur ZWO CAA trouvé !")
+                    self._sim = True
+            except Exception as e:
+                print("Erreur ZWO CAA SDK:", e)
+                self._sim = True
+
+        if not self._sim and self._zwo_caa is None and HAS_SERIAL:
             try:
                 self._ser=serial.Serial(port,baud,timeout=1); time.sleep(1)
             except: self._sim=True
+            
         self.connected=True; self._running=True
         self._th=threading.Thread(target=self._run,daemon=True,name="derot")
         self._th.start(); return True
@@ -1350,6 +1371,9 @@ class Derotator:
         self._running=False
         if self._th: self._th.join(timeout=2)
         if self._ser and self._ser.is_open: self._ser.close()
+        if self._zwo_caa:
+            try: self._zwo_caa.close()
+            except: pass
         self.connected=False
 
     def _send(self, cmd):
@@ -1367,12 +1391,20 @@ class Derotator:
                     else: tgt = (-(self.pa + self.offset)) % 360
                     if last_pa is None or abs(self.pa-last_pa)>0.1:
                         self.target=tgt; self.moving=True
-                        if self.cfg.get("derot_mega_en", False):
+                        if self._zwo_caa:
+                            try: self._zwo_caa.move_to(tgt)
+                            except: pass
+                        elif self.cfg.get("derot_mega_en", False):
                             self._mount._cmd(f":XDa{tgt:.2f}#", reply=False)
                         else:
                             self._send(f"SETPOS:{tgt:.2f}\r\n")
                         last_pa=self.pa
-            if self._sim and self.moving:
+            if self._zwo_caa:
+                try:
+                    self.angle = self._zwo_caa.get_degree()
+                    self.moving = self._zwo_caa.is_moving()
+                except: pass
+            elif self._sim and self.moving:
                 d=(self.target-self.angle+180)%360-180
                 if abs(d)<0.2: self.angle=self.target; self.moving=False
                 else: self.angle+=math.copysign(min(2.0,abs(d)),d); self.angle%=360
@@ -1389,12 +1421,21 @@ class Derotator:
 
     def goto_angle(self, a):
         self.target=a%360; self.moving=True
-        if self.cfg.get("derot_mega_en", False) and self._mount and self._mount.state.connected:
+        if self._zwo_caa:
+            try: self._zwo_caa.move_to(a%360)
+            except: pass
+        elif self.cfg.get("derot_mega_en", False) and self._mount and self._mount.state.connected:
             self._mount._cmd(f":XDa{a%360:.2f}#", reply=False)
         else:
             self._send(f"SETPOS:{a%360:.2f}\r\n")
 
-    def stop(self): self.moving=False; self._send("STOP\r\n")
+    def stop(self):
+        self.moving=False
+        if self._zwo_caa:
+            try: self._zwo_caa.stop()
+            except: pass
+        self._send("STOP\r\n")
+        
     def home(self): self.goto_angle(0)
     def nudge(self, d): self.offset+=d
 
