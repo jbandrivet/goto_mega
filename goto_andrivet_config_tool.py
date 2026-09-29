@@ -607,7 +607,11 @@ class ConfigToolApp(tk.Tk):
         self.chk_derot_mega = tk.Checkbutton(row_extra, text="Dérotateur (Mega) [AltAz uniquement]", variable=self.derot_mega_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white")
         self.chk_derot_mega.pack(side="left")
         
-        self.lbl_derot_ppd = tk.Label(row_extra, text="Pas par degré (PPD):", bg="#c0c0c0", fg="black", font=f_label)
+        self.derot_zwo_var = tk.BooleanVar(value=self.settings.get("derot_zwo_en", False))
+        self.chk_derot_zwo = tk.Checkbutton(row_extra, text="Dérotateur ZWO CAA (USB)", variable=self.derot_zwo_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white")
+        self.chk_derot_zwo.pack(side="left", padx=(10,0))
+        
+        self.lbl_derot_ppd = tk.Label(row_extra, text="Pas/Deg (Mega):", bg="#c0c0c0", fg="black", font=f_label)
         self.lbl_derot_ppd.pack(side="left", padx=(10,5))
         self.derot_ppd_entry = tk.Entry(row_extra, font=f_entry, bg="white", fg="black", width=6, bd=2, relief="sunken")
         self.derot_ppd_entry.pack(side="left")
@@ -2359,6 +2363,16 @@ finally:
             self.settings["park_az"] = p_az
             self.settings["focus_mega_en"] = self.focus_mega_var.get()
             self.settings["focus_eaf_en"] = self.focus_eaf_var.get()
+            self.settings["derot_mega_en"] = self.derot_mega_var.get()
+            self.settings["derot_zwo_en"] = self.derot_zwo_var.get()
+            try:
+                self.settings["derot_mega_ppd"] = float(self.derot_ppd_entry.get())
+            except ValueError:
+                pass
+            
+            if self.derot_zwo_var.get():
+                self.settings["derot_port"] = "ZWO_SDK"
+                
             self.settings["astrometry_enabled"] = self.astro_en_var.get()
             try:
                 self.settings["astro_cam_idx"] = self.get_selected_camera_idx()
