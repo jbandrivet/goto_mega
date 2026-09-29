@@ -22,3 +22,10 @@ astrometry_data/
 pcb/monture/monture.step
 pcb/raquette/raquette.step
 
+
+# KiCad temp files
+*-cache
+*.lck
+*_drc_violations.json
+fp-info-cache
+*-backups/

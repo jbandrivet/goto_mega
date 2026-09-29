@@ -1060,7 +1060,8 @@ print(json.dumps(res))
                         else:
                             self.after(0, lambda: messagebox.showinfo("ZWO", "Aucune caméra ZWO détectée."))
                     except Exception as parse_e:
-                        self.after(0, lambda: messagebox.showerror("Erreur", "Erreur de parsing: " + str(parse_e)))
+                        error_msg = str(parse_e)
+                        self.after(0, lambda msg=error_msg: messagebox.showerror("Erreur", "Erreur de parsing: " + msg))
                 else:
                     self.after(0, lambda: messagebox.showerror("Erreur", "Erreur lors de la détection: " + res.stderr))
             except Exception as e:

@@ -2748,7 +2748,7 @@ void setup(){
     delay(500);
     
     lcdLine(0,"  Connexion serie...");
-    snprintf(buf,21," M%d NGC%d IC%d C%d  ",
+    snprintf(buf,21,"M%d N%d I%d C%d",
              MESSIER_COUNT, NGC_COUNT, IC_COUNT, CALDWELL_COUNT);
     lcdLine(3,buf);
     delay(1200);   
