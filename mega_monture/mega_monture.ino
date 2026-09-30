@@ -1575,6 +1575,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   char buf[16];
 
   // ============ GET COMMANDS ============
+  if(c1=='D' && ci==2){ out.print(slewing ? "|#" : "#"); return; }
   if(c1=='G'&&c2=='R'){ out.print(lxRA); return; }
   if(c1=='G'&&c2=='D'){ out.print(lxDEC); return; }
   if(c1=='G'&&c2=='A'){

@@ -148,6 +148,7 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 * **Modèle de Pointage N-Étoiles (Teensy Monture uniquement)** : Interpolation des erreurs de suivi et de pointage par IDW (Inverse Distance Weighting) jusqu'à 50 étoiles mémorisées. Support de la commande de remise à zéro `:CML#`.
 * **Ajout du type de monture `GermanEq`** : Le firmware de l'Arduino Mega calcule automatiquement les inversions d'axes (Ascension Droite et Déclinaison) lors du franchissement du méridien.
 * **Commande standard `:Gm#` implémentée** : Renvoie le *Pier Side* (`E#` pour l'Est, `W#` pour l'Ouest, `N#` pour les autres modes) requis pour les logiciels de guidage comme Ekos/INDI.
+* **Commande standard `:D#` implémentée** : Permet l'interrogation dynamique du statut de pointage (Slewing), accélérant drastiquement le modèle de pointage automatique ZWO en évitant les pauses fixes.
 * **Intégration complète dans les interfaces** : Le sélecteur de monture dans `goto_andrivet_config_tool.py`, `goto_andrivet.py` et la raquette physique Teensy supporte désormais les trois options distinctes (`AltAz`, `ForkEq`, `GermanEq`).
 
 ---
