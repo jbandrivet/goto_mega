@@ -24,6 +24,7 @@ LIB_SOCKET = "/usr/share/kicad/footprints/Connector_PinSocket_2.54mm.pretty"
 LIB_SWITCH = "/usr/share/kicad/footprints/Button_Switch_THT.pretty"
 LIB_BUZZER = "/usr/share/kicad/footprints/Buzzer_Beeper.pretty"
 LIB_TERMINAL = "/usr/share/kicad/footprints/TerminalBlock_Phoenix.pretty"
+LIB_JACK = "/usr/share/kicad/footprints/Connector_BarrelJack.pretty"
 LIB_CAP = "/usr/share/kicad/footprints/Capacitor_THT.pretty"
 LIB_DIODE = "/usr/share/kicad/footprints/Diode_THT.pretty"
 LIB_INDUCTOR = "/usr/share/kicad/footprints/Inductor_THT.pretty"
@@ -109,7 +110,7 @@ def create_monture_pcb_36v(output_dir):
 
     net_names = [
         "GND", "+36V", "+5V", "SW_NODE",
-        "USB_HOST_DP", "USB_HOST_DM",
+        
         "AZ_STEP", "AZ_DIR", "AZ_EN",
         "ALT_STEP", "ALT_DIR", "ALT_EN",
         "DEROT_STEP", "DEROT_DIR", "DEROT_EN",
@@ -147,11 +148,26 @@ def create_monture_pcb_36v(output_dir):
     pwr36.SetOrientationDegrees(270)
     pwr36.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(8), pcbnew.FromMM(55)))
     board.Add(pwr36)
+
+    # Entrée DC Jack 12V en parallèle
+    dc_jack = pcbnew.FootprintLoad(LIB_JACK, "BarrelJack_Horizontal")
+    dc_jack.SetReference("J_12V")
+    dc_jack.SetValue("12V Jack")
+    dc_jack.SetOrientationDegrees(0)
+    # Origin is at pin 1 (back of the jack). To have the opening on the left edge (X=0), we put X=12.
+    dc_jack.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(12), pcbnew.FromMM(40)))
+    board.Add(dc_jack)
     add_label(board, "<- ENTREE 36V", 14, 50, size_mm=0.8)
     add_label(board, "GND (Pin 1)", 14, 55, size_mm=0.6)
     add_label(board, "+36V (Pin 2)", 14, 60, size_mm=0.6)
     connect_pad(pwr36, 1, nets["GND"])
     connect_pad(pwr36, 2, nets["+36V"])
+    
+    # DC Jack connections
+    connect_pad(dc_jack, 1, nets["+36V"])
+    connect_pad(dc_jack, 2, nets["GND"])
+    connect_pad(dc_jack, 3, nets["GND"])
+    add_label(board, "ALIM 12V DC (JACK)", 16, 40, size_mm=0.8)
 
     c_in = pcbnew.FootprintLoad(LIB_CAP, "CP_Radial_D8.0mm_P3.50mm")
     c_in.SetReference("C_IN")
@@ -288,6 +304,25 @@ def create_monture_pcb_36v(output_dir):
         connect_pad(cap, 1, nets["+36V"])
         connect_pad(cap, 2, nets["GND"])
 
+        # Trous à souder pour driver externe (décalés à cx+13 pour ne pas toucher les textes du StepStick)
+        ext_term = pcbnew.FootprintLoad(LIB_WIRE, "SolderWire-0.5sqmm_1x04_P4.6mm_D0.9mm_OD2.1mm")
+        ext_term.SetReference(f"EXT_{axis_name}")
+        ext_term.SetValue("Ext. Driver")
+        ext_term.SetOrientationDegrees(90)
+        ext_term.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx + 13.5), pcbnew.FromMM(30)))
+        board.Add(ext_term)
+
+        add_label(board, "EN", cx + 16, 30, size_mm=0.6)
+        add_label(board, "STEP", cx + 16, 34.6, size_mm=0.6)
+        add_label(board, "DIR", cx + 16, 39.2, size_mm=0.6)
+        add_label(board, "GND", cx + 16, 43.8, size_mm=0.6)
+        add_label(board, "DRIVER EXT.", cx + 14, 27, size_mm=0.7)
+
+        connect_pad(ext_term, 1, nets["GND"])
+        connect_pad(ext_term, 2, nets[d_net])
+        connect_pad(ext_term, 3, nets[s_net])
+        connect_pad(ext_term, 4, nets[e_net])
+
     # =========================================================================
     # 3. TEENSY 4.1 PARFAITEMENT CENTRE HORIZONTALEMENT (X=75mm, Y=70mm)
     # =========================================================================
@@ -312,12 +347,6 @@ def create_monture_pcb_36v(output_dir):
     connect_pad(teensy, 14, nets["FOCUS_DIR"])
     connect_pad(teensy, 43, nets["FOCUS_EN"])
 
-    # Broches USB Host du Teensy 4.1 (Header 5 pins : 5V, D-, D+, GND, GND)
-    connect_pad(teensy, 55, nets["+5V"])         # 5V USB Host
-    connect_pad(teensy, 56, nets["USB_HOST_DM"]) # D-
-    connect_pad(teensy, 57, nets["USB_HOST_DP"]) # D+
-    connect_pad(teensy, 58, nets["GND"])         # GND
-    connect_pad(teensy, 59, nets["GND"])         # GND (2ème pin GND)
 
     # =========================================================================
     # 5. CONNECTEURS PÉRIPHÉRIQUES FLANC DROIT (ALIGNÉS VERTICALEMENT AVEC REPERES)
@@ -354,11 +383,11 @@ def create_monture_pcb_36v(output_dir):
     connect_pad(gps, 3, nets["+5V"])
     connect_pad(gps, 4, nets["GND"])
 
-    # Connecteur vers PC (Centré à Y=25mm)
+    # Connecteur vers PC (Centré à Y=10mm)
     pc_port = pcbnew.FootprintLoad(LIB_HEADER, "PinHeader_1x04_P2.54mm_Vertical")
     pc_port.SetReference("J_PC_SERIAL")
     pc_port.SetValue("PC SERIAL6")
-    pc_port.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(142), pcbnew.FromMM(25 - 3.81)))
+    pc_port.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(142), pcbnew.FromMM(10 - 3.81)))
     board.Add(pc_port)
     add_label(board, "[ PC SERIAL ]", 124, 18.5, size_mm=0.8)
     add_label(board, "1: GND", 133, 21.2, size_mm=0.65)

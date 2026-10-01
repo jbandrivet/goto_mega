@@ -156,3 +156,10 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 ## Licence
 
 Ce projet est sous licence **GNU GPL v3**. Consultez le fichier [LICENSE](LICENSE) pour plus de détails.
+
+## Mise à jour Matérielle (PCB 36V / 12V + Drivers Externes)
+- Ajout du support matériel et logiciel (SPI) pour les drivers Pololu 36v8 et StepSticks TMC5160 HV.
+- La carte mère dispose désormais de connecteurs universels (StepSticks + sorties pour drivers externes 4 pins).
+- Suppression du port USB Host redondant sur le Teensy 4.1 de la monture pour simplifier le soudage.
+- Ajout d'une prise Jack 12V standard en parallèle du bornier d'alimentation 36V.
+- Le configurateur PC intègre maintenant une case à cocher pour activer dynamiquement le SPI matériel pour les drivers haute puissance.

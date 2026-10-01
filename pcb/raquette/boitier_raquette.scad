@@ -7,11 +7,11 @@ $fn = 40;
 
 // Dimensions du PCB
 pcb_w = 105;
-pcb_h = 150;
+pcb_h = 165;
 
 // Paramètres du boîtier
 wall = 2.5;
-clearance = 4.0;
+clearance = 1.5;
 standoff_h = 5.0;
 base_h = 16.0;      // Hauteur coque arrière
 top_h = 14.0;       // Hauteur face avant
@@ -47,11 +47,11 @@ module raquette_base() {
 
         // Trous filetés M3 dans les 4 coins pour la fermeture
         corners = [
-        [wall + 1.5, wall + 1.5],
-        [outer_w - wall - 1.5, wall + 1.5],
-        [wall + 1.5, outer_h - wall - 1.5],
-        [outer_w - wall - 1.5, outer_h - wall - 1.5]
-    ];
+            [wall + 4, wall + 4],
+            [outer_w - wall - 4, wall + 4],
+            [wall + 4, outer_h - wall - 4],
+            [outer_w - wall - 4, outer_h - wall - 4]
+        ];
         for (c = corners) {
             translate([c[0], c[1], base_h - 10])
                 cylinder(d=2.8, h=12);
@@ -76,15 +76,15 @@ module raquette_base() {
 
     // Renforts des 4 coins
     corners = [
-        [wall + 1.5, wall + 1.5],
-        [outer_w - wall - 1.5, wall + 1.5],
-        [wall + 1.5, outer_h - wall - 1.5],
-        [outer_w - wall - 1.5, outer_h - wall - 1.5]
+        [wall + 4, wall + 4],
+        [outer_w - wall - 4, wall + 4],
+        [wall + 4, outer_h - wall - 4],
+        [outer_w - wall - 4, outer_h - wall - 4]
     ];
     for (c = corners) {
         translate([c[0], c[1], wall]) {
             difference() {
-                cylinder(d=6.0, h=base_h - wall);
+                cylinder(d=8.0, h=base_h - wall);
                 translate([0, 0, base_h - wall - 10])
                     cylinder(d=2.8, h=11);
             }
@@ -112,22 +112,21 @@ module raquette_face_avant() {
             cube([inner_w, inner_h, top_h - wall + 1]);
 
         // A. Fenêtre de l'Écran LCD 2004 / 1602 avec chanfrein esthétique
-        // Centrée à Y = 110 (puisque dans KiCad l'écran est à Y=40, et la carte fait 150)
-        lcd_y = wall + clearance + 110;
+        // Centrée à Y = wall + clearance + 40
+        lcd_y = wall + clearance + 40;
         translate([cx - 38, lcd_y - 13, -1]) {
             cube([76, 26, top_h + 2]);
         }
 
         // B. 5 Trous circulaires pour les boutons du D-Pad (10 mm pour capuchons)
-        // Centrés à Y = 30 (puisque dans KiCad ENTER est à Y=120, et la carte fait 150)
-        btn_y = wall + clearance + 30;
+        btn_y = wall + clearance + 135;
         btn_spacing = 15;
         buttons = [
-            [cx, btn_y + btn_spacing],              // HAUT (plus haut en Y)
+            [cx, btn_y - btn_spacing],              // HAUT
             [cx - btn_spacing, btn_y],              // GAUCHE
             [cx, btn_y],                            // ENTER / OK
             [cx + btn_spacing, btn_y],              // DROITE
-            [cx, btn_y - btn_spacing]               // BAS (plus bas en Y)
+            [cx, btn_y + btn_spacing]               // BAS
         ];
         for (b = buttons) {
             translate([b[0], b[1], -1])
@@ -136,17 +135,15 @@ module raquette_face_avant() {
 
         // C. Trous de passage des 4 vis de fermeture M3 chanfreinées
         corners = [
-        [wall + 1.5, wall + 1.5],
-        [outer_w - wall - 1.5, wall + 1.5],
-        [wall + 1.5, outer_h - wall - 1.5],
-        [outer_w - wall - 1.5, outer_h - wall - 1.5]
-    ];
+            [wall + 4, wall + 4],
+            [outer_w - wall - 4, wall + 4],
+            [wall + 4, outer_h - wall - 4],
+            [outer_w - wall - 4, outer_h - wall - 4]
+        ];
         for (c = corners) {
             translate([c[0], c[1], -1]) {
                 cylinder(d=3.4, h=top_h + 2);
-                // Le chanfrein doit atteindre exactement la surface (Z = top_h)
-                // Puisqu'on est dans un translate Z=-1, on le place à top_h + 1 - hauteur
-                translate([0, 0, top_h + 1 - 2.5])
+                translate([0, 0, top_h - 2])
                     cylinder(d1=3.4, d2=6.5, h=2.5);
             }
         }

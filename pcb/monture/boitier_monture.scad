@@ -12,7 +12,7 @@ pcb_thick = 1.6;
 
 // Paramètres du boîtier
 wall = 2.5;         // Épaisseur des parois
-clearance = 4.0;    // Jeu autour du PCB
+clearance = 1.5;    // Jeu autour du PCB
 standoff_h = 5.0;   // Hauteur des entretoises sous le PCB
 box_h = 32.0;       // Hauteur totale interne du boîtier
 lid_thick = 2.5;    // Épaisseur du couvercle
@@ -56,7 +56,9 @@ module boitier_base() {
                 cube([22, wall + 2, 14]);
         }
 
-        // (Trou USB-B supprimé à la demande de l'utilisateur)
+        // B. Bord bas (Y = 0) : Connecteur USB-B Femelle (Parfaitement centré à X = 75.0mm)
+        translate([wall + clearance + 75.0 - 7.5, -1, wall + standoff_h])
+            cube([15.0, wall + 2, 13.0]);
 
         // C. Flanc gauche (X = 0) : Entrée 36V (Centré verticalement à Y = 55.0mm)
         translate([-1, wall + clearance + 55.0 - 7, wall + standoff_h])
@@ -72,10 +74,10 @@ module boitier_base() {
 
         // E. Trous de vis de fixation du couvercle dans les 4 coins
         corners = [
-            [wall + 1.5, wall + 1.5],
-            [outer_w - wall - 1.5, wall + 1.5],
-            [wall + 1.5, outer_h - wall - 1.5],
-            [outer_w - wall - 1.5, outer_h - wall - 1.5]
+            [wall + 4, wall + 4],
+            [outer_w - wall - 4, wall + 4],
+            [wall + 4, outer_h - wall - 4],
+            [outer_w - wall - 4, outer_h - wall - 4]
         ];
         for (c = corners) {
             translate([c[0], c[1], box_h - 12])
@@ -96,15 +98,15 @@ module boitier_base() {
 
     // Renforts de coins pour les vis de fermeture du couvercle
     corners = [
-        [wall + 1.5, wall + 1.5],
-        [outer_w - wall - 1.5, wall + 1.5],
-        [wall + 1.5, outer_h - wall - 1.5],
-        [outer_w - wall - 1.5, outer_h - wall - 1.5]
+        [wall + 4, wall + 4],
+        [outer_w - wall - 4, wall + 4],
+        [wall + 4, outer_h - wall - 4],
+        [outer_w - wall - 4, outer_h - wall - 4]
     ];
     for (c = corners) {
         translate([c[0], c[1], wall - 0.2]) {
             difference() {
-                cylinder(d=6.0, h=box_h - wall + 0.2);
+                cylinder(d=8.0, h=box_h - wall + 0.2);
                 translate([0, 0, box_h - wall - 12])
                     cylinder(d=2.8, h=13);
             }
@@ -136,27 +138,24 @@ module boitier_couvercle() {
 
         // Trous de passage de vis M3 chanfreinés dans les 4 coins
         corners = [
-            [wall + 1.5, wall + 1.5],
-            [outer_w - wall - 1.5, wall + 1.5],
-            [wall + 1.5, outer_h - wall - 1.5],
-            [outer_w - wall - 1.5, outer_h - wall - 1.5]
+            [wall + 4, wall + 4],
+            [outer_w - wall - 4, wall + 4],
+            [wall + 4, outer_h - wall - 4],
+            [outer_w - wall - 4, outer_h - wall - 4]
         ];
         for (c = corners) {
             translate([c[0], c[1], -1]) {
                 cylinder(d=3.4, h=lid_thick + 5);
-                // Le couvercle est modélisé à l'envers (face extérieure à Z=0)
-                // On place la base large (d1=6.5) exactement à Z=0 (donc Z=+1 dans le translate -1)
-                translate([0, 0, 1])
-                    cylinder(d1=6.5, d2=3.4, h=2.5); // Fraisage tête de vis
+                cylinder(d1=6.5, d2=3.4, h=2.5); // Fraisage tête de vis
             }
         }
 
         // Grilles d'aération au-dessus des 4 drivers TMC5160 pour dissipation thermique
-        // Changement d'orientation (rotation à 90°) suite à la demande
+        // Les drivers sont à Y_kicad = 36mm -> Y_scad = 110 - 36 = 74mm
         for (cx = [30, 60, 90, 120]) {
-            for (gx = [-8 : 4 : 8]) {
-                translate([wall + clearance + cx + gx - 1.1, wall + clearance + 74 - 12, -1])
-                    cube([2.2, 24, lid_thick + 2]);
+            for (gy = [-12 : 4 : 12]) {
+                translate([wall + clearance + cx - 9, wall + clearance + 74 + gy, -1])
+                    cube([18, 2.2, lid_thick + 2]);
             }
         }
     }
