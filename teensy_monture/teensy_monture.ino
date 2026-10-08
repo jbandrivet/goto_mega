@@ -122,6 +122,7 @@ static long derotPos = 0;
 static double derotTarget = 0.0;
 
 static bool focusEnabled = false;
+bool useSpiDrivers = false; // SPI pour gros Pololu
 static uint16_t backlashAz = 0;
 static uint16_t backlashAlt = 0;
 static int focusSpeed = 1000;
@@ -176,6 +177,7 @@ const uint16_t EEPROM_ADDR_FOCUS_EN   = 95;
 const uint16_t EEPROM_ADDR_GPS_EN     = 96;
 const uint16_t EEPROM_ADDR_BACKLASH_AZ = 97;
 const uint16_t EEPROM_ADDR_BACKLASH_ALT = 99;
+const uint16_t EEPROM_ADDR_USE_SPI_DRIVERS = 101;
 const byte     EEPROM_MAGIC         = 0x5F;
 
 template <typename T>
@@ -222,6 +224,7 @@ static void saveStateToEEPROM() {
   EEPROM.update(EEPROM_ADDR_GPS_EN, gpsEnabled ? 1 : 0);
   eepromWrite(EEPROM_ADDR_BACKLASH_AZ, backlashAz);
   eepromWrite(EEPROM_ADDR_BACKLASH_ALT, backlashAlt);
+  EEPROM.update(EEPROM_ADDR_USE_SPI_DRIVERS, useSpiDrivers ? 1 : 0);
 }
 
 static void loadStateFromEEPROM() {
@@ -245,6 +248,7 @@ static void loadStateFromEEPROM() {
     gpsEnabled = (EEPROM.read(EEPROM_ADDR_GPS_EN) == 1);
     eepromRead(EEPROM_ADDR_BACKLASH_AZ, backlashAz);
     eepromRead(EEPROM_ADDR_BACKLASH_ALT, backlashAlt);
+    useSpiDrivers = (EEPROM.read(EEPROM_ADDR_USE_SPI_DRIVERS) == 1);
     if(backlashAz > 10000) backlashAz = 0;
     if(backlashAlt > 10000) backlashAlt = 0;
     recalculatePPD();
@@ -1678,6 +1682,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   char buf[16];
 
   // ============ GET COMMANDS ============
+  if(c1=='D' && ci==2){ out.print(slewing ? "|#" : "#"); return; }
   if(c1=='G'&&c2=='R'){ out.print(lxRA); return; }
   if(c1=='G'&&c2=='D'){ out.print(lxDEC); return; }
   if(c1=='G'&&c2=='A'){
@@ -2007,6 +2012,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   }
   if(c1=='X'&&c2=='F'){
     if(c3=='e') { focusEnabled=(cmd[4]=='1'); saveStateToEEPROM(); out.write('1'); return; }
+    if(c3=='S') { useSpiDrivers=(cmd[4]=='1'); saveStateToEEPROM(); out.write('1'); return; }
     if(c3=='s') { focusSpeed=1000; out.write('1'); return; } // Slow
     if(c3=='f') { focusSpeed=200; out.write('1'); return; } // Fast
     if(c3=='+') { focusMove=1; digitalWrite(FOCUS_EN,LOW); out.write('1'); return; }

@@ -317,8 +317,12 @@ app.mainloop()
                 self.log(" Pointage en cours...")
                 self.send_cmd(":MS#")
                 
-                # Attente (dans un vrai cas on lit l'état de la monture)
-                time.sleep(15) 
+                # Attente dynamique de fin de mouvement (Slewing)
+                while self.modeling:
+                    time.sleep(1.0)
+                    resp = self.send_cmd(":D#", wait_resp=True)
+                    if resp != "|":
+                        break
                 
                 if not self.modeling: break
                 

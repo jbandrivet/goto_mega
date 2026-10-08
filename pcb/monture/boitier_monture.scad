@@ -12,9 +12,9 @@ pcb_thick = 1.6;
 
 // Paramètres du boîtier
 wall = 2.5;         // Épaisseur des parois
-clearance = 4.0;    // Jeu autour du PCB
+clearance = 1.5;    // Jeu autour du PCB
 standoff_h = 5.0;   // Hauteur des entretoises sous le PCB
-box_h = 32.0;       // Hauteur totale interne du boîtier
+box_h = 35.0;       // Hauteur totale interne du boîtier (35mm pour dégager le TO-220 LM2596)
 lid_thick = 2.5;    // Épaisseur du couvercle
 
 inner_w = pcb_w + 2 * clearance;
@@ -35,6 +35,8 @@ pcb_holes = [
 // ----------------------------------------------------------------------------
 module boitier_base() {
     difference() {
+        union() {
+            difference() {
         // Volume extérieur avec coins arrondis
         hull() {
             translate([3, 3, 0]) cylinder(r=3, h=box_h);
@@ -47,36 +49,42 @@ module boitier_base() {
         translate([wall, wall, wall])
             cube([inner_w, inner_h, box_h + 1]);
 
-        // --- DÉCOUPES DE PASSAGE DES CONNECTEURS EXTÉRIEURS (PARFAITEMENT CENTRÉES) ---
+        // --- DÉCOUPES DE PASSAGE DES CONNECTEURS EXTÉRIEURS (PARFAITEMENT CENTRÉES SUR LE PCB) ---
 
-        // A. 4 Ouvertures Moteurs sur le bord haut (Y = max, centrés à X = 30, 60, 90, 120)
-        motor_x = [30, 60, 90, 120];
+        // A. 4 Ouvertures Moteurs sur le bord haut (Y = max, centrés exactement sur les connecteurs M_AZ, M_ALT, M_DEROT, M_FOCUS)
+        motor_x = [37.62, 67.62, 97.62, 127.62];
         for (mx = motor_x) {
             translate([wall + clearance + mx - 11, outer_h - wall - 1, wall + standoff_h])
                 cube([22, wall + 2, 14]);
         }
 
-        // (Trou USB-B supprimé à la demande de l'utilisateur)
+        // B. Bord bas (Y = 0) : Connecteur USB-B Femelle (Parfaitement centré à X = 75.0mm)
+        translate([wall + clearance + 75.0 - 7.5, -1, wall + standoff_h])
+            cube([15.0, wall + 2, 13.0]);
 
-        // C. Flanc gauche (X = 0) : Entrée 36V (Centré verticalement à Y = 55.0mm)
+        // C. Flanc gauche (X = 0) : Entrée 36V et Sortie auxiliaire 12V
+        // Entrée 36V (Y_kicad = 55.0mm -> Y_scad = 55.0mm)
         translate([-1, wall + clearance + 55.0 - 7, wall + standoff_h])
             cube([wall + 2, 14, 12]);
+        // Sortie auxiliaire 12V (Y_kicad = 40.0mm -> Y_scad = 110 - 40 = 70.0mm)
+        translate([-1, wall + clearance + 70.0 - 6, wall + standoff_h])
+            cube([wall + 2, 12, 12]);
 
-        // D. Flanc droit (X = max) : Raquette DIN et GPS (Centrés symétriquement autour de Y = 55mm)
-        // Connecteur Raquette (Y_kicad = 45mm -> Y_scad = 110 - 45 = 65mm)
-        translate([outer_w - wall - 1, wall + clearance + 65.0 - 8, wall + standoff_h])
+        // D. Flanc droit (X = max) : Raquette DIN et GPS (Parfaitement alignés sur les connecteurs du PCB)
+        // Connecteur Raquette (Y_kicad = 41.19mm -> Y_scad = 110 - 41.19 = 68.81mm)
+        translate([outer_w - wall - 1, wall + clearance + 68.81 - 8, wall + standoff_h])
             cube([wall + 2, 16, 12]);
-        // Connecteur GPS (Y_kicad = 65mm -> Y_scad = 110 - 65 = 45mm)
-        translate([outer_w - wall - 1, wall + clearance + 45.0 - 8, wall + standoff_h])
+        // Connecteur GPS (Y_kicad = 61.19mm -> Y_scad = 110 - 61.19 = 48.81mm)
+        translate([outer_w - wall - 1, wall + clearance + 48.81 - 8, wall + standoff_h])
             cube([wall + 2, 16, 12]);
 
         // E. Trous de vis de fixation du couvercle dans les 4 coins
         corners = [
-            [wall + 1.5, wall + 1.5],
-            [outer_w - wall - 1.5, wall + 1.5],
-            [wall + 1.5, outer_h - wall - 1.5],
-            [outer_w - wall - 1.5, outer_h - wall - 1.5]
-        ];
+        [wall + 1.5, wall + 1.5],
+        [outer_w - wall - 1.5, wall + 1.5],
+        [wall + 1.5, outer_h - wall - 1.5],
+        [outer_w - wall - 1.5, outer_h - wall - 1.5]
+    ];
         for (c = corners) {
             translate([c[0], c[1], box_h - 12])
                 cylinder(d=2.8, h=15); // Trou pour vis M3 taraudée
@@ -110,6 +118,11 @@ module boitier_base() {
             }
         }
     }
+        }
+        // Dégagement garanti des coins pour insertion du PCB
+        translate([wall + clearance - 0.5, wall + clearance - 0.5, wall + standoff_h])
+            cube([pcb_w + 1.0, pcb_h + 1.0, pcb_thick + 1.5]);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -136,27 +149,24 @@ module boitier_couvercle() {
 
         // Trous de passage de vis M3 chanfreinés dans les 4 coins
         corners = [
-            [wall + 1.5, wall + 1.5],
-            [outer_w - wall - 1.5, wall + 1.5],
-            [wall + 1.5, outer_h - wall - 1.5],
-            [outer_w - wall - 1.5, outer_h - wall - 1.5]
-        ];
+        [wall + 1.5, wall + 1.5],
+        [outer_w - wall - 1.5, wall + 1.5],
+        [wall + 1.5, outer_h - wall - 1.5],
+        [outer_w - wall - 1.5, outer_h - wall - 1.5]
+    ];
         for (c = corners) {
             translate([c[0], c[1], -1]) {
                 cylinder(d=3.4, h=lid_thick + 5);
-                // Le couvercle est modélisé à l'envers (face extérieure à Z=0)
-                // On place la base large (d1=6.5) exactement à Z=0 (donc Z=+1 dans le translate -1)
-                translate([0, 0, 1])
-                    cylinder(d1=6.5, d2=3.4, h=2.5); // Fraisage tête de vis
+                cylinder(d1=6.5, d2=3.4, h=2.5); // Fraisage tête de vis
             }
         }
 
         // Grilles d'aération au-dessus des 4 drivers TMC5160 pour dissipation thermique
-        // Changement d'orientation (rotation à 90°) suite à la demande
-        for (cx = [30, 60, 90, 120]) {
-            for (gx = [-8 : 4 : 8]) {
-                translate([wall + clearance + cx + gx - 1.1, wall + clearance + 74 - 12, -1])
-                    cube([2.2, 24, lid_thick + 2]);
+        // Drivers centrés sur les TMC5160 : X = [37.62, 67.62, 97.62, 127.62], Y_kicad = 45mm -> Y_scad = 65mm
+        for (cx = [37.62, 67.62, 97.62, 127.62]) {
+            for (gy = [-12 : 4 : 12]) {
+                translate([wall + clearance + cx - 9, wall + clearance + 65 + gy, -1])
+                    cube([18, 2.2, lid_thick + 2]);
             }
         }
     }

@@ -148,6 +148,7 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 * **Modèle de Pointage N-Étoiles (Teensy Monture uniquement)** : Interpolation des erreurs de suivi et de pointage par IDW (Inverse Distance Weighting) jusqu'à 50 étoiles mémorisées. Support de la commande de remise à zéro `:CML#`.
 * **Ajout du type de monture `GermanEq`** : Le firmware de l'Arduino Mega calcule automatiquement les inversions d'axes (Ascension Droite et Déclinaison) lors du franchissement du méridien.
 * **Commande standard `:Gm#` implémentée** : Renvoie le *Pier Side* (`E#` pour l'Est, `W#` pour l'Ouest, `N#` pour les autres modes) requis pour les logiciels de guidage comme Ekos/INDI.
+* **Commande standard `:D#` implémentée** : Permet l'interrogation dynamique du statut de pointage (Slewing), accélérant drastiquement le modèle de pointage automatique ZWO en évitant les pauses fixes.
 * **Intégration complète dans les interfaces** : Le sélecteur de monture dans `goto_andrivet_config_tool.py`, `goto_andrivet.py` et la raquette physique Teensy supporte désormais les trois options distinctes (`AltAz`, `ForkEq`, `GermanEq`).
 
 ---
@@ -155,3 +156,10 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 ## Licence
 
 Ce projet est sous licence **GNU GPL v3**. Consultez le fichier [LICENSE](LICENSE) pour plus de détails.
+
+## Mise à jour Matérielle (PCB 36V / 12V + Drivers Externes)
+- Ajout du support matériel et logiciel (SPI) pour les drivers Pololu 36v8 et StepSticks TMC5160 HV.
+- La carte mère dispose désormais de connecteurs universels (StepSticks + sorties pour drivers externes 4 pins).
+- Suppression du port USB Host redondant sur le Teensy 4.1 de la monture pour simplifier le soudage.
+- Ajout d'une prise Jack 12V standard en parallèle du bornier d'alimentation 36V.
+- Le configurateur PC intègre maintenant une case à cocher pour activer dynamiquement le SPI matériel pour les drivers haute puissance.

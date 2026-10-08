@@ -11,7 +11,7 @@ pcb_h = 150;
 
 // Paramètres du boîtier
 wall = 2.5;
-clearance = 4.0;
+clearance = 1.5;
 standoff_h = 5.0;
 base_h = 16.0;      // Hauteur coque arrière
 top_h = 14.0;       // Hauteur face avant
@@ -29,6 +29,8 @@ cx = outer_w / 2.0;
 // ----------------------------------------------------------------------------
 module raquette_base() {
     difference() {
+        union() {
+            difference() {
         // Forme extérieure arrondie et ergonomique en main
         hull() {
             translate([6, 6, 0]) cylinder(r=6, h=base_h);
@@ -90,6 +92,11 @@ module raquette_base() {
             }
         }
     }
+        }
+        // Dégagement garanti des coins pour insertion du PCB
+        translate([wall + clearance - 0.5, wall + clearance - 0.5, wall + standoff_h])
+            cube([pcb_w + 1.0, pcb_h + 1.0, 3.0]);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -144,9 +151,7 @@ module raquette_face_avant() {
         for (c = corners) {
             translate([c[0], c[1], -1]) {
                 cylinder(d=3.4, h=top_h + 2);
-                // Le chanfrein doit atteindre exactement la surface (Z = top_h)
-                // Puisqu'on est dans un translate Z=-1, on le place à top_h + 1 - hauteur
-                translate([0, 0, top_h + 1 - 2.5])
+                translate([0, 0, top_h - 2])
                     cylinder(d1=3.4, d2=6.5, h=2.5);
             }
         }
