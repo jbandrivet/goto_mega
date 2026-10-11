@@ -55,7 +55,7 @@ Vous pouvez programmer vos cartes directement depuis l'utilitaire de configurati
 
 ### 4. Schéma de Câblage Rapide (Monture : Mega ou Teensy)
 
-Câblez votre contrôleur principal en suivant ce schéma (les broches sont identiques pour le Mega et le Teensy, à l'exception de la broche du Buzzer) :
+Câblez votre contrôleur principal en suivant ce schéma (les broches sont identiques pour le Mega et le Teensy, à l'exception du Buzzer, de l'`ENB` du focuseur et du GPS, dont les fils TX/RX sont croisés d'une carte à l'autre) :
 
 | Composant / Axe | Broche Arduino Mega 2560 | Broche Teensy 4.1 | Signal Module / Driver |
 | :--- | :--- | :--- | :--- |
@@ -76,8 +76,8 @@ Câblez votre contrôleur principal en suivant ce schéma (les broches sont iden
 | | **Non dispo** | **Pin 24 (TX6)** | `RX` de l'adaptateur USB/Série TTL |
 | **Raquette Teensy** | **Pin 15 (RX3)** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
 | | **Pin 14 (TX3)** | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
-| **Module GPS** | **Pin 17 (RX2)** | **Pin 17 (RX4)** | `TX` du module GPS |
-| | **Pin 16 (TX2)** | **Pin 16 (TX4)** | `RX` du module GPS |
+| **Module GPS** | **Pin 17 (RX2)** | **Pin 16 (RX4)** | `TX` du module GPS |
+| | **Pin 16 (TX2)** | **Pin 17 (TX4)** | `RX` du module GPS |
 
 *Note : Les signaux de masse négatifs (`PUL-`, `DIR-`, `ENB-` des drivers, GND du buzzer, du GPS et de la Teensy) doivent tous être connectés à une broche **GND** de votre carte.*
 *(Consultez le fichier `fiche_technique.md` pour des explications approfondies).*
@@ -158,8 +158,16 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 Ce projet est sous licence **GNU GPL v3**. Consultez le fichier [LICENSE](LICENSE) pour plus de détails.
 
 ## Mise à jour Matérielle (PCB 36V / 12V + Drivers Externes)
-- Ajout du support matériel et logiciel (SPI) pour les drivers Pololu 36v8 et StepSticks TMC5160 HV.
-- La carte mère dispose désormais de connecteurs universels (StepSticks + sorties pour drivers externes 4 pins).
-- Suppression du port USB Host redondant sur le Teensy 4.1 de la monture pour simplifier le soudage.
-- Ajout d'une prise Jack 12V standard en parallèle du bornier d'alimentation 36V.
-- Le configurateur PC intègre maintenant une case à cocher pour activer dynamiquement le SPI matériel pour les drivers haute puissance.
+- Chaque axe dispose de deux sorties sur la carte mère :
+  - un support au format **StepStick / Pololu** (2 × 8 broches espacées de 12,7 mm) ;
+  - des pastilles à souder **DRIVER EXT. 5V** (EN, STEP, DIR, GND) pour des drivers externes plus puissants, par exemple M542, DM542 ou DM556.
+- **Sélecteur de drivers** : l'interrupteur DIP `SW_SEL` a 4 positions, une par axe (AZ, ALT, DER, FOC).
+  - Sur **OFF** (réglage par défaut), l'axe est piloté par le module StepStick ; les sorties externes sont coupées.
+  - Sur **ON**, l'axe est piloté par le driver externe. Les signaux sont convertis en 5 V par des 74HCT125, ce qui suffit pour les optocoupleurs. Le support StepStick est coupé et son module désactivé.
+  - On peut donc, par exemple, mettre de gros drivers sur AZ/ALT et garder des StepSticks pour le dérotateur et le focuseur. Le firmware n'a rien à savoir de ce réglage.
+- Orientation d'un module StepStick : sa broche **EN** va sur la pastille marquée `EN` (en haut à gauche). **VMOT** se trouve donc en face, sur la pastille marquée `VM`. La logique des modules (VIO) est alimentée en **3,3 V**.
+- Les broches SPI / MSx des supports (2 à 6) ne sont **pas câblées**, et le firmware ne configure pas les drivers en SPI. Le réglage `:XFS` est mémorisé mais n'a aucun effet pour l'instant. Utilisez donc des modules qui fonctionnent en STEP/DIR sans SPI : TMC2208/TMC2209 en mode autonome, A4988 (reliez RESET à SLEEP sur le module) ou DRV8825. Un TMC5160 en mode SPI ne fera pas tourner son moteur ; pour les gros moteurs, passez l'axe en driver externe.
+- Le Teensy 4.1 de la monture n'a pas de port USB Host câblé.
+- Une prise **jack 12V** est ajoutée en plus du bornier 36V. Elle passe par la diode `D_JACK` (SB560), ce qui évite que le 36V du bornier remonte dans le bloc 12V.
+- Sur le Teensy de la monture, **coupez le pont VUSB-VIN** sous la carte : le Teensy est alimenté par le 5V du PCB (VIN) et reste branché en USB au PC.
+- Port **PC SERIAL** (Serial6, broches 24/25) : les repères RX/TX sont donnés côté Teensy (`3 TX6`, `4 RX6`). Il faut donc les croiser vers l'adaptateur, et ne pas brancher son 5V sur la broche `2 +5V`.
