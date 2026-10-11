@@ -29,3 +29,7 @@ pcb/raquette/raquette.step
 *_drc_violations.json
 fp-info-cache
 *-backups/
+*.kicad_pcb.backup_*
+
+# Sauvegardes automatiques FreeCAD
+*.FCBak
