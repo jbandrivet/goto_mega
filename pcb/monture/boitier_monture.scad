@@ -51,31 +51,41 @@ module boitier_base() {
 
         // --- DÉCOUPES DE PASSAGE DES CONNECTEURS EXTÉRIEURS (PARFAITEMENT CENTRÉES SUR LE PCB) ---
 
-        // A. 4 Ouvertures Moteurs sur le bord haut (Y = max, centrés exactement sur les connecteurs M_AZ, M_ALT, M_DEROT, M_FOCUS)
-        motor_x = [37.62, 67.62, 97.62, 127.62];
+        // Repère : Y_scad = 110 - Y_kicad. Les empreintes KiCad ont leur origine sur la pastille 1,
+        // pas au centre du composant : toujours centrer une découpe sur le CENTRE du corps.
+
+        // A. 4 Ouvertures Moteurs sur le bord haut (Y = max), centrées sur le corps des borniers
+        //    M_AZ/ALT/DEROT/FOCUS (pastilles à cx-7.62 ... cx+7.62, cx = 30/60/90/120)
+        motor_x = [30, 60, 90, 120];
         for (mx = motor_x) {
             translate([wall + clearance + mx - 11, outer_h - wall - 1, wall + standoff_h])
                 cube([22, wall + 2, 14]);
         }
 
-        // B. Bord bas (Y = 0) : Connecteur USB-B Femelle (Parfaitement centré à X = 75.0mm)
-        translate([wall + clearance + 75.0 - 7.5, -1, wall + standoff_h])
-            cube([15.0, wall + 2, 13.0]);
+        // B. (Trou USB-B supprimé à la demande de l'utilisateur - pas de connecteur USB-B sur le PCB)
 
-        // C. Flanc gauche (X = 0) : Entrée 36V et Sortie auxiliaire 12V
-        // Entrée 36V (Y_kicad = 55.0mm -> Y_scad = 55.0mm)
-        translate([-1, wall + clearance + 55.0 - 7, wall + standoff_h])
+        // C. Flanc gauche (X = 0) : Entrée 36V, jack 12V et câble micro-USB du Teensy
+        // Bornier 36V (pastilles Y_kicad 55.0 / 60.08, corps centré Y_kicad ~57.3 -> Y_scad 52.7)
+        translate([-1, wall + clearance + 52.7 - 7, wall + standoff_h])
             cube([wall + 2, 14, 12]);
-        // Sortie auxiliaire 12V (Y_kicad = 40.0mm -> Y_scad = 110 - 40 = 70.0mm)
+        // Jack 12V (corps centré Y_kicad 40.0 -> Y_scad 70.0). Le jack dépasse du bord du PCB de 1,7 mm :
+        // encoche ouverte jusqu'en haut pour pouvoir descendre la carte dans le boîtier
         translate([-1, wall + clearance + 70.0 - 6, wall + standoff_h])
-            cube([wall + 2, 12, 12]);
+            cube([wall + 2, 12, box_h - wall - standoff_h + 1]);
+        // Câble micro-USB du Teensy (USB à Y_kicad 70.0 -> Y_scad 40.0), de la face du PCB
+        // jusqu'au-dessus d'un Teensy monté sur supports femelles
+        translate([-1, wall + clearance + 40.0 - 6.5, wall + standoff_h + pcb_thick])
+            cube([wall + 2, 13, 18.4]);
 
-        // D. Flanc droit (X = max) : Raquette DIN et GPS (Parfaitement alignés sur les connecteurs du PCB)
-        // Connecteur Raquette (Y_kicad = 41.19mm -> Y_scad = 110 - 41.19 = 68.81mm)
-        translate([outer_w - wall - 1, wall + clearance + 68.81 - 8, wall + standoff_h])
+        // D. Flanc droit (X = max) : Raquette, GPS et port série PC
+        // Connecteur Raquette (pastilles Y_kicad 41.19..48.81, centre 45.0 -> Y_scad 65.0)
+        translate([outer_w - wall - 1, wall + clearance + 65.0 - 8, wall + standoff_h])
             cube([wall + 2, 16, 12]);
-        // Connecteur GPS (Y_kicad = 61.19mm -> Y_scad = 110 - 61.19 = 48.81mm)
-        translate([outer_w - wall - 1, wall + clearance + 48.81 - 8, wall + standoff_h])
+        // Connecteur GPS (pastilles Y_kicad 61.19..68.81, centre 65.0 -> Y_scad 45.0)
+        translate([outer_w - wall - 1, wall + clearance + 45.0 - 8, wall + standoff_h])
+            cube([wall + 2, 16, 12]);
+        // Connecteur PC SERIAL (pastilles Y_kicad 16.0..23.62, centre 19.81 -> Y_scad 90.19)
+        translate([outer_w - wall - 1, wall + clearance + 90.19 - 8, wall + standoff_h])
             cube([wall + 2, 16, 12]);
 
         // E. Trous de vis de fixation du couvercle dans les 4 coins
@@ -161,9 +171,9 @@ module boitier_couvercle() {
             }
         }
 
-        // Grilles d'aération au-dessus des 4 drivers TMC5160 pour dissipation thermique
-        // Drivers centrés sur les TMC5160 : X = [37.62, 67.62, 97.62, 127.62], Y_kicad = 45mm -> Y_scad = 65mm
-        for (cx = [37.62, 67.62, 97.62, 127.62]) {
+        // Grilles d'aération au-dessus des 4 modules drivers pour dissipation thermique
+        // Modules centrés entre leurs deux rangées : X = [30, 60, 90, 120], Y_kicad ~44.9mm -> Y_scad = 65mm
+        for (cx = [30, 60, 90, 120]) {
             for (gy = [-12 : 4 : 12]) {
                 translate([wall + clearance + cx - 9, wall + clearance + 65 + gy, -1])
                     cube([18, 2.2, lid_thick + 2]);

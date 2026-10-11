@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
 """
 Générateur automatique de PCB KiCad pour le projet Goto-Andrivet.
+
+ATTENTION : ce script produit des cartes NON ROUTÉES. Le routage (Freerouting) est fait ensuite
+sur pcb/monture/monture.kicad_pcb : relancer ce script puis copier sa sortie écrase ce routage.
+
 Version Haute Puissance 36V avec :
-- PORT USB-A FEMELLE HORIZONTAL POUR LE PORT USB HOST DU TEENSY 4.1
-- CIRCUIT BUCK 36V -> 5V 100% DISCRET ET INTÉGRÉ AU PCB (LM2596-5.0)
-- 4 Drivers TMC5160 HV (4A max) et condensateurs 470uF/63V
+- CIRCUIT BUCK 36V -> 5V 100% DISCRET ET INTÉGRÉ AU PCB (LM2596-5.0, diode SB560 60V)
+- Jack 12V isolé du bornier 36V par la diode D_JACK
+- 4 supports StepStick (TMC5160 HV, 4A max), VIO en 3,3V, condensateurs 220uF/63V
 - 4 Borniers à vis moteurs orientés vers le haut (extérieur)
 - Bornier d'alimentation 36V orienté vers la gauche (extérieur)
 - Connecteurs Raquette DIN et GPS orientés vers la droite (extérieur)
@@ -31,6 +35,15 @@ LIB_INDUCTOR = "/usr/share/kicad/footprints/Inductor_THT.pretty"
 LIB_TO = "/usr/share/kicad/footprints/Package_TO_SOT_THT.pretty"
 LIB_HOLE = "/usr/share/kicad/footprints/MountingHole.pretty"
 LIB_USB = "/usr/share/kicad/footprints/Connector_USB.pretty"
+LIB_DIP = "/usr/share/kicad/footprints/Package_DIP.pretty"
+LIB_RES = "/usr/share/kicad/footprints/Resistor_THT.pretty"
+
+# Classes de nets du PCB monture (écrites dans monture.kicad_pro)
+DEFAULT_NETCLASS = {"name": "Default", "clearance": 0.2, "track_width": 0.2, "via_diameter": 0.6, "via_drill": 0.3,
+                    "priority": 2147483647}
+POWER_NETCLASS = {"name": "Puissance", "clearance": 0.3, "track_width": 1.5, "via_diameter": 1.2, "via_drill": 0.6,
+                  "priority": 0}
+POWER_NET_PATTERNS = ["+36V", "GND", "+5V", "SW_NODE", "JACK_IN", "*_1A", "*_1B", "*_2A", "*_2B"]
 
 def add_outline_and_holes(board, width_mm, height_mm):
     coords = [
@@ -109,8 +122,8 @@ def create_monture_pcb_36v(output_dir):
     board = pcbnew.BOARD()
 
     net_names = [
-        "GND", "+36V", "+5V", "SW_NODE",
-        
+        "GND", "+36V", "+5V", "+3V3", "SW_NODE", "JACK_IN",
+
         "AZ_STEP", "AZ_DIR", "AZ_EN",
         "ALT_STEP", "ALT_DIR", "ALT_EN",
         "DEROT_STEP", "DEROT_DIR", "DEROT_EN",
@@ -124,6 +137,11 @@ def create_monture_pcb_36v(output_dir):
         "PC_TX", "PC_RX",
         "BUZZER"
     ]
+    # Sélecteur StepStick / driver externe : nets côté supports (_INT), côté pastilles externes (_EXT)
+    for ax in ("AZ", "ALT", "DEROT", "FOCUS"):
+        net_names.append(f"SEL_{ax}")
+        for sig in ("STEP", "DIR", "EN"):
+            net_names += [f"{ax}_{sig}_INT", f"{ax}_{sig}_EXT"]
     nets = {}
     for name in net_names:
         net = pcbnew.NETINFO_ITEM(board, name)
@@ -133,7 +151,7 @@ def create_monture_pcb_36v(output_dir):
     W, H = 150, 110
     add_outline_and_holes(board, W, H)
 
-    add_label(board, "GOTO-ANDRIVET : MONTURE 36V / 4A (USB-B & TMC5160 HV)", 20, 4, size_mm=1.1)
+    add_label(board, "GOTO-ANDRIVET : MONTURE 36V - TEENSY 4.1 / STEPSTICK", 75, 108.6, size_mm=1.1)
 
     # =========================================================================
     # 1. CIRCUIT BUCK STEP-DOWN 36V -> 5V 100% INTÉGRÉ AU PCB (LM2596-5.0 DISCRET)
@@ -162,19 +180,30 @@ def create_monture_pcb_36v(output_dir):
     add_label(board, "+36V (Pin 2)", 14, 60, size_mm=0.6)
     connect_pad(pwr36, 1, nets["GND"])
     connect_pad(pwr36, 2, nets["+36V"])
-    
-    # DC Jack connections
-    connect_pad(dc_jack, 1, nets["+36V"])
+
+    # DC Jack connections : le jack passe par D_JACK (sinon le 36V du bornier remonte dans le bloc 12V)
+    connect_pad(dc_jack, 1, nets["JACK_IN"])
     connect_pad(dc_jack, 2, nets["GND"])
     connect_pad(dc_jack, 3, nets["GND"])
-    add_label(board, "ALIM 12V DC (JACK)", 16, 40, size_mm=0.8)
+    add_label(board, "ALIM 12V (JACK)", 8, 33.6, size_mm=0.8)
 
+    d_jack = pcbnew.FootprintLoad(LIB_DIODE, "D_DO-201AD_P15.24mm_Horizontal")
+    d_jack.SetReference("D_JACK")
+    d_jack.SetValue("SB560 (60V 5A)")
+    d_jack.SetOrientationDegrees(270)   # anode (pad 2) vers le jack, cathode (pad 1) en haut
+    d_jack.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(16), pcbnew.FromMM(18)))
+    board.Add(d_jack)
+    add_label(board, "D_JACK", 11.2, 26, size_mm=0.6)
+    connect_pad(d_jack, 1, nets["+36V"])
+    connect_pad(d_jack, 2, nets["JACK_IN"])
+
+    # C_IN au plus pres du LM2596 et hors du passage du cable micro-USB du Teensy (Y 64..76)
     c_in = pcbnew.FootprintLoad(LIB_CAP, "CP_Radial_D8.0mm_P3.50mm")
     c_in.SetReference("C_IN")
-    c_in.SetValue("100uF 50V")
-    c_in.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(20), pcbnew.FromMM(72)))
+    c_in.SetValue("100uF 63V")
+    c_in.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(8.5), pcbnew.FromMM(84)))
     board.Add(c_in)
-    add_label(board, "C_IN 50V", 16, 67, size_mm=0.6)
+    add_label(board, "C_IN 63V", 10.25, 89.4, size_mm=0.6)
     connect_pad(c_in, 1, nets["+36V"])
     connect_pad(c_in, 2, nets["GND"])
 
@@ -183,7 +212,7 @@ def create_monture_pcb_36v(output_dir):
     lm2596.SetValue("LM2596-5.0")
     lm2596.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(18), pcbnew.FromMM(84)))
     board.Add(lm2596)
-    add_label(board, "LM2596-5.0", 12, 79, size_mm=0.7)
+    add_label(board, "LM2596-5.0", 21.4, 78.6, size_mm=0.7)
     connect_pad(lm2596, 1, nets["+36V"])
     connect_pad(lm2596, 2, nets["SW_NODE"])
     connect_pad(lm2596, 3, nets["GND"])
@@ -192,10 +221,10 @@ def create_monture_pcb_36v(output_dir):
 
     d_schottky = pcbnew.FootprintLoad(LIB_DIODE, "D_DO-201AD_P15.24mm_Horizontal")
     d_schottky.SetReference("D_SCHOTTKY")
-    d_schottky.SetValue("1N5822 (3A)")
+    d_schottky.SetValue("SB560 (60V 5A)")   # 1N5822 = 40V seulement, trop juste sous 36V
     d_schottky.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(14), pcbnew.FromMM(94)))
     board.Add(d_schottky)
-    add_label(board, "DIODE 1N5822", 13, 97, size_mm=0.6)
+    add_label(board, "DIODE SB560", 13, 97, size_mm=0.6)
     connect_pad(d_schottky, 1, nets["SW_NODE"])
     connect_pad(d_schottky, 2, nets["GND"])
 
@@ -211,9 +240,9 @@ def create_monture_pcb_36v(output_dir):
     c_out = pcbnew.FootprintLoad(LIB_CAP, "CP_Radial_D8.0mm_P3.50mm")
     c_out.SetReference("C_OUT")
     c_out.SetValue("220uF 16V")
-    c_out.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(33), pcbnew.FromMM(96)))
+    c_out.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(35), pcbnew.FromMM(97)))
     board.Add(c_out)
-    add_label(board, "C_OUT 16V", 27, 101, size_mm=0.6)
+    add_label(board, "C_OUT 16V", 36.75, 102.3, size_mm=0.6)
     connect_pad(c_out, 1, nets["+5V"])
     connect_pad(c_out, 2, nets["GND"])
 
@@ -262,44 +291,50 @@ def create_monture_pcb_36v(output_dir):
         add_label(board, "^ BOBINE 2 ^", cx + 1.0, 2.0, size_mm=0.55)
 
         # Nom de l'axe
-        add_label(board, axis_label, cx - 11, 19.5, size_mm=0.8)
+        add_label(board, axis_label, cx, 19.5, size_mm=0.8)
 
         connect_pad(m_term, 1, nets[m_2b])
         connect_pad(m_term, 2, nets[m_2a])
         connect_pad(m_term, 3, nets[m_1a])
         connect_pad(m_term, 4, nets[m_1b])
 
+        # Module StepStick / Pololu : 2 rangées de 8 broches espacées de 12,7 mm (0,5")
+        # Gauche (haut->bas) : EN . . . . . STEP DIR   (broches 2-6 non câblées : SPI/MSx)
+        # Droite (haut->bas) : VMOT GND 2B 2A 1A 1B VIO GND  (VMOT en face de EN)
         drv_y = 36
         sock_l = pcbnew.FootprintLoad(LIB_SOCKET, "PinSocket_1x08_P2.54mm_Vertical")
         sock_l.SetReference(f"DRV_{axis_name}_L")
         sock_l.SetValue("Logique")
-        sock_l.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx - 7.62), pcbnew.FromMM(drv_y)))
+        sock_l.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx - 6.35), pcbnew.FromMM(drv_y)))
         board.Add(sock_l)
-        connect_pad(sock_l, 1, nets[e_net])
-        connect_pad(sock_l, 7, nets[s_net])
-        connect_pad(sock_l, 8, nets[d_net])
+        connect_pad(sock_l, 1, nets[e_net + "_INT"])   # via les tampons 74HC126 du sélecteur
+        connect_pad(sock_l, 7, nets[s_net + "_INT"])
+        connect_pad(sock_l, 8, nets[d_net + "_INT"])
 
         sock_r = pcbnew.FootprintLoad(LIB_SOCKET, "PinSocket_1x08_P2.54mm_Vertical")
         sock_r.SetReference(f"DRV_{axis_name}_R")
         sock_r.SetValue("Puissance")
-        sock_r.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx + 7.62), pcbnew.FromMM(drv_y)))
+        sock_r.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx + 6.35), pcbnew.FromMM(drv_y)))
         board.Add(sock_r)
-        connect_pad(sock_r, 1, nets["GND"])
-        connect_pad(sock_r, 2, nets["+5V"])
+        connect_pad(sock_r, 1, nets["+36V"])
+        connect_pad(sock_r, 2, nets["GND"])
         connect_pad(sock_r, 3, nets[m_2b])
         connect_pad(sock_r, 4, nets[m_2a])
         connect_pad(sock_r, 5, nets[m_1a])
         connect_pad(sock_r, 6, nets[m_1b])
-        connect_pad(sock_r, 7, nets["GND"])
-        connect_pad(sock_r, 8, nets["+36V"])
+        connect_pad(sock_r, 7, nets["+3V3"])   # VIO = 3,3 V : niveau logique du Teensy
+        connect_pad(sock_r, 8, nets["GND"])
 
-        add_rect_silk(board, cx - 8.5, drv_y - 10, cx + 8.5, drv_y + 10, width_mm=0.2)
-        add_label(board, f"TMC5160 {axis_name}", cx - 6, drv_y - 1, size_mm=0.7)
+        add_rect_silk(board, cx - 7.62, drv_y - 1.27, cx + 7.62, drv_y + 19.05, width_mm=0.2)
+        add_label(board, f"TMC5160 {axis_name}", cx, drv_y + 9, size_mm=0.7)
+        add_label(board, "EN", cx - 9.0, drv_y, size_mm=0.6)
+        add_label(board, "VM", cx + 9.0, drv_y, size_mm=0.6)
 
-        cap = pcbnew.FootprintLoad(LIB_CAP, "CP_Radial_D8.0mm_P3.50mm")
+        # Condensateur moteur au-dessus du module (pas dessous : il n'y a que 8,5 mm sous un StepStick)
+        cap = pcbnew.FootprintLoad(LIB_CAP, "CP_Radial_D10.0mm_P5.00mm")
         cap.SetReference(f"C_{axis_name}")
-        cap.SetValue("470uF 63V")
-        cap.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx), pcbnew.FromMM(49)))
+        cap.SetValue("220uF 63V")
+        cap.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx - 2.5), pcbnew.FromMM(27.5)))
         board.Add(cap)
         connect_pad(cap, 1, nets["+36V"])
         connect_pad(cap, 2, nets["GND"])
@@ -312,16 +347,17 @@ def create_monture_pcb_36v(output_dir):
         ext_term.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx + 13.5), pcbnew.FromMM(30)))
         board.Add(ext_term)
 
-        add_label(board, "EN", cx + 16, 30, size_mm=0.6)
-        add_label(board, "STEP", cx + 16, 34.6, size_mm=0.6)
-        add_label(board, "DIR", cx + 16, 39.2, size_mm=0.6)
-        add_label(board, "GND", cx + 16, 43.8, size_mm=0.6)
-        add_label(board, "DRIVER EXT.", cx + 14, 27, size_mm=0.7)
+        # Rotation 90° : pad 1 (GND) en bas à Y=30, pad 4 (EN) en haut à Y=16.2
+        add_label(board, "EN", cx + 16.8, 16.2, size_mm=0.6)
+        add_label(board, "STEP", cx + 16.8, 20.8, size_mm=0.6)
+        add_label(board, "DIR", cx + 16.8, 25.4, size_mm=0.6)
+        add_label(board, "GND", cx + 16.8, 30.0, size_mm=0.6)
+        add_label(board, "DRIVER EXT. 5V", cx + 14, 33.4, size_mm=0.7)
 
         connect_pad(ext_term, 1, nets["GND"])
-        connect_pad(ext_term, 2, nets[d_net])
-        connect_pad(ext_term, 3, nets[s_net])
-        connect_pad(ext_term, 4, nets[e_net])
+        connect_pad(ext_term, 2, nets[d_net + "_EXT"])   # via les tampons 5V 74HCT125 du sélecteur
+        connect_pad(ext_term, 3, nets[s_net + "_EXT"])
+        connect_pad(ext_term, 4, nets[e_net + "_EXT"])
 
     # =========================================================================
     # 3. TEENSY 4.1 PARFAITEMENT CENTRE HORIZONTALEMENT (X=75mm, Y=70mm)
@@ -357,11 +393,11 @@ def create_monture_pcb_36v(output_dir):
     raq.SetValue("VERS RAQUETTE")
     raq.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(142), pcbnew.FromMM(45 - 3.81)))
     board.Add(raq)
-    add_label(board, "[ RAQUETTE ]", 125, 38.5, size_mm=0.8)
+    add_label(board, "[ RAQUETTE ]", 133.8, 38.8, size_mm=0.8)
     add_label(board, "1: GND", 133, 41.2, size_mm=0.65)
     add_label(board, "2: +5V", 133, 43.7, size_mm=0.65)
-    add_label(board, "3: RX",  134, 46.3, size_mm=0.65)
-    add_label(board, "4: TX",  134, 48.8, size_mm=0.65)
+    add_label(board, "3: RX3",  134, 46.3, size_mm=0.65)
+    add_label(board, "4: TX3",  134, 48.8, size_mm=0.65)
     connect_pad(raq, 1, nets["GND"])
     connect_pad(raq, 2, nets["+5V"])
     connect_pad(raq, 3, nets["RAQUETTE_RX"])
@@ -383,17 +419,17 @@ def create_monture_pcb_36v(output_dir):
     connect_pad(gps, 3, nets["+5V"])
     connect_pad(gps, 4, nets["GND"])
 
-    # Connecteur vers PC (Centré à Y=10mm)
+    # Connecteur vers PC (pastilles Y=16..23.62 : hors de la zone de vis du trou H2 à (145,5))
     pc_port = pcbnew.FootprintLoad(LIB_HEADER, "PinHeader_1x04_P2.54mm_Vertical")
     pc_port.SetReference("J_PC_SERIAL")
     pc_port.SetValue("PC SERIAL6")
-    pc_port.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(142), pcbnew.FromMM(10 - 3.81)))
+    pc_port.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(142), pcbnew.FromMM(16.0)))
     board.Add(pc_port)
-    add_label(board, "[ PC SERIAL ]", 124, 18.5, size_mm=0.8)
-    add_label(board, "1: GND", 133, 21.2, size_mm=0.65)
-    add_label(board, "2: +5V", 133, 23.7, size_mm=0.65)
-    add_label(board, "3: RX",  134, 26.3, size_mm=0.65)
-    add_label(board, "4: TX",  134, 28.8, size_mm=0.65)
+    add_label(board, "[ PC SERIAL ]", 142, 11.0, size_mm=0.8)
+    add_label(board, "1 GND", 146.8, 16.0, size_mm=0.65)
+    add_label(board, "2 +5V", 146.8, 18.54, size_mm=0.65)
+    add_label(board, "3 TX6", 146.8, 21.08, size_mm=0.65)
+    add_label(board, "4 RX6", 146.8, 23.62, size_mm=0.65)
     connect_pad(pc_port, 1, nets["GND"])
     connect_pad(pc_port, 2, nets["+5V"])
     connect_pad(pc_port, 3, nets["PC_RX"])
@@ -408,19 +444,83 @@ def create_monture_pcb_36v(output_dir):
     connect_pad(buz, 1, nets["BUZZER"])
     connect_pad(buz, 2, nets["GND"])
 
-    # Guide de câblage sérigraphié sur le PCB
-    add_rect_silk(board, 88, 93, 145, 107, width_mm=0.15)
-    add_label(board, "GUIDE CABLAGE MOTEURS :", 90, 95, size_mm=0.65)
-    add_label(board, "- BOBINE 1 = GAUCHE [1B, 1A]", 90, 98, size_mm=0.55)
-    add_label(board, "- BOBINE 2 = DROITE [2A, 2B]", 90, 101, size_mm=0.55)
-    add_label(board, "* Tester au multimetre : ~1-3 Ohms par paire", 90, 104, size_mm=0.5)
+    # Guide de câblage sérigraphié sur le PCB (à droite des tampons du sélecteur)
+    add_rect_silk(board, 119.5, 95, 140.8, 107, width_mm=0.15)
+    add_label(board, "GUIDE CABLAGE MOTEURS :", 130.15, 96.3, size_mm=0.65)
+    add_label(board, "- BOBINE 1 = GAUCHE [1B, 1A]", 130.15, 98.6, size_mm=0.55)
+    add_label(board, "- BOBINE 2 = DROITE [2A, 2B]", 130.15, 100.9, size_mm=0.55)
+    add_label(board, "* Tester au multimetre : ~1-3 Ohms par paire", 130.15, 103.2, size_mm=0.5)
+    add_label(board, "* RX/TX = cote Teensy : croiser vers l'appareil", 130.15, 105.5, size_mm=0.5)
 
-    connect_pad(teensy, 36, nets["RAQUETTE_TX"])
-    connect_pad(teensy, 37, nets["RAQUETTE_RX"])
-    connect_pad(teensy, 38, nets["GPS_RX"])
-    connect_pad(teensy, 39, nets["GPS_TX"])
-    connect_pad(teensy, 17, nets["PC_TX"])
-    connect_pad(teensy, 18, nets["PC_RX"])
+    # =========================================================================
+    # 6. SÉLECTEUR PAR AXE STEPSTICK / DRIVER EXTERNE
+    # SW_SEL (DIP x4) : OFF = StepStick (défaut), ON = driver externe ; SEL_x rappelé à +3V3 par RN_SEL.
+    # 3 x 74HC126 (+3V3, OE actif haut) -> supports StepStick ; en mode externe sorties coupées et EN_INT
+    # rappelé à +3V3 (module désactivé). 3 x 74HCT125 (+5V, OE actif bas) -> pastilles externes en 5 V
+    # (optocoupleurs M542/DM542...). Mêmes broches Teensy : ni le plan de câblage ni le firmware ne changent.
+    # Canal n -> axe n : (OE, A, Y) = (1,2,3) AZ, (4,5,6) ALT, (10,9,8) DEROT, (13,12,11) FOCUS ; 7 GND, 14 VCC.
+    # =========================================================================
+    sel_axes = ("AZ", "ALT", "DEROT", "FOCUS")
+    sel_ch = ((1, 2, 3), (4, 5, 6), (10, 9, 8), (13, 12, 11))
+    for side, value, vcc, y0 in (("INT", "74HC126", "+3V3", 90.0), ("EXT", "74HCT125", "+5V", 104.0)):
+        for k, sig in enumerate(("STEP", "DIR", "EN")):
+            x0 = 50.0 + 25.0 * k
+            u = pcbnew.FootprintLoad(LIB_DIP, "DIP-14_W7.62mm")
+            u.SetReference(f"U_{side}_{sig}")
+            u.SetValue(value)
+            u.SetOrientationDegrees(90)
+            u.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x0), pcbnew.FromMM(y0)))
+            board.Add(u)
+            connect_pad(u, 7, nets["GND"])
+            connect_pad(u, 14, nets[vcc])
+            for ax, (oe, a, y) in zip(sel_axes, sel_ch):
+                connect_pad(u, oe, nets[f"SEL_{ax}"])
+                connect_pad(u, a, nets[f"{ax}_{sig}"])
+                connect_pad(u, y, nets[f"{ax}_{sig}_{side}"])
+            c = pcbnew.FootprintLoad(LIB_CAP, "C_Disc_D3.0mm_W1.6mm_P2.50mm")
+            c.SetReference(f"C_{side}_{sig}")
+            c.SetValue("100nF")
+            c.SetOrientationDegrees(90)
+            c.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x0 - 3.4), pcbnew.FromMM(y0 - 5.5)))
+            board.Add(c)
+            connect_pad(c, 1, nets["GND"])
+            connect_pad(c, 2, nets[vcc])
+
+    rn = pcbnew.FootprintLoad(LIB_RES, "R_Array_SIP9")
+    rn.SetReference("RN_SEL")
+    rn.SetValue("10k x8 (commun broche 1)")
+    rn.SetOrientationDegrees(270)
+    rn.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(108.0), pcbnew.FromMM(57.6)))
+    board.Add(rn)
+    connect_pad(rn, 1, nets["+3V3"])
+    for i, ax in enumerate(sel_axes):
+        connect_pad(rn, 2 + i, nets[f"SEL_{ax}"])
+        connect_pad(rn, 6 + i, nets[f"{ax}_EN_INT"])
+
+    sw = pcbnew.FootprintLoad(LIB_SWITCH, "SW_DIP_SPSTx04_Slide_9.78x12.34mm_W7.62mm_P2.54mm")
+    sw.SetReference("SW_SEL")
+    sw.SetValue("DIP x4")
+    sw.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(113.0), pcbnew.FromMM(66.0)))
+    board.Add(sw)
+    for i, ax in enumerate(sel_axes):
+        connect_pad(sw, 1 + i, nets[f"SEL_{ax}"])
+        connect_pad(sw, 8 - i, nets["GND"])
+    add_label(board, "SELECTEUR DRIVERS", 116.8, 62.0, size_mm=0.6)
+    add_label(board, "ON = EXTERNE 5V / OFF = STEPSTICK", 117.5, 78.0, size_mm=0.5)
+    for i, s in enumerate(("AZ", "ALT", "DER", "FOC")):
+        add_label(board, s, 124.6, 66.0 + 2.54 * i, size_mm=0.6)
+    add_label(board, "TAMPONS STEPSTICK 3,3V (74HC126)", 82.0, 80.2, size_mm=0.6)
+    add_label(board, "TAMPONS DRIVERS EXTERNES 5V (74HCT125)", 82.0, 93.2, size_mm=0.6)
+
+    # Empreinte Teensy41 : pad n (1..24) = rangée broches 0..12/24..32 (pad 1 = GND, pad 2 = broche 0,
+    # pad 16 = broche 24, pad 17 = broche 25) ; pad 48 = VIN, 47 = GND, 46 = 3.3V, 45 = 23 ... 36 = 14
+    connect_pad(teensy, 36, nets["RAQUETTE_TX"])   # broche 14 = TX3
+    connect_pad(teensy, 37, nets["RAQUETTE_RX"])   # broche 15 = RX3
+    connect_pad(teensy, 38, nets["GPS_RX"])        # broche 16 = RX4
+    connect_pad(teensy, 39, nets["GPS_TX"])        # broche 17 = TX4
+    connect_pad(teensy, 17, nets["PC_TX"])         # broche 25 = RX6 (reçoit le TX du PC)
+    connect_pad(teensy, 16, nets["PC_RX"])         # broche 24 = TX6 (vers le RX du PC)
+    connect_pad(teensy, 46, nets["+3V3"])          # 3.3V -> VIO des drivers
     connect_pad(teensy, 42, nets["BUZZER"])
     connect_pad(teensy, 47, nets["GND"])
     connect_pad(teensy, 48, nets["+5V"])
@@ -430,11 +530,17 @@ def create_monture_pcb_36v(output_dir):
     pcb_path = os.path.join(output_dir, "monture.kicad_pcb")
     pcbnew.SaveBoard(pcb_path, board)
 
+    # Le .kicad_pro porte les classes de nets : sans la classe "Puissance", l'autorouteur
+    # trace le +36V, le GND et les bobines moteur (jusqu'à 4 A) en 0,2 mm.
     pro_path = os.path.join(output_dir, "monture.kicad_pro")
     with open(pro_path, "w") as f:
-        json.dump({"meta": {"filename": "monture.kicad_pro", "version": 1}, "boards": ["monture.kicad_pcb"], "sheets": []}, f, indent=2)
+        json.dump({"meta": {"filename": "monture.kicad_pro", "version": 1}, "boards": ["monture.kicad_pcb"], "sheets": [],
+                   "net_settings": {"meta": {"version": 4},
+                                    "classes": [DEFAULT_NETCLASS, POWER_NETCLASS],
+                                    "netclass_patterns": [{"netclass": "Puissance", "pattern": p} for p in POWER_NET_PATTERNS]}},
+                  f, indent=2)
 
-    print(f"[OK] PCB Monture 36V avec USB-A Host créé : {pcb_path}")
+    print(f"[OK] PCB Monture 36V créé : {pcb_path}")
 
 
 def create_raquette_pcb(output_dir):
@@ -575,7 +681,7 @@ if __name__ == "__main__":
     local_dir = "/home/jean-baptiste/GotoAndrivet_PCB"
     usb_dir = "/run/media/jean-baptiste/6E91-2E1D/perso/astronomie/gotos/goto_andrivet/pcb"
 
-    print("--- Génération PCB Monture 36V / 4A (Avec USB-A Host) ---")
+    print("--- Génération PCB Monture 36V / 4A ---")
     create_monture_pcb_36v(os.path.join(local_dir, "monture"))
 
     print("--- Génération PCB Raquette ---")

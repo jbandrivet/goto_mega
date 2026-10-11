@@ -57,7 +57,7 @@ static double         maxSlewRate   = DEFAULT_SLEW_RATE;
 
 #define FOCUS_STEP 11
 #define FOCUS_DIR  12
-#define FOCUS_EN   13
+#define FOCUS_EN   13  // = LED_BUILTIN sur le Mega : ne jamais piloter LED_BUILTIN (activerait le focuseur)
 
 // === LIMITES ===
 #define ALT_MIN  -1.0
@@ -920,7 +920,6 @@ static int slewToAA(double tAlt, double tAz) {
   // de suivi peut encore emettre un pas et reprendre la main sur la broche.
   setDirAz(azS >= 0 ? 1 : -1);
   setDirAlt(altS >= 0 ? 1 : -1);
-  digitalWrite(LED_BUILTIN,HIGH);
 
   unsigned long minDelay = stepDelaySlew;
   double f_start = 1.0e6 / MAX_DELAY;
@@ -1054,7 +1053,6 @@ static int slewToAA(double tAlt, double tAz) {
   azPos  = azStart  + azDelta;
   altPos = altStart + altDelta;
 
-  digitalWrite(LED_BUILTIN,LOW);
   slewing=false; updatePos();
   saveStateToEEPROM();
   if(!interrupted && maxS > 0) playArrivalMelody();
@@ -2361,8 +2359,6 @@ void setup() {
   digitalWrite(FOCUS_EN, HIGH);
   digitalWrite(AZ_STEP,LOW); digitalWrite(ALT_STEP,LOW);
   enableMotors(false);
-  pinMode(LED_BUILTIN,OUTPUT);
-  digitalWrite(LED_BUILTIN,HIGH); delay(300); digitalWrite(LED_BUILTIN,LOW);
   pinMode(BUZZER_PIN,OUTPUT);
   digitalWrite(BUZZER_PIN,LOW);
   azPos=0; altPos=0;

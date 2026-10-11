@@ -126,15 +126,18 @@ module raquette_face_avant() {
         }
 
         // B. 5 Trous circulaires pour les boutons du D-Pad (10 mm pour capuchons)
-        // Centrés à Y = 30 (puisque dans KiCad ENTER est à Y=120, et la carte fait 150)
-        btn_y = wall + clearance + 30;
+        // L'empreinte SW_PUSH_6mm a son origine sur la pastille 1 : le poussoir est décalé de
+        // (+3.25, +2.25) mm dans KiCad. ENTER : origine (52.5, 120) -> centre (55.75, 122.25)
+        // -> X = cx + 3.25, Y_scad = 150 - 122.25 = 27.75
+        btn_x = cx + 3.25;
+        btn_y = wall + clearance + 27.75;
         btn_spacing = 15;
         buttons = [
-            [cx, btn_y + btn_spacing],              // HAUT (plus haut en Y)
-            [cx - btn_spacing, btn_y],              // GAUCHE
-            [cx, btn_y],                            // ENTER / OK
-            [cx + btn_spacing, btn_y],              // DROITE
-            [cx, btn_y - btn_spacing]               // BAS (plus bas en Y)
+            [btn_x, btn_y + btn_spacing],           // HAUT (plus haut en Y)
+            [btn_x - btn_spacing, btn_y],           // GAUCHE
+            [btn_x, btn_y],                         // ENTER / OK
+            [btn_x + btn_spacing, btn_y],           // DROITE
+            [btn_x, btn_y - btn_spacing]            // BAS (plus bas en Y)
         ];
         for (b = buttons) {
             translate([b[0], b[1], -1])
