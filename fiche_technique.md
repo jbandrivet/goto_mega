@@ -50,7 +50,11 @@ Le câblage des drivers moteurs vers le contrôleur reste quasiment identique qu
 | **Raquette (RX / TX)** | Pin 15 / Pin 14 (Serial3) | Pin 15 / Pin 14 (Serial3) |
 
 > [!IMPORTANT]
-> Pour le Teensy 4.1, les broches physiques pour le GPS restent aux emplacements 16 et 17, mais elles correspondent au port matériel `Serial4` (au lieu du `Serial2` sur le Mega). Le câblage physique des fils volants est donc préservé !
+> Sur le Teensy 4.1, le GPS utilise toujours les broches 16 et 17, mais elles correspondent au port matériel `Serial4` (au lieu du `Serial2` sur le Mega), et **leurs rôles sont inversés** :
+> - sur le Mega, la broche 17 est RX2 : le TX du GPS va sur la broche 17 ;
+> - sur le Teensy, la broche 16 est RX4 : le TX du GPS va sur la broche 16.
+>
+> Il faut donc **croiser les deux fils GPS** quand on passe d'un Mega à un Teensy. Le PCB monture (Teensy) est déjà câblé ainsi.
 
 ---
 
@@ -92,11 +96,14 @@ La raquette physique est articulée autour d'une carte **Teensy 4.1**.
 > [!WARNING]
 > La monture doit fournir assez de courant au Teensy via la pin VIN. Ne pas alimenter le Teensy par son port USB si le câble DIN l'alimente déjà, sauf si le pad `VUSB` sous le Teensy a été physiquement sectionné.
 
-### 2. Écran LCD Grove I2C
+### 2. Écran LCD 20x4 I2C (module PCF8574, adresse `0x27`)
 * **SDA** $\rightarrow$ Broche **Pin 18 (SDA0)** de la Teensy
 * **SCL** $\rightarrow$ Broche **Pin 19 (SCL0)** de la Teensy
-* **VCC** $\rightarrow$ Broche **5V** (ou **3.3V** selon le modèle Grove)
+* **VCC** $\rightarrow$ Broche **5V** (VIN)
 * **GND** $\rightarrow$ Broche **GND**
+
+> [!WARNING]
+> Le Teensy 4.1 **ne tolère pas le 5V** sur ses broches. Or le module PCF8574 alimenté en 5V tire SDA et SCL vers 5V par ses résistances de rappel. Pour protéger le Teensy, intercalez un adaptateur de niveau I2C 3,3V ↔ 5V (type BSS138) entre le Teensy et l'écran. À défaut, dessoudez les résistances de rappel du module.
 
 ### 3. Boutons Poussoirs (Clavier directionnel)
 Les boutons sont câblés en **INPUT_PULLUP** (reliés entre la broche et le GND). Aucun besoin de résistance externe !
