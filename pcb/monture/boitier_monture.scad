@@ -14,7 +14,7 @@ pcb_thick = 1.6;
 wall = 2.5;         // Épaisseur des parois
 clearance = 1.5;    // Jeu autour du PCB
 standoff_h = 5.0;   // Hauteur des entretoises sous le PCB
-box_h = 35.0;       // Hauteur totale interne du boîtier (35mm pour dégager le TO-220 LM2596)
+box_h = 45.0;       // Hauteur totale du boîtier (45mm : ~26mm libres au-dessus des modules TMC5160 avec radiateur)
 lid_thick = 2.5;    // Épaisseur du couvercle
 
 inner_w = pcb_w + 2 * clearance;
