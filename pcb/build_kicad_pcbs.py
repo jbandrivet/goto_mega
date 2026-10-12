@@ -37,6 +37,7 @@ LIB_HOLE = "/usr/share/kicad/footprints/MountingHole.pretty"
 LIB_USB = "/usr/share/kicad/footprints/Connector_USB.pretty"
 LIB_DIP = "/usr/share/kicad/footprints/Package_DIP.pretty"
 LIB_RES = "/usr/share/kicad/footprints/Resistor_THT.pretty"
+LIB_JUMPER = "/usr/share/kicad/footprints/Jumper.pretty"
 
 # Classes de nets du PCB monture (écrites dans monture.kicad_pro)
 DEFAULT_NETCLASS = {"name": "Default", "clearance": 0.2, "track_width": 0.2, "via_diameter": 0.6, "via_drill": 0.3,
@@ -44,6 +45,11 @@ DEFAULT_NETCLASS = {"name": "Default", "clearance": 0.2, "track_width": 0.2, "vi
 POWER_NETCLASS = {"name": "Puissance", "clearance": 0.3, "track_width": 1.5, "via_diameter": 1.2, "via_drill": 0.6,
                   "priority": 0}
 POWER_NET_PATTERNS = ["+36V", "GND", "+5V", "SW_NODE", "JACK_IN", "*_1A", "*_1B", "*_2A", "*_2B"]
+
+# Ponts SPI (TMC5160) : broches 2..6 du support StepStick -> bus SPI1 du Teensy.
+# Pont fermé : SDI -> MOSI, SCK -> SCK, CSN -> CS de l'axe, SDO -> MISO, CLK -> GND.
+SPI_SOCKET_SIGS = ("SDI", "SCK", "CSN", "SDO", "CLK")
+SPI_JUMPER_DX = 3.4   # centre du pont par rapport à la rangée gauche du support
 
 def add_outline_and_holes(board, width_mm, height_mm):
     coords = [
@@ -142,6 +148,10 @@ def create_monture_pcb_36v(output_dir):
         net_names.append(f"SEL_{ax}")
         for sig in ("STEP", "DIR", "EN"):
             net_names += [f"{ax}_{sig}_INT", f"{ax}_{sig}_EXT"]
+    # Bus SPI1 des TMC5160 : nets locaux broches 2..6 des supports, et bus côté Teensy
+    for ax in ("AZ", "ALT", "DEROT", "FOCUS"):
+        net_names += [f"{ax}_{sig}" for sig in SPI_SOCKET_SIGS] + [f"SPI_CS_{ax}"]
+    net_names += ["SPI_MOSI", "SPI_SCK", "SPI_MISO"]
     nets = {}
     for name in net_names:
         net = pcbnew.NETINFO_ITEM(board, name)
@@ -299,7 +309,7 @@ def create_monture_pcb_36v(output_dir):
         connect_pad(m_term, 4, nets[m_1b])
 
         # Module StepStick / Pololu : 2 rangées de 8 broches espacées de 12,7 mm (0,5")
-        # Gauche (haut->bas) : EN . . . . . STEP DIR   (broches 2-6 non câblées : SPI/MSx)
+        # Gauche (haut->bas) : EN SDI SCK CSN SDO CLK STEP DIR   (2-6 : ponts SPI, ouverts par défaut)
         # Droite (haut->bas) : VMOT GND 2B 2A 1A 1B VIO GND  (VMOT en face de EN)
         drv_y = 36
         sock_l = pcbnew.FootprintLoad(LIB_SOCKET, "PinSocket_1x08_P2.54mm_Vertical")
@@ -310,6 +320,26 @@ def create_monture_pcb_36v(output_dir):
         connect_pad(sock_l, 1, nets[e_net + "_INT"])   # via les tampons 74HC126 du sélecteur
         connect_pad(sock_l, 7, nets[s_net + "_INT"])
         connect_pad(sock_l, 8, nets[d_net + "_INT"])
+
+        # Ponts à souder SPI entre les deux rangées, sous le module (ouverts = A4988, DRV8825, TMC2209...)
+        x_l = cx - 6.35
+        for i, sig in enumerate(SPI_SOCKET_SIGS):
+            y = drv_y + 2.54 * (i + 1)
+            local = nets[f"{axis_name}_{sig}"]
+            bus = {"SDI": "SPI_MOSI", "SCK": "SPI_SCK", "CSN": f"SPI_CS_{axis_name}",
+                   "SDO": "SPI_MISO", "CLK": "GND"}[sig]
+            connect_pad(sock_l, i + 2, local)
+            jp = pcbnew.FootprintLoad(LIB_JUMPER, "SolderJumper-2_P1.3mm_Open_RoundedPad1.0x1.5mm")
+            jp.SetReference(f"JP_{axis_name}_{sig}")
+            jp.SetValue("SPI")
+            jp.Reference().SetVisible(False)
+            jp.Value().SetVisible(False)
+            jp.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x_l + SPI_JUMPER_DX), pcbnew.FromMM(y)))
+            board.Add(jp)
+            connect_pad(jp, 1, local)
+            connect_pad(jp, 2, nets[bus])
+            add_track(board, x_l, y, x_l + SPI_JUMPER_DX - 0.65, y, 0.25, pcbnew.F_Cu, local)
+        add_label(board, "SPI", x_l + SPI_JUMPER_DX, drv_y + 1.0, size_mm=0.6)
 
         sock_r = pcbnew.FootprintLoad(LIB_SOCKET, "PinSocket_1x08_P2.54mm_Vertical")
         sock_r.SetReference(f"DRV_{axis_name}_R")
@@ -326,7 +356,13 @@ def create_monture_pcb_36v(output_dir):
         connect_pad(sock_r, 8, nets["GND"])
 
         add_rect_silk(board, cx - 7.62, drv_y - 1.27, cx + 7.62, drv_y + 19.05, width_mm=0.2)
-        add_label(board, f"TMC5160 {axis_name}", cx, drv_y + 9, size_mm=0.7)
+        lbl = pcbnew.PCB_TEXT(board)   # vertical, à droite des ponts SPI
+        lbl.SetText(f"TMC5160 {axis_name}")
+        lbl.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(cx + 2.6), pcbnew.FromMM(drv_y + 9)))
+        lbl.SetLayer(pcbnew.F_SilkS)
+        lbl.SetTextSize(pcbnew.VECTOR2I(pcbnew.FromMM(0.7), pcbnew.FromMM(0.7)))
+        lbl.SetTextAngleDegrees(90)
+        board.Add(lbl)
         add_label(board, "EN", cx - 9.0, drv_y, size_mm=0.6)
         add_label(board, "VM", cx + 9.0, drv_y, size_mm=0.6)
 
@@ -521,6 +557,14 @@ def create_monture_pcb_36v(output_dir):
     connect_pad(teensy, 17, nets["PC_TX"])         # broche 25 = RX6 (reçoit le TX du PC)
     connect_pad(teensy, 16, nets["PC_RX"])         # broche 24 = TX6 (vers le RX du PC)
     connect_pad(teensy, 46, nets["+3V3"])          # 3.3V -> VIO des drivers
+    # SPI1 vers les TMC5160 : MOSI1 = 26, SCK1 = 27, MISO1 = 39 (alternatif), CS = 41/40/38/37
+    connect_pad(teensy, 18, nets["SPI_MOSI"])      # broche 26
+    connect_pad(teensy, 19, nets["SPI_SCK"])       # broche 27
+    connect_pad(teensy, 31, nets["SPI_MISO"])      # broche 39
+    connect_pad(teensy, 33, nets["SPI_CS_AZ"])     # broche 41
+    connect_pad(teensy, 32, nets["SPI_CS_ALT"])    # broche 40
+    connect_pad(teensy, 30, nets["SPI_CS_DEROT"])  # broche 38
+    connect_pad(teensy, 29, nets["SPI_CS_FOCUS"])  # broche 37
     connect_pad(teensy, 42, nets["BUZZER"])
     connect_pad(teensy, 47, nets["GND"])
     connect_pad(teensy, 48, nets["+5V"])

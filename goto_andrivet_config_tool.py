@@ -32,8 +32,18 @@ DEFAULTS = {
     "rev_az": False,
     "rev_alt": False,
     "park_alt": 0.0,
-    "park_az": 0.0
+    "park_az": 0.0,
+    # Drivers TMC5160 en SPI (firmware Teensy uniquement)
+    "tmc_spi": True,
+    "tmc_current": [800, 800, 400, 400],   # mA RMS : AZ, ALT, DEROT, FOCUS
+    "tmc_hold": 50,
+    "tmc_stealth": True,
+    "tmc_ms_derot": 16,
+    "tmc_ms_focus": 16
 }
+
+TMC_AXES = ("a", "e", "d", "f")   # AZ, ALT, DEROT, FOCUS (commandes :XTI<axe>)
+TMC_STATE_TEXT = {"-": "SPI coupé", "0": "absent", "1": "OK", "M": "µpas ?", "E": "défaut"}
 
 TRANSLATIONS = {
     "en": {
@@ -636,6 +646,41 @@ class ConfigToolApp(tk.Tk):
         
         self.chk_focus_eaf = tk.Checkbutton(row_extra2, text="Focuseur (ZWO EAF)", variable=self.focus_eaf_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white", command=toggle_eaf)
         self.chk_focus_eaf.pack(side="left", padx=(20,0))
+
+        # Drivers TMC5160 en SPI (Teensy) : ponts SPI fermes sous les supports StepStick
+        row_tmc1 = tk.Frame(form_inner, bg="#c0c0c0")
+        row_tmc1.pack(fill="x", pady=(10, 3))
+        self.tmc_spi_var = tk.BooleanVar(value=self.settings.get("tmc_spi", True))
+        tk.Checkbutton(row_tmc1, text="Drivers TMC5160 (SPI, Teensy)", variable=self.tmc_spi_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white").pack(side="left")
+        self.tmc_stealth_var = tk.BooleanVar(value=self.settings.get("tmc_stealth", True))
+        tk.Checkbutton(row_tmc1, text="stealthChop", variable=self.tmc_stealth_var, bg="#c0c0c0", fg="black", font=f_label, selectcolor="white").pack(side="left", padx=(15, 0))
+        tk.Label(row_tmc1, text="Maintien (%):", bg="#c0c0c0", fg="black", font=f_label).pack(side="left", padx=(15, 5))
+        self.tmc_hold_entry = tk.Entry(row_tmc1, width=4, bd=2, relief="sunken", font=f_entry, bg="white", fg="black")
+        self.tmc_hold_entry.insert(0, str(self.settings.get("tmc_hold", 50)))
+        self.tmc_hold_entry.pack(side="left")
+
+        row_tmc2 = tk.Frame(form_inner, bg="#c0c0c0")
+        row_tmc2.pack(fill="x", pady=3)
+        tk.Label(row_tmc2, text="Courant (mA RMS):", width=20, anchor="w", bg="#c0c0c0", fg="black", font=f_label).pack(side="left")
+        self.tmc_current_entries = []
+        currents = self.settings.get("tmc_current", [800, 800, 400, 400])
+        for name, val in zip(("AZ", "ALT", "DER", "FOC"), currents):
+            tk.Label(row_tmc2, text=name, bg="#c0c0c0", fg="black", font=f_label).pack(side="left", padx=(8, 2))
+            e = tk.Entry(row_tmc2, width=5, bd=2, relief="sunken", font=f_entry, bg="white", fg="black")
+            e.insert(0, str(val))
+            e.pack(side="left")
+            self.tmc_current_entries.append(e)
+
+        row_tmc3 = tk.Frame(form_inner, bg="#c0c0c0")
+        row_tmc3.pack(fill="x", pady=3)
+        tk.Label(row_tmc3, text="µpas DER / FOC:", width=20, anchor="w", bg="#c0c0c0", fg="black", font=f_label).pack(side="left")
+        ms_values = ["1", "2", "4", "8", "16", "32", "64", "128", "256"]
+        self.tmc_ms_derot_var = tk.StringVar(value=str(self.settings.get("tmc_ms_derot", 16)))
+        ttk.Combobox(row_tmc3, textvariable=self.tmc_ms_derot_var, values=ms_values, state="readonly", font=f_entry, width=5).pack(side="left", padx=5)
+        self.tmc_ms_focus_var = tk.StringVar(value=str(self.settings.get("tmc_ms_focus", 16)))
+        ttk.Combobox(row_tmc3, textvariable=self.tmc_ms_focus_var, values=ms_values, state="readonly", font=f_entry, width=5).pack(side="left", padx=5)
+        self.tmc_status_lbl = tk.Label(row_tmc3, text="État : —", bg="#c0c0c0", fg="black", font=f_label, anchor="w")
+        self.tmc_status_lbl.pack(side="left", padx=(15, 0))
 
         mount_ctrl_inner.pack(padx=15, pady=10, fill="x")
         
@@ -1581,7 +1626,35 @@ print(json.dumps(res))
                 self.ser.write(b":GQz#")
                 park_az_raw = self.ser.read_until(b"#").decode('ascii', errors='ignore').strip('#')
 
+                # Drivers TMC5160 (Teensy)
+                tmc_state = self._tmc_status()
+                tmc_cfg = None
+                if tmc_state:
+                    tmc_cfg = {
+                        "current": [self._tmc_query(f":XTI{ax}#") for ax in TMC_AXES],
+                        "hold": self._tmc_query(":XTH#"),
+                        "stealth": self._tmc_query(":XTP#"),
+                        "ms_derot": self._tmc_query(":XTMd#"),
+                        "ms_focus": self._tmc_query(":XTMf#"),
+                    }
+
                 def _update_ui():
+                    self._tmc_show_state(tmc_state)
+                    if tmc_cfg:
+                        self.tmc_spi_var.set(tmc_state[0] == '1')
+                        self.tmc_stealth_var.set(tmc_cfg["stealth"] == '1')
+                        for e, v in zip(self.tmc_current_entries, tmc_cfg["current"]):
+                            if v.isdigit():
+                                e.delete(0, tk.END)
+                                e.insert(0, v)
+                        if tmc_cfg["hold"].isdigit():
+                            self.tmc_hold_entry.delete(0, tk.END)
+                            self.tmc_hold_entry.insert(0, tmc_cfg["hold"])
+                        if tmc_cfg["ms_derot"].isdigit():
+                            self.tmc_ms_derot_var.set(tmc_cfg["ms_derot"])
+                        if tmc_cfg["ms_focus"].isdigit():
+                            self.tmc_ms_focus_var.set(tmc_cfg["ms_focus"])
+
                     if gm_raw in ("AltAz", "ForkEq", "GermanEq"):
                         self.mount_type_var.set(gm_raw)
                         self.on_mount_type_changed(gm_raw)
@@ -2286,6 +2359,19 @@ finally:
             return
 
         try:
+            tmc_spi = self.tmc_spi_var.get()
+            tmc_stealth = self.tmc_stealth_var.get()
+            tmc_hold = int(self.tmc_hold_entry.get())
+            tmc_current = [int(e.get()) for e in self.tmc_current_entries]
+            tmc_ms_derot = int(self.tmc_ms_derot_var.get())
+            tmc_ms_focus = int(self.tmc_ms_focus_var.get())
+            if not (0 <= tmc_hold <= 100) or any(not (100 <= c <= 3000) for c in tmc_current):
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Input Error", "TMC5160 : courant de 100 à 3000 mA, maintien de 0 à 100 %.")
+            return
+
+        try:
             # Send Mount Type
             if mt == "AltAz":
                 mt_cmd = "BMa"
@@ -2347,7 +2433,26 @@ finally:
             self.ser.write(f":BPz{p_az}#".encode('ascii'))
             self.ser.read_until(b"#")
 
+            # Drivers TMC5160 (firmware Teensy ; le Mega repond "0#" a :XTS#)
+            tmc_state = None
+            if self._tmc_status():
+                self._tmc_query(f":XFS{1 if tmc_spi else 0}#")
+                for ax, mA in zip(TMC_AXES, tmc_current):
+                    self._tmc_query(f":XTI{ax}{mA}#")
+                self._tmc_query(f":XTH{tmc_hold}#")
+                self._tmc_query(f":XTP{1 if tmc_stealth else 0}#")
+                self._tmc_query(f":XTMd{tmc_ms_derot}#")
+                self._tmc_query(f":XTMf{tmc_ms_focus}#")
+                tmc_state = self._tmc_status()
+            self._tmc_show_state(tmc_state)
+
             # Update local settings
+            self.settings["tmc_spi"] = tmc_spi
+            self.settings["tmc_stealth"] = tmc_stealth
+            self.settings["tmc_hold"] = tmc_hold
+            self.settings["tmc_current"] = tmc_current
+            self.settings["tmc_ms_derot"] = tmc_ms_derot
+            self.settings["tmc_ms_focus"] = tmc_ms_focus
             self.settings["mount_type"] = mt
             self.settings["steps_per_rev_motor"] = steps
             self.settings["microstep"] = microstep
@@ -2390,6 +2495,24 @@ finally:
             messagebox.showinfo("Apply Config", "Configuration successfully saved to Arduino Mega!")
         except Exception as e:
             self.handle_serial_error(e)
+
+    def _tmc_query(self, cmd):
+        """Envoie une commande TMC5160 (:XT / :XFS) et renvoie la réponse sans le '#'."""
+        self.ser.write(cmd.encode('ascii'))
+        return self.ser.read_until(b"#").decode('ascii', errors='ignore').strip().strip('#')
+
+    def _tmc_status(self):
+        """Réponse de :XTS# découpée ("1,1,1,0,0" -> 5 champs), ou None si non supporté."""
+        parts = self._tmc_query(":XTS#").split(",")
+        return parts if len(parts) == 5 else None
+
+    def _tmc_show_state(self, parts):
+        if not parts:
+            txt = "État : non supporté (firmware Mega ?)"
+        else:
+            txt = "État : " + "  ".join(f"{n} {TMC_STATE_TEXT.get(c, c)}"
+                                         for n, c in zip(("AZ", "ALT", "DER", "FOC"), parts[1:]))
+        self.tmc_status_lbl.config(text=txt)
 
     def handle_serial_error(self, e):
         messagebox.showerror("Serial Error", f"Error during serial communication:\n{e}")

@@ -48,6 +48,11 @@ Le câblage des drivers moteurs vers le contrôleur reste quasiment identique qu
 | **Buzzer (Actif ou Passif)** | Pin 49 | Pin 20 |
 | **GPS (RX / TX)** | Pin 17 / Pin 16 (Serial2) | Pin 16 / Pin 17 (Serial4) |
 | **Raquette (RX / TX)** | Pin 15 / Pin 14 (Serial3) | Pin 15 / Pin 14 (Serial3) |
+| **TMC5160 SPI (MOSI / SCK / MISO)** | — | Pin 26 / Pin 27 / Pin 39 (SPI1) |
+| **TMC5160 CS (AZ / ALT / Dérot. / Focus)** | — | Pin 41 / Pin 40 / Pin 38 / Pin 37 |
+
+> [!NOTE]
+> Les lignes SPI ne rejoignent les supports StepStick du PCB que par les ponts à souder `SPI` (5 par support, à fermer uniquement pour un TMC5160). Le firmware Teensy configure alors les modules au démarrage : courant, micro-pas (puissance de 2 obligatoire), stealthChop. Voir la section matérielle du README.
 
 > [!IMPORTANT]
 > Sur le Teensy 4.1, le GPS utilise toujours les broches 16 et 17, mais elles correspondent au port matériel `Serial4` (au lieu du `Serial2` sur le Mega), et **leurs rôles sont inversés** :
@@ -66,7 +71,7 @@ $$PPD = \frac{\text{Pas Moteur} \times \text{Microstepping} \times \text{Rapport
 
 ### Valeurs (À configurer par l'utilisateur) :
 *   **Pas moteur par tour :** Généralement 200 pas (pour des moteurs 1.8°).
-*   **Microstepping :** À configurer selon votre driver (ex: 16, 32, 64, 128).
+*   **Microstepping :** À configurer selon votre driver (ex: 16, 32, 64, 128). Avec des TMC5160 en SPI, le firmware règle lui-même les micro-pas du driver : la valeur doit être une puissance de 2 (16 à 256).
 *   **Rapport de réduction (AZ/ALT) :** Défini par l'utilisateur (à configurer impérativement via l'utilitaire selon votre mécanique propre).
 *   **Résolution calculée (PPD) :** Calculée automatiquement par l'utilitaire en fonction des trois valeurs ci-dessus.
 

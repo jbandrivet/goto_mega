@@ -8,6 +8,7 @@
  * - Buzzer     : Pin 20
  * - Raquette   : Serial3 (Pin 14 TX, Pin 15 RX) @ 38400 baud
  * - Module GPS : Serial4 (Pin 17 TX, Pin 16 RX) @ 9600 baud
+ * - TMC5160 SPI: SPI1 (MOSI 26, SCK 27, MISO 39), CS AZ/ALT/DEROT/FOCUS = 41/40/38/37
  */
 
 IntervalTimer trackingTimer;
@@ -122,7 +123,11 @@ static long derotPos = 0;
 static double derotTarget = 0.0;
 
 static bool focusEnabled = false;
-bool useSpiDrivers = false; // SPI pour gros Pololu
+bool useSpiDrivers = false; // configuration SPI des TMC5160 (voir section DRIVERS TMC5160)
+static uint16_t tmcCurrent[4] = {800, 800, 400, 400};  // mA RMS : AZ, ALT, DEROT, FOCUS
+static uint8_t  tmcHoldPct = 50;                         // courant de maintien, % du courant de marche
+static bool     tmcStealth = true;                       // stealthChop a basse vitesse
+static uint16_t tmcMicroDerot = 16, tmcMicroFocus = 16;  // AZ/ALT utilisent `microstep`
 static uint16_t backlashAz = 0;
 static uint16_t backlashAlt = 0;
 static int focusSpeed = 1000;
@@ -178,7 +183,14 @@ const uint16_t EEPROM_ADDR_GPS_EN     = 96;
 const uint16_t EEPROM_ADDR_BACKLASH_AZ = 97;
 const uint16_t EEPROM_ADDR_BACKLASH_ALT = 99;
 const uint16_t EEPROM_ADDR_USE_SPI_DRIVERS = 101;
+const uint16_t EEPROM_ADDR_TMC_CURRENT  = 102;  // 4 x uint16
+const uint16_t EEPROM_ADDR_TMC_HOLD     = 110;
+const uint16_t EEPROM_ADDR_TMC_STEALTH  = 111;
+const uint16_t EEPROM_ADDR_TMC_MS_DEROT = 112;  // uint16
+const uint16_t EEPROM_ADDR_TMC_MS_FOCUS = 114;  // uint16
+const uint16_t EEPROM_ADDR_TMC_MAGIC    = 116;
 const byte     EEPROM_MAGIC         = 0x5F;
+const byte     EEPROM_TMC_MAGIC     = 0xA5;
 
 template <typename T>
 void eepromWrite(int address, const T& value) {
@@ -225,6 +237,12 @@ static void saveStateToEEPROM() {
   eepromWrite(EEPROM_ADDR_BACKLASH_AZ, backlashAz);
   eepromWrite(EEPROM_ADDR_BACKLASH_ALT, backlashAlt);
   EEPROM.update(EEPROM_ADDR_USE_SPI_DRIVERS, useSpiDrivers ? 1 : 0);
+  for (int i = 0; i < 4; i++) eepromWrite(EEPROM_ADDR_TMC_CURRENT + 2 * i, tmcCurrent[i]);
+  EEPROM.update(EEPROM_ADDR_TMC_HOLD, tmcHoldPct);
+  EEPROM.update(EEPROM_ADDR_TMC_STEALTH, tmcStealth ? 1 : 0);
+  eepromWrite(EEPROM_ADDR_TMC_MS_DEROT, tmcMicroDerot);
+  eepromWrite(EEPROM_ADDR_TMC_MS_FOCUS, tmcMicroFocus);
+  EEPROM.update(EEPROM_ADDR_TMC_MAGIC, EEPROM_TMC_MAGIC);
 }
 
 static void loadStateFromEEPROM() {
@@ -249,6 +267,25 @@ static void loadStateFromEEPROM() {
     eepromRead(EEPROM_ADDR_BACKLASH_AZ, backlashAz);
     eepromRead(EEPROM_ADDR_BACKLASH_ALT, backlashAlt);
     useSpiDrivers = (EEPROM.read(EEPROM_ADDR_USE_SPI_DRIVERS) == 1);
+    if (EEPROM.read(EEPROM_ADDR_TMC_MAGIC) == EEPROM_TMC_MAGIC) {
+      for (int i = 0; i < 4; i++) {
+        eepromRead(EEPROM_ADDR_TMC_CURRENT + 2 * i, tmcCurrent[i]);
+        if (tmcCurrent[i] < 100 || tmcCurrent[i] > 3000) tmcCurrent[i] = (i < 2) ? 800 : 400;
+      }
+      tmcHoldPct = EEPROM.read(EEPROM_ADDR_TMC_HOLD);
+      if (tmcHoldPct > 100) tmcHoldPct = 50;
+      tmcStealth = (EEPROM.read(EEPROM_ADDR_TMC_STEALTH) != 0);
+      eepromRead(EEPROM_ADDR_TMC_MS_DEROT, tmcMicroDerot);
+      eepromRead(EEPROM_ADDR_TMC_MS_FOCUS, tmcMicroFocus);
+      if (tmcMicroDerot < 1 || tmcMicroDerot > 256) tmcMicroDerot = 16;
+      if (tmcMicroFocus < 1 || tmcMicroFocus > 256) tmcMicroFocus = 16;
+    } else {
+      // Premier demarrage avec ce firmware : :XFS n'avait jusqu'ici aucun effet,
+      // on l'active. Sans pont SPI ferme sur le PCB, la detection ne trouve rien
+      // et les supports fonctionnent comme avant.
+      useSpiDrivers = true;
+      saveStateToEEPROM();
+    }
     if(backlashAz > 10000) backlashAz = 0;
     if(backlashAlt > 10000) backlashAlt = 0;
     recalculatePPD();
@@ -292,6 +329,7 @@ static void loadStateFromEEPROM() {
     derotEnabled = false;
     derotPPD = 100.0;
     focusEnabled = false;
+    useSpiDrivers = true;
     saveStateToEEPROM();
   }
 
@@ -316,6 +354,101 @@ static void loadStateFromEEPROM() {
   if(d < (double)STEP_DELAY_FAST) d = STEP_DELAY_FAST;
   if(d > (double)MAX_DELAY)       d = MAX_DELAY;
   stepDelaySlew = (unsigned long)d;
+}
+
+// ======================== DRIVERS TMC5160 (SPI1) ===========================
+// Modules BTT TMC5160 Pro dans les supports StepStick, avec les ponts SPI du PCB
+// fermes : broches 2..6 du support -> MOSI, SCK, CS, MISO, et CLK a GND
+// (horloge interne). Le moteur reste pilote en STEP/DIR par l'ISR ; le SPI ne
+// sert qu'a la configuration : courant, micro-pas, stealthChop.
+// A la mise sous tension, un TMC5160 en mode SPI a TOFF = 0 : son etage de
+// puissance reste coupe tant qu'il n'a pas ete configure ici.
+// Sans 36V, le module ne repond pas : on reessaie chaque seconde, et on
+// reconfigure si GSTAT.reset signale une remise a zero (36V coupe puis revenu).
+#include <SPI.h>
+#define TMC_MISO 39                                    // MISO1 alternatif (MOSI1 = 26, SCK1 = 27)
+static const uint8_t TMC_CS[4] = {41, 40, 38, 37};     // AZ, ALT, DEROT, FOCUS
+#define TMC_RSENSE 0.075f                              // BTT TMC5160 Pro
+#define TMC_VFS    0.325f                              // tension pleine echelle du comparateur
+#define TMC_VERSION 0x30                               // IOIN[31:24] d'un TMC5160
+// Etat par axe : '-' SPI desactive, '0' pas de reponse, '1' configure,
+// 'M' micro-pas non supporte (puissance de 2 <= 256), 'E' defaut driver (surchauffe/court-circuit)
+static char tmcState[4] = {'-', '-', '-', '-'};
+static unsigned long tmcLastPollMs = 0;
+static bool tmcSpiStarted = false;
+
+static uint32_t tmcXfer(uint8_t ax, uint8_t addr, uint32_t data) {
+  SPI1.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE3));
+  digitalWrite(TMC_CS[ax], LOW);
+  SPI1.transfer(addr);                                 // octet d'etat SPI, ignore
+  uint32_t r = 0;
+  for (int i = 3; i >= 0; i--) r = (r << 8) | SPI1.transfer((uint8_t)(data >> (8 * i)));
+  digitalWrite(TMC_CS[ax], HIGH);
+  SPI1.endTransaction();
+  return r;
+}
+static void tmcWrite(uint8_t ax, uint8_t reg, uint32_t v) { tmcXfer(ax, reg | 0x80, v); }
+static uint32_t tmcRead(uint8_t ax, uint8_t reg) {
+  tmcXfer(ax, reg, 0);                                 // la valeur arrive avec la trame suivante
+  return tmcXfer(ax, reg, 0);
+}
+
+static int8_t tmcMres(uint16_t ms) {                   // 256 -> 0, 128 -> 1, ..., 1 -> 8
+  for (int8_t m = 0; m <= 8; m++) if ((256u >> m) == ms) return m;
+  return -1;
+}
+
+// I_rms = GLOBALSCALER/256 * (CS+1)/32 * VFS/RSENSE / sqrt(2). GLOBALSCALER est
+// choisi pour que CS = 31 donne le courant de marche (meilleure resolution),
+// sans descendre sous 32 (valeurs inferieures deconseillees par Trinamic).
+static void tmcCurrentRegs(uint16_t mA, uint8_t& gs, uint8_t& irun, uint8_t& ihold) {
+  const float imax = TMC_VFS / TMC_RSENSE / sqrtf(2.0f);
+  float i = mA / 1000.0f;
+  int g = constrain((int)(256.0f * i / imax + 0.5f), 32, 256);
+  float ifs = imax * g / 256.0f;
+  irun  = constrain((int)(32.0f * i / ifs - 0.5f), 0, 31);
+  ihold = constrain((int)(32.0f * i * tmcHoldPct / 100.0f / ifs - 0.5f), 0, 31);
+  gs = (g >= 256) ? 0 : (uint8_t)g;                    // 0 = 256
+}
+
+static char tmcConfigure(uint8_t ax) {
+  if ((tmcRead(ax, 0x04) >> 24) != TMC_VERSION) return '0';           // IOIN
+  uint16_t ms = (ax < 2) ? microstep : (ax == 2 ? tmcMicroDerot : tmcMicroFocus);
+  int8_t mres = tmcMres(ms);
+  if (mres < 0) { tmcWrite(ax, 0x6C, 0); return 'M'; }                // TOFF = 0 : etage coupe
+  uint8_t gs, irun, ihold;
+  tmcCurrentRegs(tmcCurrent[ax], gs, irun, ihold);
+  tmcWrite(ax, 0x00, 0x08UL | (tmcStealth ? 0x04UL : 0));             // GCONF : multistep_filt (+ en_pwm_mode)
+  tmcWrite(ax, 0x0B, gs);                                             // GLOBALSCALER
+  tmcWrite(ax, 0x10, ihold | ((uint32_t)irun << 8) | (6UL << 16));    // IHOLD_IRUN, IHOLDDELAY = 6
+  tmcWrite(ax, 0x11, 10);                                             // TPOWERDOWN ~0,2 s
+  tmcWrite(ax, 0x13, 500);                                            // TPWMTHRS : stealthChop sous ~0,5 tr/s
+  tmcWrite(ax, 0x70, 0xC40C001EUL);                                   // PWMCONF : defauts, autoscale + autograd
+  tmcWrite(ax, 0x6C, 3UL | (5UL << 4) | (2UL << 7) | (2UL << 15)      // CHOPCONF : TOFF 3, HSTRT 5, HEND 2, TBL 2,
+                     | (4UL << 20) | ((uint32_t)mres << 24) | (1UL << 28)); //   TPFD 4, MRES, interpolation 256
+  tmcWrite(ax, 0x01, 0x07);                                           // GSTAT : efface reset/drv_err/uv_cp
+  return '1';
+}
+
+// force = reconfigure tous les axes tout de suite (changement de reglage).
+static void tmcService(bool force) {
+  if (!useSpiDrivers) {
+    for (int i = 0; i < 4; i++) tmcState[i] = '-';
+    return;
+  }
+  // Pas d'acces SPI pendant un GoTo : la boucle de slew est cadencee en micros().
+  if (!force && (slewing || millis() - tmcLastPollMs < 1000)) return;
+  tmcLastPollMs = millis();
+  if (!tmcSpiStarted) { SPI1.setMISO(TMC_MISO); SPI1.begin(); tmcSpiStarted = true; }
+  for (uint8_t ax = 0; ax < 4; ax++) {
+    char s = tmcState[ax];
+    if (force || s == '-' || s == '0') { tmcState[ax] = tmcConfigure(ax); continue; }
+    if (s != '1') continue;                    // 'M' et 'E' attendent un reglage ou :XTC#
+    if ((tmcRead(ax, 0x04) >> 24) != TMC_VERSION) { tmcState[ax] = '0'; continue; }
+    uint32_t gstat = tmcRead(ax, 0x01);
+    if (gstat & 0x02) tmcState[ax] = 'E';                    // drv_err : le driver s'est coupe
+    else if (gstat & 0x01) tmcState[ax] = tmcConfigure(ax);  // reset : registres perdus
+  }
 }
 
 static char lxRA[12]="00:00:00#";
@@ -2014,14 +2147,60 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   }
   if(c1=='X'&&c2=='F'){
     if(c3=='e') { focusEnabled=(cmd[4]=='1'); saveStateToEEPROM(); out.write('1'); return; }
-    if(c3=='S') { useSpiDrivers=(cmd[4]=='1'); saveStateToEEPROM(); out.write('1'); return; }
+    if(c3=='S') {
+      if(ci==4) { out.write(useSpiDrivers ? '1' : '0'); out.write('#'); return; }
+      useSpiDrivers=(cmd[4]=='1'); saveStateToEEPROM(); tmcService(true); out.print(F("1#")); return;
+    }
     if(c3=='s') { focusSpeed=1000; out.write('1'); return; } // Slow
     if(c3=='f') { focusSpeed=200; out.write('1'); return; } // Fast
     if(c3=='+') { focusMove=1; digitalWrite(FOCUS_EN,LOW); out.write('1'); return; }
     if(c3=='-') { focusMove=-1; digitalWrite(FOCUS_EN,LOW); out.write('1'); return; }
     if(c3=='Q') { focusMove=0; digitalWrite(FOCUS_EN,HIGH); out.write('1'); return; }
   }
-  
+
+  // TMC5160 (SPI1). Axe : a = AZ, e = ALT, d = DEROT, f = FOCUS (comme :BGa/:BGe).
+  // Les reglages repondent "1#" ou "0#" (valeur refusee).
+  //   :XTS#            etat "<spi>,<az>,<alt>,<derot>,<focus>#" (codes de tmcState)
+  //   :XTI<axe>[mA]#   courant de marche en mA RMS (100..3000), lecture sans valeur
+  //   :XTH[pct]#       courant de maintien en % du courant de marche (0..100)
+  //   :XTP[0|1]#       stealthChop a basse vitesse
+  //   :XTM<d|f>[n]#    micro-pas du derotateur / focuseur (AZ/ALT : :BSm)
+  //   :XTC#            reconfigure tous les drivers
+  if(c1=='X'&&c2=='T'){
+    int axi = -1;
+    if(ci>=5) { const char* p = strchr("aedf", cmd[4]); if(p && cmd[4]) axi = p - "aedf"; }
+    if(c3=='S') {
+      out.write(useSpiDrivers ? '1' : '0');
+      for(int i=0;i<4;i++) { out.write(','); out.write(tmcState[i]); }
+      out.write('#'); return;
+    }
+    if(c3=='I' && axi>=0) {
+      if(ci==5) { out.print(tmcCurrent[axi]); out.write('#'); return; }
+      long v = atol(cmd+5);
+      if(v < 100 || v > 3000) { out.print(F("0#")); return; }
+      tmcCurrent[axi] = (uint16_t)v; saveStateToEEPROM(); tmcService(true); out.print(F("1#")); return;
+    }
+    if(c3=='H') {
+      if(ci==4) { out.print(tmcHoldPct); out.write('#'); return; }
+      long v = atol(cmd+4);
+      if(v < 0 || v > 100) { out.print(F("0#")); return; }
+      tmcHoldPct = (uint8_t)v; saveStateToEEPROM(); tmcService(true); out.print(F("1#")); return;
+    }
+    if(c3=='P') {
+      if(ci==4) { out.write(tmcStealth ? '1' : '0'); out.write('#'); return; }
+      tmcStealth = (cmd[4]=='1'); saveStateToEEPROM(); tmcService(true); out.print(F("1#")); return;
+    }
+    if(c3=='M' && (axi==2 || axi==3)) {
+      uint16_t& ms = (axi==2) ? tmcMicroDerot : tmcMicroFocus;
+      if(ci==5) { out.print(ms); out.write('#'); return; }
+      long v = atol(cmd+5);
+      if(tmcMres((uint16_t)v) < 0 || v > 256) { out.print(F("0#")); return; }
+      ms = (uint16_t)v; saveStateToEEPROM(); tmcService(true); out.print(F("1#")); return;
+    }
+    if(c3=='C') { tmcService(true); out.print(F("1#")); return; }
+    out.print(F("0#")); return;
+  }
+
   if(c1=='D'){ if(slewing)out.write(127); out.write('#'); return; }
 
   if(c1=='T'&&c2=='e'){
@@ -2188,6 +2367,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
         else if(c3=='m') microstep = (uint16_t)val;
         recalculatePPD();
         saveStateToEEPROM();
+        if(c3=='m') tmcService(true);   // MRES des TMC5160 AZ/ALT
       }
     }
     out.print(F("1#")); return;
@@ -2508,12 +2688,14 @@ void setup() {
   digitalWrite(FOCUS_EN, HIGH);
   digitalWrite(AZ_STEP,LOW); digitalWrite(ALT_STEP,LOW);
   enableMotors(false);
+  for (int i = 0; i < 4; i++) { pinMode(TMC_CS[i], OUTPUT); digitalWrite(TMC_CS[i], HIGH); }
   pinMode(LED_BUILTIN,OUTPUT);
   digitalWrite(LED_BUILTIN,HIGH); delay(300); digitalWrite(LED_BUILTIN,LOW);
   pinMode(BUZZER_PIN,OUTPUT);
   digitalWrite(BUZZER_PIN,LOW);
   azPos=0; altPos=0;
   loadStateFromEEPROM();
+  tmcService(true);
   if (!parked) {
     enableMotors(true);
   }
@@ -2560,6 +2742,7 @@ static void serveStream(Stream& in, Print& out, char* buf, uint8_t& bi) {
 void loop() {
   clk();
   handleGPS(); // [ADD] On ecoute le GPS et on met a l'heure
+  tmcService(false);
 
   // === SPIRAL SEARCH LOGIC ===
   if (spiralActive) {

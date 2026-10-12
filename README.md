@@ -78,6 +78,10 @@ Câblez votre contrôleur principal en suivant ce schéma (les broches sont iden
 | | **Pin 14 (TX3)** | **Pin 14 (TX3)** | `RX` de la raquette Teensy |
 | **Module GPS** | **Pin 17 (RX2)** | **Pin 16 (RX4)** | `TX` du module GPS |
 | | **Pin 16 (TX2)** | **Pin 17 (TX4)** | `RX` du module GPS |
+| **Drivers TMC5160 (SPI1, PCB)** | **Non dispo** | **Pin 26 (MOSI1)** | `SDI` des modules (ponts SPI fermés) |
+| | **Non dispo** | **Pin 27 (SCK1)** | `SCK` des modules |
+| | **Non dispo** | **Pin 39 (MISO1)** | `SDO` des modules |
+| | **Non dispo** | **Pins 41 / 40 / 38 / 37** | `CSN` AZ / ALT / Dérotateur / Focuseur |
 
 *Note : Les signaux de masse négatifs (`PUL-`, `DIR-`, `ENB-` des drivers, GND du buzzer, du GPS et de la Teensy) doivent tous être connectés à une broche **GND** de votre carte.*
 *(Consultez le fichier `fiche_technique.md` pour des explications approfondies).*
@@ -128,6 +132,7 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
   * **Teensy 4.1** (pour la raquette de commande physique - *Optionnelle*).
 * **Drivers de Moteurs** :
   * Drivers standard acceptant des entrées `PUL/DIR` (Impulsion/Direction) comme les modèles **M542**, **DM542**, **TB6600**, **TMC2209**, etc.
+  * Sur le PCB monture (Teensy) : modules au format StepStick, dont le **BTT TMC5160 Pro** configuré en SPI (voir plus bas).
 * **Moteurs** :
   * Moteurs pas à pas bipolaires (ex. **NEMA 17** ou **NEMA 23** en 200 pas/tour).
 * **Module GPS (Optionnel)** :
@@ -166,7 +171,16 @@ Ce projet est sous licence **GNU GPL v3**. Consultez le fichier [LICENSE](LICENS
   - Sur **ON**, l'axe est piloté par le driver externe. Les signaux sont convertis en 5 V par des 74HCT125, ce qui suffit pour les optocoupleurs. Le support StepStick est coupé et son module désactivé.
   - On peut donc, par exemple, mettre de gros drivers sur AZ/ALT et garder des StepSticks pour le dérotateur et le focuseur. Le firmware n'a rien à savoir de ce réglage.
 - Orientation d'un module StepStick : sa broche **EN** va sur la pastille marquée `EN` (en haut à gauche). **VMOT** se trouve donc en face, sur la pastille marquée `VM`. La logique des modules (VIO) est alimentée en **3,3 V**.
-- Les broches SPI / MSx des supports (2 à 6) ne sont **pas câblées**, et le firmware ne configure pas les drivers en SPI. Le réglage `:XFS` est mémorisé mais n'a aucun effet pour l'instant. Utilisez donc des modules qui fonctionnent en STEP/DIR sans SPI : TMC2208/TMC2209 en mode autonome, A4988 (reliez RESET à SLEEP sur le module) ou DRV8825. Un TMC5160 en mode SPI ne fera pas tourner son moteur ; pour les gros moteurs, passez l'axe en driver externe.
+- **Ponts SPI (TMC5160)** : sous chaque support, entre les deux rangées, se trouvent 5 ponts à souder marqués `SPI`. Ils sont en face des broches 2 à 6 du module. De haut en bas : `SDI` vers MOSI1 (broche 26), `SCK` vers SCK1 (27), `CSN` vers le CS de l'axe (41 AZ, 40 ALT, 38 dérotateur, 37 focuseur), `SDO` vers MISO1 (39), et `CLK` vers GND (horloge interne du TMC5160).
+  - **Ponts ouverts** (réglage par défaut) : le support accepte les modules STEP/DIR sans SPI, c'est-à-dire TMC2208/TMC2209 en mode autonome, A4988 (reliez RESET à SLEEP sur le module) ou DRV8825.
+  - **Les 5 ponts fermés** (une goutte d'étain chacun) : pour un **BTT TMC5160 Pro**, ou un autre TMC5160 au format StepStick avec le même brochage (EN, SDI, SCK, CSN, SDO, CLK, STEP, DIR).
+  - Ne fermez jamais les ponts avec un A4988, un DRV8825 ou un TMC2209 : leurs broches MSx, RESET et SLEEP se retrouveraient sur le bus SPI.
+- **Configuration des TMC5160 (firmware Teensy)** : au démarrage, puis chaque seconde, le firmware cherche un TMC5160 sur chaque axe et le configure (courant, micro-pas, stealthChop). Un TMC5160 en SPI garde son étage de puissance coupé tant qu'il n'est pas configuré. Si le 36V n'est pas encore là, le module ne répond pas : il est configuré dès que le 36V arrive, et reconfiguré après une coupure.
+  - Micro-pas : AZ/ALT utilisent le réglage *Microstepping*, qui doit être une puissance de 2 (16, 32, 64, 128 ou 256). Une valeur comme 125 est refusée et l'axe reste coupé (état `M`). Le dérotateur et le focuseur sont à 16 micro-pas par défaut : ajustez les *Pas/Deg* du dérotateur en conséquence.
+  - Courant : il se règle dans l'outil de configuration, de 100 à 3000 mA RMS par axe (Rsense 0,075 Ω du BTT TMC5160 Pro), avec un courant de maintien en %. Valeurs par défaut : 800 mA pour AZ/ALT, 400 mA pour le dérotateur et le focuseur, maintien à 50 %.
+  - Commandes : `:XFS0#` / `:XFS1#` (désactiver / activer, activé par défaut), `:XTS#` (état par axe : `-` SPI désactivé, `0` absent, `1` configuré, `M` micro-pas refusé, `E` défaut driver), `:XTI<a|e|d|f>[mA]#` (courant), `:XTH[%]#` (maintien), `:XTP[0|1]#` (stealthChop), `:XTMd[n]#` / `:XTMf[n]#` (micro-pas dérotateur / focuseur), `:XTC#` (tout reconfigurer). Sans valeur, ces commandes renvoient le réglage en cours.
+  - Le firmware Mega n'a pas de SPI : le PCB est prévu pour le Teensy.
+  - Hauteur : un TMC5160 avec radiateur est plus haut qu'un StepStick ordinaire. Avec `box_h = 35` mm, il reste environ 13 mm entre la carte du module et le couvercle : vérifiez la hauteur de vos modules avant de fermer le boîtier.
 - Le Teensy 4.1 de la monture n'a pas de port USB Host câblé.
 - Une prise **jack 12V** est ajoutée en plus du bornier 36V. Elle passe par la diode `D_JACK` (SB560), ce qui évite que le 36V du bornier remonte dans le bloc 12V.
 - Sur le Teensy de la monture, **coupez le pont VUSB-VIN** sous la carte : le Teensy est alimenté par le 5V du PCB (VIN) et reste branché en USB au PC.
