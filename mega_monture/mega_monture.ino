@@ -20,12 +20,37 @@ static uint16_t microstep = 128; // Par defaut 128 pour faire 25600 ppr (comme c
 static double   gearRatioAZ = 750.0;
 static double   gearRatioALT = 750.0;
 
+// === LIMITES ===
+#define ALT_MIN  -1.0
+#define ALT_MAX  89.5
+
 static double AZ_PPD  = (double)motorStepsPerRev * microstep * gearRatioAZ / 360.0;
 static double ALT_PPD = (double)motorStepsPerRev * microstep * gearRatioALT / 360.0;
+
+// Butees ALT en pas, pour l'ISR de suivi : elle comparait nextAlt / ALT_PPD a
+// ALT_MIN/ALT_MAX, soit une conversion et une division flottantes logicielles
+// (__floatsisf, __divsf3) a chaque pas ALT. Comme ALT_PPD > 0 et que nextAlt
+// est entier :
+//   nextAlt / ALT_PPD < ALT_MIN  <=>  nextAlt < ceil(ALT_MIN * ALT_PPD)
+//   nextAlt / ALT_PPD > ALT_MAX  <=>  nextAlt > floor(ALT_MAX * ALT_PPD)
+static volatile long altMinSteps = 0;
+static volatile long altMaxSteps = 0;
+
+static long clampToLong(double v) {
+  if (v >  2.0e9) return  2000000000L;
+  if (v < -2.0e9) return -2000000000L;
+  return (long)v;
+}
 
 static void recalculatePPD() {
   AZ_PPD  = (double)motorStepsPerRev * microstep * gearRatioAZ / 360.0;
   ALT_PPD = (double)motorStepsPerRev * microstep * gearRatioALT / 360.0;
+  long mn = clampToLong(ceil(ALT_MIN * ALT_PPD));
+  long mx = clampToLong(floor(ALT_MAX * ALT_PPD));
+  noInterrupts();
+  altMinSteps = mn;
+  altMaxSteps = mx;
+  interrupts();
 }
 
 uint8_t mountType = 1; // 0=AltAz, 1=ForkEq, 2=GermanEq (configure par defaut en equatorial pour la monture)
@@ -58,10 +83,6 @@ static double         maxSlewRate   = DEFAULT_SLEW_RATE;
 #define FOCUS_STEP 11
 #define FOCUS_DIR  12
 #define FOCUS_EN   13  // = LED_BUILTIN sur le Mega : ne jamais piloter LED_BUILTIN (activerait le focuseur)
-
-// === LIMITES ===
-#define ALT_MIN  -1.0
-#define ALT_MAX  89.5
 
 // === COORDONNEES PAR DEFAUT ===
 static double siteLat = 0.0;
@@ -1151,8 +1172,7 @@ ISR(TIMER1_COMPA_vect) {
       else if (alt_accum <= -1000000L) { alt_accum += 1000000L; d = -1; }
       if (d != 0) {
         long nextAlt = altPos + d;
-        double nA = (double)nextAlt / ALT_PPD;
-        if (mountType == 0 && (nA < ALT_MIN || nA > ALT_MAX)) {
+        if (mountType == 0 && (nextAlt < altMinSteps || nextAlt > altMaxSteps)) {
           limitHit = true;
           tracking = false;
           // Butee : on avorte l'impulsion sur LES DEUX axes et on fait
@@ -1700,7 +1720,9 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     out.write('1'); return;
   }
   if(c1=='S'&&c2=='d'){
-    inDEC = parseSdec(cmd+3, ci-3);
+    long dec = parseSdec(cmd+3, ci-3);
+    if(dec > 90L*3600L || dec < -90L*3600L) { out.write('0'); return; }
+    inDEC = dec;
     haveAltAzTarget=false;
     out.write('1'); return;
   }
@@ -2115,6 +2137,10 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       }
     }
     double val = sg * (d + m/60.0 + s/3600.0);
+    // Valeur hors plage refusee ("0", comme le LX200). Sans ce garde-fou, une
+    // latitude absurde etait acceptee puis reformatee par :Gt dans buf[16] :
+    // a partir de 8 chiffres de degres, sprintf deborde sur la pile.
+    if(fabs(val) > (c2=='t' ? 90.0 : 360.0)) { out.write('0'); return; }
     if(c2=='t') siteLat = val;
     else {
       siteLon = -val;

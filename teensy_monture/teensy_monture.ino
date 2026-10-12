@@ -1804,7 +1804,9 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     out.write('1'); return;
   }
   if(c1=='S'&&c2=='d'){
-    inDEC = parseSdec(cmd+3, ci-3);
+    long dec = parseSdec(cmd+3, ci-3);
+    if(dec > 90L*3600L || dec < -90L*3600L) { out.write('0'); return; }
+    inDEC = dec;
     haveAltAzTarget=false;
     out.write('1'); return;
   }
@@ -2257,6 +2259,10 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
       }
     }
     double val = sg * (d + m/60.0 + s/3600.0);
+    // Valeur hors plage refusee ("0", comme le LX200). Sans ce garde-fou, une
+    // latitude absurde etait acceptee puis reformatee par :Gt dans buf[16] :
+    // a partir de 8 chiffres de degres, sprintf deborde sur la pile.
+    if(fabs(val) > (c2=='t' ? 90.0 : 360.0)) { out.write('0'); return; }
     if(c2=='t') siteLat = val;
     else {
       siteLon = -val;
@@ -2578,9 +2584,6 @@ void loop() {
 
   // Mouvement lent (boutons E/W/N/S)
   if(!slewing && !parked){
-    unsigned long now=micros();
-    unsigned long nowMs=millis();
-    
     static int8_t azActiveMove = 0;
     static float azFrequency = 0.0;
     float f_min = 1.0e6 / MAX_DELAY;
