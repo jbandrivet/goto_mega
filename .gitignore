@@ -20,6 +20,7 @@ astrometry_data/
 
 # Fichiers STEP complets volumineux
 pcb/monture/monture.step
+pcb/monture_ext/monture_ext.step
 pcb/raquette/raquette.step
 
 

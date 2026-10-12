@@ -132,7 +132,7 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
   * **Teensy 4.1** (pour la raquette de commande physique - *Optionnelle*).
 * **Drivers de Moteurs** :
   * Drivers standard acceptant des entrées `PUL/DIR` (Impulsion/Direction) comme les modèles **M542**, **DM542**, **TB6600**, **TMC2209**, etc.
-  * Sur le PCB monture (Teensy) : modules au format StepStick, dont le **BTT TMC5160 Pro** configuré en SPI (voir plus bas).
+  * Deux PCB monture (Teensy) au choix : une carte à modules StepStick, dont le **BTT TMC5160 Pro** configuré en SPI, et une carte pour drivers externes (voir *Cartes Monture* plus bas).
 * **Moteurs** :
   * Moteurs pas à pas bipolaires (ex. **NEMA 17** ou **NEMA 23** en 200 pas/tour).
 * **Module GPS (Optionnel)** :
@@ -162,14 +162,26 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 
 Ce projet est sous licence **GNU GPL v3**. Consultez le fichier [LICENSE](LICENSE) pour plus de détails.
 
-## Mise à jour Matérielle (PCB 36V / 12V + Drivers Externes)
-- Chaque axe dispose de deux sorties sur la carte mère :
-  - un support au format **StepStick / Pololu** (2 × 8 broches espacées de 12,7 mm) ;
-  - des pastilles à souder **DRIVER EXT. 5V** (EN, STEP, DIR, GND) pour des drivers externes plus puissants, par exemple M542, DM542 ou DM556.
-- **Sélecteur de drivers** : l'interrupteur DIP `SW_SEL` a 4 positions, une par axe (AZ, ALT, DER, FOC).
-  - Sur **OFF** (réglage par défaut), l'axe est piloté par le module StepStick ; les sorties externes sont coupées.
-  - Sur **ON**, l'axe est piloté par le driver externe. Les signaux sont convertis en 5 V par des 74HCT125, ce qui suffit pour les optocoupleurs. Le support StepStick est coupé et son module désactivé.
-  - On peut donc, par exemple, mettre de gros drivers sur AZ/ALT et garder des StepSticks pour le dérotateur et le focuseur. Le firmware n'a rien à savoir de ce réglage.
+## Cartes Monture (PCB 36V / 12V)
+
+Il existe deux cartes monture, au choix selon les drivers utilisés. Elles ont les mêmes dimensions (150 × 110 mm), les mêmes fixations, les mêmes connecteurs d'alimentation, de raquette, de GPS et de PC, et le même câblage du Teensy : le firmware est identique.
+
+| Carte | Dossier | Drivers | Boîtier |
+|---|---|---|---|
+| **StepStick** | `pcb/monture/` | 4 modules au format StepStick sur la carte (A4988, DRV8825, TMC2208/2209, TMC5160 en SPI) | `boitier_monture.scad`, 45 mm de haut |
+| **Drivers externes** | `pcb/monture_ext/` | 4 drivers externes (DM542, DM556, TB6600…), signaux 5 V et alimentation par axe | `boitier_monture_ext.scad`, 35 mm de haut |
+
+### Commun aux deux cartes
+- **Alimentation** : un seul bus moteur, alimenté soit par le **bornier 36V**, soit par la **prise jack 12V**. Le jack passe par la diode `D_JACK` (SB560), ce qui évite que le 36V du bornier remonte dans le bloc 12V. Toute la carte et tous les drivers reçoivent la tension de l'entrée branchée.
+  - En 36V, n'utilisez pas d'A4988 (35 V max) ni de TMC2208/TMC2209 (29 V max) : pour ces petits drivers, alimentez la carte uniquement par le jack 12V.
+- Le buck LM2596 fabrique le 5V à partir de 12V comme de 36V.
+- Des résistances de rappel (`RN_EN`) maintiennent EN à l'état haut tant que le Teensy n'a pas démarré : les drivers restent désactivés à la mise sous tension.
+- Le Teensy 4.1 de la monture n'a pas de port USB Host câblé.
+- Sur le Teensy de la monture, **coupez le pont VUSB-VIN** sous la carte : le Teensy est alimenté par le 5V du PCB (VIN) et reste branché en USB au PC.
+- Port **PC SERIAL** (Serial6, broches 24/25) : les repères RX/TX sont donnés côté Teensy (`3 TX6`, `4 RX6`). Il faut donc les croiser vers l'adaptateur, et ne pas brancher son 5V sur la broche `2 +5V`.
+
+### Carte StepStick (`pcb/monture/`)
+- Chaque axe a un support au format **StepStick / Pololu** (2 × 8 broches espacées de 12,7 mm), piloté directement par le Teensy, et un bornier moteur à 4 points (bobine 1 : 1B/1A, bobine 2 : 2A/2B).
 - Orientation d'un module StepStick : sa broche **EN** va sur la pastille marquée `EN` (en haut à gauche). **VMOT** se trouve donc en face, sur la pastille marquée `VM`. La logique des modules (VIO) est alimentée en **3,3 V**.
 - **Ponts SPI (TMC5160)** : sous chaque support, entre les deux rangées, se trouvent 5 ponts à souder marqués `SPI`. Ils sont en face des broches 2 à 6 du module. De haut en bas : `SDI` vers MOSI1 (broche 26), `SCK` vers SCK1 (27), `CSN` vers le CS de l'axe (41 AZ, 40 ALT, 38 dérotateur, 37 focuseur), `SDO` vers MISO1 (39), et `CLK` vers GND (horloge interne du TMC5160).
   - **Ponts ouverts** (réglage par défaut) : le support accepte les modules STEP/DIR sans SPI, c'est-à-dire TMC2208/TMC2209 en mode autonome, A4988 (reliez RESET à SLEEP sur le module) ou DRV8825.
@@ -181,7 +193,13 @@ Ce projet est sous licence **GNU GPL v3**. Consultez le fichier [LICENSE](LICENS
   - Commandes : `:XFS0#` / `:XFS1#` (désactiver / activer, activé par défaut), `:XTS#` (état par axe : `-` SPI désactivé, `0` absent, `1` configuré, `M` micro-pas refusé, `E` défaut driver), `:XTI<a|e|d|f>[mA]#` (courant), `:XTH[%]#` (maintien), `:XTP[0|1]#` (stealthChop), `:XTMd[n]#` / `:XTMf[n]#` (micro-pas dérotateur / focuseur), `:XTC#` (tout reconfigurer). Sans valeur, ces commandes renvoient le réglage en cours.
   - Le firmware Mega n'a pas de SPI : le PCB est prévu pour le Teensy.
   - Hauteur : un TMC5160 avec radiateur est plus haut qu'un StepStick ordinaire. Le boîtier fait donc 45 mm de haut (`box_h` dans `boitier_monture.scad`), ce qui laisse 25,8 mm entre la carte du module et le couvercle. Un BTT TMC5160 Pro (23,2 mm hors tout) passe avec au moins 4 mm de marge, et les grilles du couvercle se trouvent au-dessus des radiateurs.
-- Le Teensy 4.1 de la monture n'a pas de port USB Host câblé.
-- Une prise **jack 12V** est ajoutée en plus du bornier 36V. Elle passe par la diode `D_JACK` (SB560), ce qui évite que le 36V du bornier remonte dans le bloc 12V.
-- Sur le Teensy de la monture, **coupez le pont VUSB-VIN** sous la carte : le Teensy est alimenté par le 5V du PCB (VIN) et reste branché en USB au PC.
-- Port **PC SERIAL** (Serial6, broches 24/25) : les repères RX/TX sont donnés côté Teensy (`3 TX6`, `4 RX6`). Il faut donc les croiser vers l'adaptateur, et ne pas brancher son 5V sur la broche `2 +5V`.
+
+### Carte drivers externes (`pcb/monture_ext/`)
+- Chaque axe a deux borniers sur le bord haut :
+  - **`J_VM`** (5,08 mm, fil de 1,5 mm²) : `VM` et `GND`, l'alimentation du driver. `VM` est le bus moteur, donc 36V ou 12V selon l'entrée branchée. Chaque sortie a son condensateur de 220 µF.
+  - **`J_SIG`** (3,5 mm) : `EN`, `STEP`, `DIR`, `GND`, en 5 V. Les signaux du Teensy passent par trois 74HCT125, toujours actifs.
+- Câblage d'un DM542 (cathode commune) : `STEP` → `PUL+`, `DIR` → `DIR+`, `EN` → `ENA+`, et `GND` → `PUL−`, `DIR−` et `ENA−` reliés ensemble. Le moteur se branche sur le driver. Avec `ENA` câblé, le driver relâche le moteur au parking ; sinon, le moteur reste alimenté en permanence.
+- Un plan de cuivre GND (face dessous) et un plan +36V (face dessus, de l'entrée jusqu'aux borniers `J_VM`) portent le courant des drivers.
+- Réglages : le *Microstepping* de l'outil de configuration doit être égal au nombre de pas par tour réglé sur le driver divisé par 200 (par exemple 128 pour 25 600 pas/tour). Toutes les valeurs sont acceptées, puissances de 2 ou non. AZ et ALT partagent ce réglage : réglez leurs deux drivers pareil.
+- Vitesse de GoTo : le DM542 accepte 200 kHz au plus, avec des impulsions d'au moins 2,5 µs. Restez sous environ 150 kHz, soit une vitesse maximale d'environ 150 000 divisé par le nombre de pas par degré (environ 2,8°/s à 25 600 pas/tour avec une réduction de 750:1).
+- Cette carte n'a pas de bus SPI : dans l'outil de configuration, l'état TMC5160 des axes est « absent », ce qui est normal. On peut décocher « Drivers TMC5160 ».

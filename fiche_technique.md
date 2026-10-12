@@ -53,6 +53,8 @@ Le câblage des drivers moteurs vers le contrôleur reste quasiment identique qu
 
 > [!NOTE]
 > Les lignes SPI ne rejoignent les supports StepStick du PCB que par les ponts à souder `SPI` (5 par support, à fermer uniquement pour un TMC5160). Le firmware Teensy configure alors les modules au démarrage : courant, micro-pas (puissance de 2 obligatoire), stealthChop. Voir la section matérielle du README.
+>
+> Deux PCB monture existent, avec le même brochage du Teensy : la carte **StepStick** (`pcb/monture/`, supports de modules et bus SPI ci-dessus) et la carte **drivers externes** (`pcb/monture_ext/`, sans SPI), qui sort EN/STEP/DIR en 5 V et l'alimentation VM pour chaque axe. Voir la section *Cartes Monture* du README.
 
 > [!IMPORTANT]
 > Sur le Teensy 4.1, le GPS utilise toujours les broches 16 et 17, mais elles correspondent au port matériel `Serial4` (au lieu du `Serial2` sur le Mega), et **leurs rôles sont inversés** :
