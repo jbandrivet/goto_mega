@@ -59,6 +59,8 @@ uint8_t mountType = 1; // 0=AltAz, 1=ForkEq, 2=GermanEq (configure par defaut en
 #define STEP_DELAY_FAST   35      // 28.5 kHz max - clamp to avoid loop jitter on Mega 2560
 #define STEP_DELAY_SLOW  100      // 10 kHz  -> 0.3 deg/s manuel
 #define MAX_DELAY        500      // 2 kHz   -> 0.06 deg/s depart rampe
+#define RAMP_START_DEG_S 0.45     // vitesse d'axe maxi au depart de rampe (voir slewToAA)
+#define AZ_WRAP_MAX      270.0    // AltAz : course maxi de l'axe AZ de part et d'autre du zero (cables)
 #define DEFAULT_SLEW_RATE 3.0
 #define ACCEL_STEPS      2000UL
 #define ACCEL_MIN_SLEW   (2 * ACCEL_STEPS)
@@ -891,6 +893,46 @@ static void slewServeOne(Stream& in, Print& out, char* buf, uint8_t& bi) {
 
 // ======================== SLEW =============================
 
+// === PLAGE DE L'AXE 1 : le passe-cable interne de la monture ne doit pas vriller ===
+// azPos n'est jamais replie : c'est la vraie position de l'axe, cables compris. currAz, lui, est replie sur 0..360.
+// ForkEq   : l'angle horaire d'axe reste dans ]-180, +180] ; un GoTo ne passe jamais par 12 h sous le pole
+//            (ni trajet sous l'horizon, ni tour de cables qui s'accumule d'un GoTo a l'autre).
+// AltAz    : plus court chemin, sauf s'il emmene l'axe au-dela de +/-AZ_WRAP_MAX : on repart dans l'autre sens.
+// GermanEq : inchange (plus court chemin, le retournement au meridien gere la plage).
+static double wrap180(double a) {
+  a = fmod(a, 360.0);
+  if (a > 180.0) a -= 360.0;
+  if (a <= -180.0) a += 360.0;
+  return a;
+}
+
+static double azAxisDeg() {
+  uint8_t s = SREG; cli();
+  long p = azPos;
+  SREG = s;
+  return (double)p / AZ_PPD;
+}
+
+static double azSlewDelta(double tAz) {
+  if (mountType == 1) return wrap180(tAz) - azAxisDeg();
+  double azD = tAz - currAz;
+  if (azD > 180.0) azD -= 360.0;
+  if (azD < -180.0) azD += 360.0;
+  if (mountType == 0) {
+    double fin = azAxisDeg() + azD;
+    if (fin > AZ_WRAP_MAX) azD -= 360.0;
+    else if (fin < -AZ_WRAP_MAX) azD += 360.0;
+  }
+  return azD;
+}
+
+// Recalage (sync) : l'axe n'a pas bouge, on garde le representant de az le plus proche de sa position reelle.
+static long azPosFromAz(double az) {
+  if (mountType == 2) return (long)(az * AZ_PPD);
+  double cur = azAxisDeg();
+  return (long)((cur + wrap180(az - cur)) * AZ_PPD);
+}
+
 static int slewToAA(double tAlt, double tAz) {
   if (alarmActive) return 0;
   double startPhysAlt = getPhysicalAlt();
@@ -918,8 +960,7 @@ static int slewToAA(double tAlt, double tAz) {
     return 0;
   }
   limitHit=false;
-  double azD=tAz-currAz;
-  if(azD>180.0)azD-=360.0; if(azD<-180.0)azD+=360.0;
+  double azD=azSlewDelta(tAz);
   
   long azS=(long)(azD*AZ_PPD);
   long altS=(long)((tAlt-currAlt)*ALT_PPD);
@@ -945,6 +986,12 @@ static int slewToAA(double tAlt, double tAz) {
   unsigned long minDelay = stepDelaySlew;
   double f_start = 1.0e6 / MAX_DELAY;
   double f_target = 1.0e6 / minDelay;
+  // Depart de rampe plafonne en vitesse d'axe : 2 kHz font 0,04 deg/s a 53 333 pas/deg (750:1 en 1/128), mais
+  // 1,6 deg/s d'un coup a 1 280 pas/deg (144:1 en 1/16), un a-coup qui charge les dentures. Sans effet si PPD > 4 444.
+  double ppdMin = (AZ_PPD < ALT_PPD) ? AZ_PPD : ALT_PPD;
+  double f_soft = RAMP_START_DEG_S * ppdMin;
+  if (f_soft < f_start) f_start = (f_soft < 20.0) ? 20.0 : f_soft;
+  if (f_start > f_target) f_start = f_target;
   
   unsigned long accel = (unsigned long)(0.5 * (f_start + f_target) * 5.0);
   if (2 * accel > maxS) {
@@ -1841,7 +1888,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     if(!timeSet) { out.print(F("Time not set#")); return; }
     double ra_h=inRA/3600.0, dec_d=inDEC/3600.0;
     rd2aa(ra_h,dec_d,&currAlt,&currAz);
-    azPos=(long)(currAz*AZ_PPD); altPos=(long)(currAlt*ALT_PPD);
+    azPos=azPosFromAz(currAz); altPos=(long)(currAlt*ALT_PPD);
     currRA=inRA; currDEC=inDEC;
     trkRA=ra_h; trkDec=dec_d; 
     synced=true; updatePos();
@@ -1853,7 +1900,7 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     if(!timeSet) { out.print(F("N/A#")); return; }
     double ra_h=inRA/3600.0, dec_d=inDEC/3600.0;
     rd2aa(ra_h,dec_d,&currAlt,&currAz);
-    azPos=(long)(currAz*AZ_PPD); altPos=(long)(currAlt*ALT_PPD);
+    azPos=azPosFromAz(currAz); altPos=(long)(currAlt*ALT_PPD);
     currRA=inRA; currDEC=inDEC;
     trkRA=ra_h; trkDec=dec_d; 
     synced=true; updatePos();
