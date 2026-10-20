@@ -2459,15 +2459,24 @@ void handleButtons(){
                     isParkingWorkflow = true;
                     showMessage(" PARKING EN COURS..", "                    ", 1500, UI_SLEWING);
                 } else if (parkSel == 1) { // Unpark
-                    mega_cmd(":hW#");
-                    m_isPaused = false;
-                    showMessage(isEnglish ? " MOUNT UNPARKED   " : " MONTURE DEPARQUEE", "                    ", 1500, UI_MAIN);
+                    // :hR repond '1', ou '0' si une alarme est active
+                    String r = mega_cmd(":hR");
+                    if (r == "1") {
+                        m_isPaused = false;
+                        showMessage(isEnglish ? " MOUNT UNPARKED   " : " MONTURE DEPARQUEE", "                    ", 1500, UI_MAIN);
+                    } else if (r == "0") {
+                        showMessage(isEnglish ? "  !! IMPOSSIBLE !!  " : "  !! IMPOSSIBLE !!  ", isEnglish ? " Mount alarm       " : " Alarme monture    ", 2500, UI_MAIN);
+                    } else {
+                        showMessage(isEnglish ? "  !! IMPOSSIBLE !!  " : "  !! IMPOSSIBLE !!  ", isEnglish ? " No mount reply    " : " Pas de reponse    ", 2500, UI_MAIN);
+                    }
                 } else if (parkSel == 2) { // Set Pos
-                    // Sent current Alt as Park Alt
-                    mega_cmd(":SQa" + String(m_currentAlt, 4));
-                    // Sent current Az as Park Az
-                    mega_cmd(":SQz" + String(m_currentAz, 4));
-                    showMessage(isEnglish ? " PARK POS SAVED   " : " POS PARK ENREG.  ", "                    ", 1500, UI_MAIN);
+                    // Position courante -> position de parking (:BPa alt, :BPz az ; reponse "1#")
+                    bool okAlt = (mega_cmd(":BPa" + String(m_currentAlt, 4)) == "1");
+                    bool okAz  = (mega_cmd(":BPz" + String(m_currentAz, 4)) == "1");
+                    if (okAlt && okAz)
+                        showMessage(isEnglish ? " PARK POS SAVED   " : " POS PARK ENREG.  ", "                    ", 1500, UI_MAIN);
+                    else
+                        showMessage(isEnglish ? "  !! IMPOSSIBLE !!  " : "  !! IMPOSSIBLE !!  ", isEnglish ? " No mount reply    " : " Pas de reponse    ", 2500, UI_MAIN);
                 }
             }
             break;
