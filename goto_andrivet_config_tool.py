@@ -39,11 +39,57 @@ DEFAULTS = {
     "tmc_hold": 50,
     "tmc_stealth": True,
     "tmc_ms_derot": 16,
-    "tmc_ms_focus": 16
+    "tmc_ms_focus": 16,
+    # Câblage de la monture : "stepstick" (pcb/monture), "ext" (pcb/monture_ext)
+    # ou "none" (câblage manuel d'après le plan de câblage du README)
+    "hardware": "none",
+    "board": "Teensy 4.1"
 }
 
 TMC_AXES = ("a", "e", "d", "f")   # AZ, ALT, DEROT, FOCUS (commandes :XTI<axe>)
 TMC_STATE_TEXT = {"-": "SPI coupé", "0": "absent", "1": "OK", "M": "µpas ?", "E": "défaut"}
+
+HARDWARE_CHOICES = ("stepstick", "ext", "none")
+
+# Plan de câblage de la monture, repris du README (section 4) et conforme aux
+# broches des firmwares : composant (fr, en), broche Mega 2560, broche Teensy 4.1
+# (None = non disponible), signal côté driver ou module (fr, en).
+WIRING_PLAN = (
+    ("Moteur Azimut (AZ/RA)", "Azimuth motor (AZ/RA)", "2", "2", "PUL+ (Pulse/Step)", "PUL+ (Pulse/Step)"),
+    ("", "", "3", "3", "DIR+ (Direction)", "DIR+ (Direction)"),
+    ("", "", "4", "4", "ENB+ (Enable)", "ENB+ (Enable)"),
+    ("Moteur Altitude (ALT/DEC)", "Altitude motor (ALT/DEC)", "5", "5", "PUL+ (Pulse/Step)", "PUL+ (Pulse/Step)"),
+    ("", "", "6", "6", "DIR+ (Direction)", "DIR+ (Direction)"),
+    ("", "", "7", "7", "ENB+ (Enable)", "ENB+ (Enable)"),
+    ("Moteur Dérotateur", "Derotator motor", "8", "8", "PUL+ (Pulse/Step)", "PUL+ (Pulse/Step)"),
+    ("", "", "9", "9", "DIR+ (Direction)", "DIR+ (Direction)"),
+    ("", "", "10", "10", "ENB+ (Enable)", "ENB+ (Enable)"),
+    ("Moteur Focuseur", "Focuser motor", "11", "11", "PUL+ (Pulse/Step)", "PUL+ (Pulse/Step)"),
+    ("", "", "12", "12", "DIR+ (Direction)", "DIR+ (Direction)"),
+    ("", "", "13", "21", "ENB+ (Enable)", "ENB+ (Enable)"),
+    ("Buzzer", "Buzzer", "49", "20", "Borne + (actif : direct / passif : via 100 Ω)", "+ terminal (active: direct / passive: via 100 Ω)"),
+    ("Port série PC", "PC serial port", None, "25 (RX6)", "TX de l'adaptateur USB/série TTL", "TX of the USB/TTL serial adapter"),
+    ("", "", None, "24 (TX6)", "RX de l'adaptateur USB/série TTL", "RX of the USB/TTL serial adapter"),
+    ("Raquette Teensy", "Teensy hand controller", "15 (RX3)", "15 (RX3)", "TX de la raquette", "Hand controller TX"),
+    ("", "", "14 (TX3)", "14 (TX3)", "RX de la raquette", "Hand controller RX"),
+    ("Module GPS", "GPS module", "17 (RX2)", "16 (RX4)", "TX du module GPS", "GPS module TX"),
+    ("", "", "16 (TX2)", "17 (TX4)", "RX du module GPS", "GPS module RX"),
+    ("Drivers TMC5160 (SPI1)", "TMC5160 drivers (SPI1)", None, "26 (MOSI1)", "SDI des modules", "Module SDI"),
+    ("", "", None, "27 (SCK1)", "SCK des modules", "Module SCK"),
+    ("", "", None, "39 (MISO1)", "SDO des modules", "Module SDO"),
+    ("", "", None, "41 / 40 / 38 / 37", "CSN AZ / ALT / dérotateur / focuseur", "CSN AZ / ALT / derotator / focuser"),
+)
+
+# Raquette physique (Teensy 4.1), README section 4.1 : composant, broche, connexion.
+WIRING_HANDPAD = (
+    ("Écran LCD (I2C)", "LCD screen (I2C)", "18 (SDA0)", "SDA", "SDA"),
+    ("", "", "19 (SCL0)", "SCL", "SCL"),
+    ("", "", "VIN / GND", "VCC (5 V) / GND", "VCC (5 V) / GND"),
+    ("Boutons (vers GND)", "Buttons (to GND)", "6 / 7 / 8 / 9 / 10", "Haut / Bas / Gauche / Droite / Entrée", "Up / Down / Left / Right / Enter"),
+    ("Câble vers la monture", "Cable to the mount", "GND / VIN", "Broches 1 / 2 (GND / 5 V de la monture)", "Pins 1 / 2 (mount GND / 5 V)"),
+    ("", "", "1 (TX1)", "Broche 3, vers RX3 (broche 15) de la monture", "Pin 3, to mount RX3 (pin 15)"),
+    ("", "", "0 (RX1)", "Broche 4, vers TX3 (broche 14) de la monture", "Pin 4, to mount TX3 (pin 14)"),
+)
 
 TRANSLATIONS = {
     "en": {
@@ -95,7 +141,26 @@ TRANSLATIONS = {
         "flashing_title": "Firmware Flashing",
         "flashing_success": "Successfully compiled and flashed the firmware!",
         "flashing_error": "Compilation or Flashing failed:\n",
-        "cli_not_found": "arduino-cli was not found. Please install it (or copy to ~/.local/bin/arduino-cli) to use this feature."
+        "cli_not_found": "arduino-cli was not found. Please install it (or copy to ~/.local/bin/arduino-cli) to use this feature.",
+        "hw_label": "Mount wiring:",
+        "hw_stepstick": "StepStick PCB (pcb/monture)",
+        "hw_ext": "External drivers PCB (pcb/monture_ext)",
+        "hw_none": "No PCB: manual wiring",
+        "hw_info_stepstick": "Teensy 4.1 on the StepStick PCB: A4988 or DRV8825 modules (RESET tied to SLEEP), TMC2208/2209, or TMC5160 (SPI jumpers closed). Cut the Teensy VUSB-VIN pad.",
+        "hw_info_ext": "Teensy 4.1 on the external drivers PCB: 5 V EN/STEP/DIR signals to ENA+/PUL+/DIR+ (DM542, DM556, TB6600...). No SPI bus: TMC5160 settings are not used.",
+        "hw_info_none": "Manual wiring of a Mega 2560 or a Teensy 4.1: follow the wiring plan (button next to the choice). The pins are those of the firmware.",
+        "wiring_btn": "Wiring plan",
+        "wiring_title": "Mount wiring plan",
+        "wiring_col_comp": "Component",
+        "wiring_col_pin": "{board} pin",
+        "wiring_col_sig": "Driver / module signal",
+        "wiring_na": "not available",
+        "wiring_gnd": "Negative signals (PUL-, DIR-, ENB-) and all grounds (drivers, buzzer, GPS, hand controller) go to a GND pin of the board.",
+        "wiring_note_stepstick": "The StepStick PCB already makes this wiring. Motors: M_AZ, M_ALT, M_DEROT, M_FOCUS terminals (1 = 2B, 2 = 2A, 3 = 1A, 4 = 1B). Hand controller: J_RAQUETTE (1 GND, 2 +5V, 3 RX3, 4 TX3). GPS: J_GPS (1 RX4, 2 TX4, 3 +5V, 4 GND). PC: J_PC_SERIAL (1 GND, 2 +5V, 3 TX6, 4 RX6), RX/TX given on the Teensy side. Power: 36 V terminal or 12 V jack. Close the 5 SPI jumpers of an axis only for a TMC5160.",
+        "wiring_note_ext": "The external drivers PCB already makes this wiring, with 5 V outputs. Per axis: J_VM (1 GND, 2 VM) powers the driver, J_SIG (1 GND, 2 DIR, 3 STEP, 4 EN) goes to DIR+/PUL+/ENA+, and PUL-/DIR-/ENA- go to GND. Hand controller, GPS and PC connectors are the same as on the StepStick PCB. No SPI bus.",
+        "wiring_note_none": "Wire the {board} by following this plan: it is the one the firmware uses.",
+        "wiring_handpad": "Physical hand controller (Teensy 4.1)",
+        "wiring_close": "Close",
     },
     "fr": {
         "title": " Utilitaire de Configuration GotoMega",
@@ -146,7 +211,26 @@ TRANSLATIONS = {
         "flashing_title": "Téléversement du Firmware",
         "flashing_success": "Le firmware a été compilé et téléversé avec succès !",
         "flashing_error": "Échec de compilation ou téléversement :\n",
-        "cli_not_found": "arduino-cli est introuvable. Veuillez l'installer (ou le copier dans ~/.local/bin/arduino-cli) pour utiliser cette fonction."
+        "cli_not_found": "arduino-cli est introuvable. Veuillez l'installer (ou le copier dans ~/.local/bin/arduino-cli) pour utiliser cette fonction.",
+        "hw_label": "Câblage monture :",
+        "hw_stepstick": "PCB StepStick (pcb/monture)",
+        "hw_ext": "PCB drivers externes (pcb/monture_ext)",
+        "hw_none": "Sans PCB : câblage manuel",
+        "hw_info_stepstick": "Teensy 4.1 sur le PCB StepStick : modules A4988 ou DRV8825 (RESET relié à SLEEP), TMC2208/2209, ou TMC5160 (ponts SPI fermés). Coupez le pont VUSB-VIN du Teensy.",
+        "hw_info_ext": "Teensy 4.1 sur le PCB drivers externes : signaux 5 V EN/STEP/DIR vers ENA+/PUL+/DIR+ (DM542, DM556, TB6600…). Pas de bus SPI : les réglages TMC5160 ne servent pas.",
+        "hw_info_none": "Câblage manuel d'un Mega 2560 ou d'un Teensy 4.1 : respectez le plan de câblage (bouton à côté du choix). Les broches sont celles du firmware.",
+        "wiring_btn": "Plan de câblage",
+        "wiring_title": "Plan de câblage de la monture",
+        "wiring_col_comp": "Composant",
+        "wiring_col_pin": "Broche {board}",
+        "wiring_col_sig": "Signal driver / module",
+        "wiring_na": "non disponible",
+        "wiring_gnd": "Les signaux négatifs (PUL-, DIR-, ENB-) et toutes les masses (drivers, buzzer, GPS, raquette) vont à une broche GND de la carte.",
+        "wiring_note_stepstick": "Le PCB StepStick réalise déjà ce câblage. Moteurs : borniers M_AZ, M_ALT, M_DEROT, M_FOCUS (1 = 2B, 2 = 2A, 3 = 1A, 4 = 1B). Raquette : J_RAQUETTE (1 GND, 2 +5V, 3 RX3, 4 TX3). GPS : J_GPS (1 RX4, 2 TX4, 3 +5V, 4 GND). PC : J_PC_SERIAL (1 GND, 2 +5V, 3 TX6, 4 RX6), repères RX/TX côté Teensy. Alimentation : bornier 36 V ou jack 12 V. Ne fermez les 5 ponts SPI d'un axe que pour un TMC5160.",
+        "wiring_note_ext": "Le PCB drivers externes réalise déjà ce câblage, avec des sorties 5 V. Par axe : J_VM (1 GND, 2 VM) alimente le driver, J_SIG (1 GND, 2 DIR, 3 STEP, 4 EN) va vers DIR+/PUL+/ENA+, et PUL-/DIR-/ENA- vont au GND. Raquette, GPS et PC : mêmes connecteurs que sur le PCB StepStick. Pas de bus SPI.",
+        "wiring_note_none": "Câblez le {board} en suivant ce plan : c'est celui du firmware.",
+        "wiring_handpad": "Raquette physique (Teensy 4.1)",
+        "wiring_close": "Fermer",
     }
 }
 
@@ -417,8 +501,8 @@ class ConfigToolApp(tk.Tk):
 
         self.lbl_board = tk.Label(conn_grid, text="Carte:", bg="#c0c0c0", fg="black", font=f_label)
         self.lbl_board.grid(row=0, column=4, sticky="e", padx=5)
-        self.board_var = tk.StringVar(value="Teensy 4.1")
-        self.board_menu = tk.OptionMenu(conn_grid, self.board_var, "Mega 2560", "Teensy 4.1", command=lambda _: self.update_speed_lbl())
+        self.board_var = tk.StringVar(value=self.settings.get("board", "Teensy 4.1"))
+        self.board_menu = tk.OptionMenu(conn_grid, self.board_var, "Mega 2560", "Teensy 4.1", command=lambda _: (self.apply_hardware_constraints(), self.save_local_settings()))
         self.board_menu.config(bg="#c0c0c0", fg="black", font=f_label, relief="raised", bd=2, activebackground="#d9d9d9", highlightthickness=0)
         self.board_menu["menu"].config(bg="#c0c0c0", fg="black", font=f_label)
         self.board_menu.grid(row=0, column=5, padx=5, sticky="w")
@@ -441,6 +525,25 @@ class ConfigToolApp(tk.Tk):
 
         form_inner = tk.Frame(self.form_lf, bg="#c0c0c0")
         form_inner.pack(fill="both", expand=True, padx=15, pady=10)
+
+        # Configuration Row 0: câblage de la monture (PCB, ou câblage manuel d'après le plan)
+        row_hw = tk.Frame(form_inner, bg="#c0c0c0")
+        row_hw.pack(fill="x", pady=6)
+        self.lbl_hw = tk.Label(row_hw, text="Câblage monture :", width=20, anchor="w", bg="#c0c0c0", fg="black", font=f_label)
+        self.lbl_hw.pack(side="left")
+        self.hw_code = self.settings.get("hardware", "none")
+        if self.hw_code not in HARDWARE_CHOICES:
+            self.hw_code = "none"
+        self.hw_var = tk.StringVar()
+        self.hw_menu = tk.OptionMenu(row_hw, self.hw_var, *HARDWARE_CHOICES)
+        self.hw_menu.config(bg="#c0c0c0", fg="black", font=f_label, relief="raised", bd=2, activebackground="#d9d9d9", highlightthickness=0, width=38, anchor="w")
+        self.hw_menu["menu"].config(bg="#c0c0c0", fg="black", font=f_label)
+        self.hw_menu.pack(side="left", padx=5)
+        self.wiring_btn = tk.Button(row_hw, text="Plan de câblage", font=f_button, bg="#c0c0c0", activebackground="#d9d9d9", relief="raised", bd=2, command=self.show_wiring_plan)
+        self.wiring_btn.pack(side="left", padx=10)
+        self.hw_info_lbl = tk.Label(form_inner, text="", bg="#c0c0c0", fg="#000080", font=f_label, justify="left", anchor="w", wraplength=620)
+        self.hw_info_lbl.pack(fill="x", pady=(0, 4))
+        self._fill_hw_menu()
 
         # Configuration Row 1: Type de Monture
         row_type = tk.Frame(form_inner, bg="#c0c0c0")
@@ -681,6 +784,8 @@ class ConfigToolApp(tk.Tk):
         ttk.Combobox(row_tmc3, textvariable=self.tmc_ms_focus_var, values=ms_values, state="readonly", font=f_entry, width=5).pack(side="left", padx=5)
         self.tmc_status_lbl = tk.Label(row_tmc3, text="État : —", bg="#c0c0c0", fg="black", font=f_label, anchor="w")
         self.tmc_status_lbl.pack(side="left", padx=(15, 0))
+        self.tmc_rows = (row_tmc1, row_tmc2, row_tmc3)
+        self.apply_hardware_constraints()
 
         mount_ctrl_inner.pack(padx=15, pady=10, fill="x")
         
@@ -975,7 +1080,91 @@ class ConfigToolApp(tk.Tk):
         self.unpark_btn.config(text=t["unpark_mount"])
         
         self.flash_lf.config(text=t["flash_lf"])
+        self.lbl_hw.config(text=t["hw_label"])
+        self.wiring_btn.config(text=t["wiring_btn"])
+        self._fill_hw_menu()
+        self.apply_hardware_constraints()
         # (Les textes internes sont gérés autrement)
+
+    def _fill_hw_menu(self):
+        """Libellés du choix de câblage dans la langue courante."""
+        t = TRANSLATIONS[self.settings.get("language", "fr")]
+        menu = self.hw_menu["menu"]
+        menu.delete(0, "end")
+        for code in HARDWARE_CHOICES:
+            menu.add_command(label=t["hw_" + code], command=lambda c=code: self.set_hardware(c))
+        self.hw_var.set(t["hw_" + self.hw_code])
+
+    def set_hardware(self, code):
+        self.hw_code = code
+        self.settings["hardware"] = code
+        self.apply_hardware_constraints()
+        self.save_local_settings()
+
+    def apply_hardware_constraints(self):
+        """Ce que le câblage choisi impose : la carte, le bus SPI des TMC5160, l'aide affichée."""
+        t = TRANSLATIONS[self.settings.get("language", "fr")]
+        code = self.hw_code
+        self.hw_var.set(t["hw_" + code])
+        if code == "none":
+            self.board_menu.config(state="normal")
+        else:
+            self.board_var.set("Teensy 4.1")       # les deux PCB monture portent un Teensy 4.1
+            self.board_menu.config(state="disabled")
+        if code == "ext":
+            self.tmc_spi_var.set(False)            # pas de bus SPI : Appliquer envoie :XFS0
+        spi_possible = code == "stepstick" or (code == "none" and self.board_var.get() == "Teensy 4.1")
+        for row in self.tmc_rows:
+            for w in row.winfo_children():
+                if isinstance(w, ttk.Combobox):
+                    w.config(state="readonly" if spi_possible else "disabled")
+                elif w is not self.tmc_status_lbl:
+                    w.config(state="normal" if spi_possible else "disabled")
+        self.hw_info_lbl.config(text=t["hw_info_" + code])
+        self.settings["board"] = self.board_var.get()
+        self.update_speed_lbl()
+
+    def show_wiring_plan(self):
+        """Plan de câblage de la monture pour la carte choisie, et notes du PCB choisi."""
+        lang = self.settings.get("language", "fr")
+        t = TRANSLATIONS[lang]
+        board = self.board_var.get()
+        mega = board == "Mega 2560"
+        top = tk.Toplevel(self)
+        top.title(t["wiring_title"])
+        top.configure(bg="#c0c0c0")
+        top.geometry("780x760")
+        note = t["wiring_note_" + self.hw_code].format(board=board)
+        tk.Label(top, text=f"{t['hw_' + self.hw_code]} — {board}", bg="#c0c0c0", fg="black", font=("MS Sans Serif", 10, "bold")).pack(anchor="w", padx=12, pady=(10, 2))
+        tk.Label(top, text=note, bg="#c0c0c0", fg="#000080", font=("MS Sans Serif", 9), justify="left", wraplength=740).pack(anchor="w", padx=12, pady=(0, 8))
+
+        def table(parent, columns, rows, height):
+            tv = ttk.Treeview(parent, columns=columns, show="headings", height=height)
+            for c, w in zip(columns, (210, 150, 380)):
+                tv.heading(c, text=c, anchor="w")
+                tv.column(c, width=w, anchor="w")
+            tv.tag_configure("na", foreground="#808080")
+            for vals, tag in rows:
+                tv.insert("", "end", values=vals, tags=(tag,) if tag else ())
+            tv.pack(fill="x", padx=12)
+            return tv
+
+        cols = (t["wiring_col_comp"], t["wiring_col_pin"].format(board=board), t["wiring_col_sig"])
+        rows = []
+        for comp_fr, comp_en, pin_mega, pin_teensy, sig_fr, sig_en in WIRING_PLAN:
+            pin = pin_mega if mega else pin_teensy
+            comp = comp_fr if lang == "fr" else comp_en
+            sig = sig_fr if lang == "fr" else sig_en
+            rows.append(((comp, pin, sig), None) if pin else ((comp, "—", t["wiring_na"]), "na"))
+        table(top, cols, rows, len(rows))
+        tk.Label(top, text=t["wiring_gnd"], bg="#c0c0c0", fg="black", font=("MS Sans Serif", 9), justify="left", wraplength=740).pack(anchor="w", padx=12, pady=(6, 10))
+
+        tk.Label(top, text=t["wiring_handpad"], bg="#c0c0c0", fg="black", font=("MS Sans Serif", 10, "bold")).pack(anchor="w", padx=12, pady=(4, 4))
+        hrows = [((comp_fr if lang == "fr" else comp_en, pin, con_fr if lang == "fr" else con_en), None)
+                 for comp_fr, comp_en, pin, con_fr, con_en in WIRING_HANDPAD]
+        table(top, (t["wiring_col_comp"], t["wiring_col_pin"].format(board="Teensy 4.1"), t["wiring_col_sig"]), hrows, len(hrows))
+        tk.Button(top, text=t["wiring_close"], font=("MS Sans Serif", 9), bg="#c0c0c0", relief="raised", bd=2, command=top.destroy, width=12).pack(pady=12)
+        return top
 
     def auto_detect_gps(self):
         self.gps_btn.config(state="disabled")
@@ -1714,6 +1903,7 @@ print(json.dumps(res))
                             self.park_az_entry.delete(0, tk.END)
                             self.park_az_entry.insert(0, v)
                         except: pass
+                    self.apply_hardware_constraints()   # ex. PCB drivers externes : SPI coupé
 
                 self.after(0, _update_ui)
                 # messagebox.showinfo is already shown in toggle_connection, but let's keep it if needed. Actually it was here.
@@ -2596,6 +2786,8 @@ finally:
             
         btn_m = tk.Button(btn_frame, text="Mega 2560 (Monture)", font=("Arial", 11), command=choose_mega)
         btn_m.pack(side="top", pady=5, fill="x", padx=40)
+        if self.hw_code != "none":
+            btn_m.config(state="disabled")   # les deux PCB monture portent un Teensy 4.1
         
         btn_tm = tk.Button(btn_frame, text="Teensy 4.1 (Monture)", font=("Arial", 11), command=choose_teensy_monture)
         btn_tm.pack(side="top", pady=5, fill="x", padx=40)
