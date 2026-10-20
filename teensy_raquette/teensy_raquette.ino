@@ -1954,7 +1954,8 @@ void sendLocationToMega() {
     mega_cmd(buf);
     int lon_deg = abs(obs_lon);
     int lon_min = (abs(obs_lon) - lon_deg) * 60;
-    snprintf(buf, 16, ":Sg%c%03d*%02d", obs_lon>=0?'+':'-', lon_deg, lon_min);
+    // LX200 : Ouest positif (meme convention que la lecture :Gg de syncDataFromMega)
+    snprintf(buf, 16, ":Sg%c%03d*%02d", obs_lon>=0?'-':'+', lon_deg, lon_min);
     mega_cmd(buf);
 }
 

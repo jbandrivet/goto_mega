@@ -197,7 +197,7 @@ class ConfigToolApp(tk.Tk):
         import json
         import subprocess
         try:
-            url = "https://api.github.com/repos/jbandrivet/goto_andrivet/commits/main"
+            url = "https://api.github.com/repos/jbandrivet/goto_mega/commits/main"
             req = urllib.request.Request(url, headers={"User-Agent": "GotoMega-Updater/1.0"})
             with urllib.request.urlopen(req, timeout=5) as response:
                 data = json.loads(response.read().decode())
@@ -275,7 +275,7 @@ class ConfigToolApp(tk.Tk):
             # Le logiciel est compilé (PyInstaller)
             messagebox.showinfo("Mise à jour", "La mise à jour automatique de la version compilée (.exe) arrivera bientôt !\nPour le moment, veuillez télécharger la nouvelle version sur GitHub Releases.")
             import webbrowser
-            webbrowser.open("https://github.com/jbandrivet/goto_andrivet/releases")
+            webbrowser.open("https://github.com/jbandrivet/goto_mega/releases")
         else:
             if not getattr(self, 'update_available', False):
                 messagebox.showinfo("Mise à jour", "Aucune nouvelle mise à jour n'est disponible.\nVotre logiciel est déjà à la dernière version !")
@@ -297,7 +297,7 @@ class ConfigToolApp(tk.Tk):
 
                 # Sinon (installation via install_linux.py) : téléchargement du ZIP
                 try:
-                    url = "https://github.com/jbandrivet/goto_andrivet/archive/refs/heads/main.zip"
+                    url = "https://github.com/jbandrivet/goto_mega/archive/refs/heads/main.zip"
                     with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
                         zip_path = tmp.name
                     
@@ -309,7 +309,7 @@ class ConfigToolApp(tk.Tk):
                         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
                             zip_ref.extractall(extract_dir)
                             
-                        # Github crée un sous-dossier "goto_andrivet-main" dans le zip
+                        # Github crée un sous-dossier "goto_mega-main" dans le zip
                         extracted_items = list(Path(extract_dir).iterdir())
                         source_dir = extracted_items[0] if extracted_items else None
                             
@@ -1462,7 +1462,7 @@ print(json.dumps(res))
         if self.is_connected and self.ser:
             try:
                 self.ser.write(b":hP#")
-                reply = self.ser.read_until(b"#").decode('ascii', errors='ignore')
+                reply = self.ser.read(1).decode('ascii', errors='ignore')
                 if "1" in reply:
                     messagebox.showinfo("Park", "Mount parking sequence initiated.")
                 else:
@@ -1474,7 +1474,7 @@ print(json.dumps(res))
         if self.is_connected and self.ser:
             try:
                 self.ser.write(b":hR#")
-                reply = self.ser.read_until(b"#").decode('ascii', errors='ignore')
+                reply = self.ser.read(1).decode('ascii', errors='ignore')
                 if "1" in reply:
                     messagebox.showinfo("Unpark", "Mount unparked successfully. Motors enabled.")
                 else:
@@ -1493,7 +1493,7 @@ print(json.dumps(res))
                 
                 # 2. Time
                 self.ser.write(f":SL{now.hour:02d}:{now.minute:02d}:{now.second:02d}#".encode('ascii'))
-                self.ser.read_until(b"#")
+                self.ser.read(1)
                 
                 # 3. Timezone
                 utc_offset = -time.timezone / 3600.0
@@ -1501,7 +1501,7 @@ print(json.dumps(res))
                     utc_offset = -time.altzone / 3600.0
                 sign = '+' if utc_offset >= 0 else '-'
                 self.ser.write(f":SG{sign}{int(abs(utc_offset)):02d}#".encode('ascii'))
-                self.ser.read_until(b"#")
+                self.ser.read(1)
                 
                 self.time_lbl.config(text=f"Synced: {now.strftime('%H:%M:%S')}")
                 messagebox.showinfo("Synchronization", "PC clock sent to Arduino!")
@@ -1668,7 +1668,7 @@ print(json.dumps(res))
                     except: pass
                         
                     try:
-                        lon_val = self.parse_lx_coords(lon_raw)
+                        lon_val = -self.parse_lx_coords(lon_raw)   # :Gg : Ouest positif (LX200)
                         self.lon_entry.delete(0, tk.END)
                         self.lon_entry.insert(0, f"{lon_val:.4f}")
                     except: pass
@@ -1737,7 +1737,8 @@ print(json.dumps(res))
         return f"{sign}{d:02d}*{m:02d}:{s:02d}"
 
     def format_lon_lx(self, lon):
-        sign = '+' if lon >= 0 else '-'
+        # LX200 : longitude Ouest positive. Le champ de l'outil est en Est positif.
+        sign = '-' if lon >= 0 else '+'
         val = abs(lon)
         d = int(val)
         m = int((val - d) * 60)
@@ -2154,15 +2155,18 @@ finally:
         
         def foc_in_mega(event=None):
             if getattr(self, 'is_connected', False) and getattr(self, 'ser', None) and self.focus_mega_var.get():
-                self.ser.write(b":F+#")
+                self.ser.write(b":XF+#")
+                self.ser.read(1)
                 
         def foc_out_mega(event=None):
             if getattr(self, 'is_connected', False) and getattr(self, 'ser', None) and self.focus_mega_var.get():
-                self.ser.write(b":F-#")
+                self.ser.write(b":XF-#")
+                self.ser.read(1)
                 
         def foc_stop_mega(event=None):
             if getattr(self, 'is_connected', False) and getattr(self, 'ser', None) and self.focus_mega_var.get():
-                self.ser.write(b":FQ#")
+                self.ser.write(b":XFQ#")
+                self.ser.read(1)
                 
         def foc_move_eaf(steps):
             if not getattr(self, 'focus_eaf_var', None) or not self.focus_eaf_var.get():
@@ -2401,12 +2405,12 @@ finally:
             # Send Latitude
             lat_str = self.format_lat_lx(lat)
             self.ser.write(f":St{lat_str}#".encode('ascii'))
-            self.ser.read_until(b"#")
+            self.ser.read(1)
 
             # Send Longitude
             lon_str = self.format_lon_lx(lon)
             self.ser.write(f":Sg{lon_str}#".encode('ascii'))
-            self.ser.read_until(b"#")
+            self.ser.read(1)
 
             # Send Slew speed
             n_speed = max(5, min(250, int(speed * 10)))
@@ -2432,6 +2436,10 @@ finally:
             # Send Park Az
             self.ser.write(f":BPz{p_az}#".encode('ascii'))
             self.ser.read_until(b"#")
+
+            # Focuseur pilote par la monture (sans :XFe1, le firmware ignore :XF+/:XF-)
+            self.ser.write(f":XFe{1 if self.focus_mega_var.get() else 0}#".encode('ascii'))
+            self.ser.read(1)
 
             # Drivers TMC5160 (firmware Teensy ; le Mega repond "0#" a :XTS#)
             tmc_state = None

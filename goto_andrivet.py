@@ -971,11 +971,10 @@ class Mount:
             time.sleep(2)
             self.state.connected = True
             
-            # Initialisation de la monture (type et rapports de réduction)
-            mt = "BMa" if self.cfg.get("mount_type", "AltAz") == "AltAz" else ("BMe" if self.cfg.get("mount_type", "AltAz") == "ForkEq" else "BMg")
-            self._cmd(f":{mt}#", reply=False)
-            self._cmd(f":BGa{self.cfg.get('gear_ratio_az', 750.0)}#", reply=False)
-            self._cmd(f":BGe{self.cfg.get('gear_ratio_alt', 750.0)}#", reply=False)
+            # Mécanique de la monture (type, rapports, pas, micro-pas) : c'est le
+            # configurateur qui la règle. On la lit au lieu de la réécrire : nos
+            # propres réglages (AltAz, 750:1 par défaut) écrasaient les siens.
+            self.read_mechanics()
             
             # Vitesse par défaut
             try:
@@ -992,6 +991,20 @@ class Mount:
             self._start_poll(); return True
         except Exception as e:
             log.error(f"Connexion : {e}"); return False
+
+    def read_mechanics(self):
+        """Recopie dans les réglages la mécanique enregistrée dans la monture."""
+        gm = self._cmd(":GM")
+        if gm not in ("AltAz", "ForkEq", "GermanEq"):
+            return   # firmware autre que GotoAndrivet : :GGa/:GSp n'y ont pas ce sens
+        self.cfg.set("mount_type", gm)
+        for cmd, key, conv in ((":GGa", "gear_ratio_az", float), (":GGe", "gear_ratio_alt", float),
+                               (":GSp", "steps_per_rev_motor", int), (":GSm", "microstep", int)):
+            try: self.cfg.set(key, conv(float(self._cmd(cmd))))
+            except ValueError: pass
+        self.cfg.save()
+        log.info(f"Mécanique lue : {gm}, rapports {self.cfg.get('gear_ratio_az')}/{self.cfg.get('gear_ratio_alt')}, "
+                 f"{self.cfg.get('steps_per_rev_motor')} pas x {self.cfg.get('microstep')}")
 
     def disconnect(self):
         self._running = False
@@ -1239,13 +1252,13 @@ class Mount:
         d_lat = int(ad_lat); am_lat = (ad_lat-d_lat)*60; m_lat = int(am_lat); s_lat = int((am_lat-m_lat)*60)
         self._cmd(f":St{sg_lat}{d_lat:02d}*{m_lat:02d}:{s_lat:02d}", reply=True)
         
-        # Longitude
-        sg_lon = '+' if lon >= 0 else '-'
+        # Longitude : LX200 = Ouest positif (le firmware fait siteLon = -val), nos réglages sont en Est positif
+        sg_lon = '-' if lon >= 0 else '+'
         ad_lon = abs(lon)
         d_lon = int(ad_lon); am_lon = (ad_lon-d_lon)*60; m_lon = int(am_lon); s_lon = int((am_lon-m_lon)*60)
         self._cmd(f":Sg{sg_lon}{d_lon:03d}*{m_lon:02d}:{s_lon:02d}", reply=True)
         
-        log.info(f"Coordonnées site envoyées : Lat {sg_lat}{lat:.4f}, Lon {sg_lon}{lon:.4f}")
+        log.info(f"Coordonnées site envoyées : Lat {lat:+.4f}, Lon {lon:+.4f} (Est positif)")
         return True
 
     def set_rate(self, n):

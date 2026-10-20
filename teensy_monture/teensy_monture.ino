@@ -1089,6 +1089,21 @@ static void updatePos() {
   }
 }
 
+// Changement de mecanique (pas moteur, micro-pas, rapports) : les compteurs de
+// pas sont convertis pour que la monture garde le meme angle. Sans cela, l'angle
+// lu changeait dans le rapport des PPD (90 deg devenaient 5273 deg en passant de
+// 750:1 en 1/125 a 100:1 en 1/16) et le GoTo ou le parking suivant faisait faire
+// des tours a l'axe.
+static void changeMechanics() {
+  double oldAzPPD = AZ_PPD, oldAltPPD = ALT_PPD;
+  recalculatePPD();
+  noInterrupts();
+  azPos  = lround((double)azPos  * AZ_PPD  / oldAzPPD);
+  altPos = lround((double)altPos * ALT_PPD / oldAltPPD);
+  interrupts();
+  updatePos();
+}
+
 // ======================== PARSER OUT INLINE PENDANT SLEW ===
 
 static void processCmd(const char* cmd, uint8_t ci, Print& out);
@@ -2352,9 +2367,17 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
   
   if(c1=='B' && c2=='M'){
     if(ci>=4) {
-      if(c3=='a') mountType = 0;
-      else if(c3=='e') mountType = 1;
-      else if(c3=='g') mountType = 2; 
+      uint8_t newType = mountType;
+      if(c3=='a') newType = 0;
+      else if(c3=='e') newType = 1;
+      else if(c3=='g') newType = 2;
+      // Position de parking par defaut : horizon nord en AltAz, pole en equatorial.
+      // Laissee au defaut de l'ancien type, elle suit le nouveau. Sinon, d'equatorial
+      // en AltAz, le parking visait 90 deg, au-dessus de ALT_MAX : la monture se
+      // declarait parquee sans avoir bouge.
+      if (newType != mountType && parkAz == 0.0 && parkAlt == ((mountType >= 1) ? 90.0 : 0.0))
+        parkAlt = (newType >= 1) ? 90.0 : 0.0;
+      mountType = newType;
       saveStateToEEPROM();
       out.print(F("1#")); return;
     } else {
@@ -2366,9 +2389,10 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     if(ci>=5) {
       double ratio = atof(cmd+4);
       if(ratio > 1.0) {
+        if (slewing) { out.print(F("0#")); return; }   // le slew en cours compte ses pas avec l'ancien PPD
         if(c3=='a') gearRatioAZ = ratio;
         else if(c3=='e') gearRatioALT = ratio;
-        recalculatePPD();
+        changeMechanics();
         saveStateToEEPROM();
       }
       out.print(F("1#")); return;
@@ -2408,9 +2432,10 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     if(ci>=5) {
       long val = atol(cmd+4);
       if(val > 0) {
+        if (slewing) { out.print(F("0#")); return; }   // le slew en cours compte ses pas avec l'ancien PPD
         if(c3=='p') motorStepsPerRev = val;
         else if(c3=='m') microstep = (uint16_t)val;
-        recalculatePPD();
+        changeMechanics();
         saveStateToEEPROM();
         if(c3=='m') tmcService(true);   // MRES des TMC5160 AZ/ALT
       }

@@ -1554,7 +1554,7 @@ class VirtualTeensyApp(tk.Tk):
                 lat_deg, lat_m = int(abs(lat)), int((abs(lat) - int(abs(lat))) * 60)
                 lon_deg, lon_m = int(abs(lon)), int((abs(lon) - int(abs(lon))) * 60)
                 lat_str = f"{'+' if lat >= 0 else '-'}{lat_deg:02d}*{lat_m:02d}"
-                lon_str = f"{'+' if lon >= 0 else '-'}{lon_deg:03d}*{lon_m:02d}"
+                lon_str = f"{'-' if lon >= 0 else '+'}{lon_deg:03d}*{lon_m:02d}"   # LX200 : Ouest positif
                 self.send_cmd(f":St{lat_str}#")
                 self.send_cmd(f":Sg{lon_str}#")
                 lang = self.cfg.get("language", "fr")
