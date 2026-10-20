@@ -667,6 +667,18 @@ class Mount:
                  f"(UTC{sign}{int(abs(utc_offset))})")
         return True
 
+    def lst_offset_min(self, lon):
+        """Écart (minutes) entre l'heure sidérale de la monture (:GS) et celle du PC, ou None.
+        Un écart révèle une heure, un fuseau ou une longitude mal compris par le firmware
+        (par exemple un firmware antérieur au fuseau :SG en convention LX200 : 4 h l'été)."""
+        r = self._cmd(":GS").rstrip("#")
+        try:
+            h, m, sec = (int(x) for x in r.split(":"))
+        except ValueError:
+            return None
+        d = (h + m / 60 + sec / 3600 - Astro.lst(datetime.now(timezone.utc), lon)) % 24
+        return (d - 24 if d > 12 else d) * 60
+
     def set_location(self, lat, lon):
         """Envoie la latitude et la longitude à l'Arduino Mega."""
         # Latitude
@@ -1699,6 +1711,9 @@ TRANSLATIONS = {
         
         # Messageboxes & Alerts
         "msg_conn_err": "Unable to connect to {port}",
+        "msg_lst_offset": "The mount's sidereal time differs from the PC's by {off:+.0f} min: GoTos will miss their targets.\n\n"
+                          "Flash the mount with the latest firmware (Configurator > Firmware), then reconnect. "
+                          "If it persists, check the site longitude and the PC time.",
         "msg_parking_confirm": "Send the mount to its park position?",
         "msg_sync_invalid": "Invalid coordinates.",
         "msg_goto_not_connected": "Mount not connected.",
@@ -1888,6 +1903,9 @@ TRANSLATIONS = {
         
         # Messageboxes & Alerts
         "msg_conn_err": "Impossible de se connecter à {port}",
+        "msg_lst_offset": "L'heure sidérale de la monture diffère de celle du PC de {off:+.0f} min : les GoTo vont manquer leur cible.\n\n"
+                          "Flashez la monture avec le dernier firmware (configurateur, section Firmware), puis reconnectez. "
+                          "Si l'écart persiste, vérifiez la longitude du site et l'heure du PC.",
         "msg_parking_confirm": "Envoyer la monture à sa position de parking ?",
         "msg_sync_invalid": "Coordonnées invalides.",
         "msg_goto_not_connected": "Monture non connectée.",
@@ -2354,6 +2372,11 @@ class App(tk.Tk):
                 lon = self.cfg.get("longitude", 4.836)
                 self.mount.set_location(lat, lon)
                 self._logw(f"GPS envoyé au Mega (Lat:{lat:.4f}, Lon:{lon:.4f})","tx")
+                off = self.mount.lst_offset_min(lon)
+                if off is not None and abs(off) > 2:
+                    self._logw(f"Heure sidérale de la monture décalée de {off:+.0f} min","err")
+                    self.after(0, lambda o=off: messagebox.showwarning(
+                        "GotoAndrivet", TRANSLATIONS[self.cfg.get("language", "fr")]["msg_lst_offset"].format(off=o)))
             except Exception as e:
                 log.error(f"Erreur d'initialisation site/temps : {e}")
         def _ui():
@@ -2586,8 +2609,9 @@ class App(tk.Tk):
             ra2000, dec2000 = Astro.precess(st.ra_h, st.dec_d, inverse=True)
             self._rv["ra"].set(Astro.fmt_ra(ra2000))
             self._rv["dec"].set(Astro.fmt_dec(dec2000))
-            self._rv["az"].set(f"{st.az_d:06.2f}°")
-            self._rv["alt"].set(f"{st.alt_d:+06.2f}°")
+            az, alt = self._scope_altaz(st)
+            self._rv["az"].set(f"{az:06.2f}°")
+            self._rv["alt"].set(f"{alt:+06.2f}°")
             self._rv["lst"].set(Astro.fmt_ra_lx(st.lst_h))
             if st.tracking: self._tbtn.configure(text=TRANSLATIONS[lang]["btn_track_on"],style="GoTo.TButton")
             else:           self._tbtn.configure(text=TRANSLATIONS[lang]["btn_track_off"],style="TButton")
@@ -2597,7 +2621,7 @@ class App(tk.Tk):
             if st.limit_hit: parts.append(TRANSLATIONS[lang]["state_limit"]); col=RED
             self._rv["state"].set(" | ".join(parts) or TRANSLATIONS[lang]["state_idle"])
             self._stlbl.configure(fg=col)
-            self._sky.update_mount(st.az_d,st.alt_d,st.ra_h,st.dec_d,
+            self._sky.update_mount(az,alt,st.ra_h,st.dec_d,
                                    st.tracking,st.slewing,st.lst_h,connected=st.connected)
             self._sky.refresh(follow=self._bv["follow"].get())
         self.after(0,_ui)
@@ -2934,7 +2958,16 @@ class App(tk.Tk):
 
     def _center_scope(self):
         st = self.mount.state
-        if st.connected: self._sky.center_on(st.az_d, st.alt_d)
+        if st.connected: self._sky.center_on(*self._scope_altaz(st))
+
+    def _scope_altaz(self, st):
+        """Azimut et hauteur du télescope. En AltAz, :GBE les donne directement. En équatorial
+        (ForkEq, GermanEq), :GBE donne les angles des axes (angle horaire, déclinaison) : on
+        repart alors de l'AD/Déc de la monture (coordonnées de la date). Sans cela, le réticule
+        partait loin de l'objet pointé et le GoTo semblait ne pas marcher."""
+        if self.cfg.get("mount_type", "AltAz") == "AltAz" or st.sim_mode:
+            return st.az_d, st.alt_d
+        return Astro.eq_to_horiz(st.ra_h, st.dec_d, st.lst_h, self.cfg.get("latitude", 45.764))
 
     def _check_update(self, manual=False):
         """Vérifie en arrière-plan si une version plus récente est sur GitHub."""
