@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#07112b"/><stop offset="0.7" stop-color="#173a73"/><stop offset="1" stop-color="#2a5a9a"/>
+    </linearGradient>
+    <linearGradient id="tube" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#cfd8dc"/>
+    </linearGradient>
+    <radialGradient id="glow"><stop offset="0" stop-color="#ffe082" stop-opacity="0.9"/><stop offset="1" stop-color="#ffb300" stop-opacity="0"/></radialGradient>
+    <clipPath id="clip"><rect x="8" y="8" width="240" height="240" rx="52"/></clipPath>
+  </defs>
+  <g clip-path="url(#clip)">
+    <rect x="8" y="8" width="240" height="240" fill="url(#sky)"/>
+    <circle cx="36" cy="42" r="2.2" fill="#ffffff" opacity="0.9"/><circle cx="68" cy="92" r="1.5" fill="#ffffff" opacity="0.9"/><circle cx="142" cy="30" r="2.0" fill="#ffffff" opacity="0.9"/><circle cx="112" cy="66" r="1.3" fill="#ffffff" opacity="0.9"/><circle cx="230" cy="128" r="1.7" fill="#ffffff" opacity="0.9"/><circle cx="40" cy="136" r="1.4" fill="#ffffff" opacity="0.9"/><circle cx="196" cy="168" r="1.3" fill="#ffffff" opacity="0.9"/><circle cx="226" cy="34" r="1.5" fill="#ffffff" opacity="0.9"/><circle cx="176" cy="116" r="1.1" fill="#ffffff" opacity="0.9"/><circle cx="88" cy="28" r="1.2" fill="#ffffff" opacity="0.9"/>
+    <path d="M8,214 Q70,192 128,204 T248,198 V248 H8 Z" fill="#0b1630"/>
+  </g>
+  <!-- trépied -->
+  <g stroke="#90a4ae" stroke-width="9" stroke-linecap="round">
+    <line x1="98" y1="156" x2="52" y2="230"/>
+    <line x1="98" y1="156" x2="146" y2="230"/>
+    <line x1="98" y1="156" x2="100" y2="236"/>
+  </g>
+  <circle cx="98" cy="156" r="13" fill="#546e7a"/>
+  <!-- trajet GoTo vers l'étoile visée -->
+  <line x1="175.2" y1="95.7" x2="197.3" y2="78.4"
+        stroke="#ffca28" stroke-width="4" stroke-linecap="round" stroke-dasharray="2 8"/>
+  <circle cx="209.9" cy="68.6" r="26" fill="url(#glow)"/>
+  <path d="M209.90,51.58 L213.26,65.21 L226.90,68.58 L213.26,71.94 L209.90,85.58 L206.53,71.94 L192.90,68.58 L206.53,65.21 Z" fill="#ffca28"/>
+  <g transform="translate(98,156) rotate(-38)">
+      <rect x="-82.0" y="-12.0" width="16.0" height="24.0" rx="3.0" fill="#b0bec5"/>
+      <rect x="-70.0" y="-17.0" width="132.0" height="34.0" rx="5.0" fill="url(#tube)"/>
+      <rect x="58.0" y="-21.0" width="30.0" height="42.0" rx="4.0" fill="url(#tube)"/>
+      <rect x="84.0" y="-17.0" width="4.0" height="34.0" fill="#90a4ae"/>
+      <rect x="-24.0" y="-31.0" width="40.0" height="9.0" rx="3.0" fill="#cfd8dc"/>
+      <rect x="-4.0" y="-24.0" width="6.0" height="8.0" fill="#90a4ae"/>
+      <rect x="-10.0" y="-20.0" width="20.0" height="40.0" rx="3.0" fill="#37474f"/>
+  </g>
+  <rect x="8" y="8" width="240" height="240" rx="52" fill="none" stroke="#ffffff" stroke-opacity="0.12" stroke-width="2"/>
+</svg>

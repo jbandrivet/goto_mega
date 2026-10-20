@@ -15,7 +15,7 @@ class InstallerApp(tk.Tk):
         lbl_title = tk.Label(self, text="Installation de Goto Universal", font=("Arial", 16, "bold"), bg="#f0f0f0")
         lbl_title.pack(pady=20)
         
-        lbl_desc = tk.Label(self, text="Cet assistant va créer un environnement isolé\net installer les dépendances nécessaires sans modifier votre système.\n\nIl créera également un raccourci sur votre bureau.", bg="#f0f0f0", justify="center")
+        lbl_desc = tk.Label(self, text="Cet assistant va créer un environnement isolé\net installer les dépendances nécessaires sans modifier votre système.\n\nIl créera également deux raccourcis sur votre bureau :\nle configurateur et la carte du ciel.", bg="#f0f0f0", justify="center")
         lbl_desc.pack(pady=10)
         
         self.progress = ttk.Progressbar(self, orient="horizontal", length=400, mode="determinate")
@@ -47,7 +47,7 @@ class InstallerApp(tk.Tk):
             self.update_status("Copie des fichiers dans le dossier personnel...", 5)
             for f in source_dir.glob("*.py"):
                 shutil.copy2(f, install_dir)
-            for d in ["mega_monture", "teensy_monture", "teensy_raquette"]:
+            for d in ["mega_monture", "teensy_monture", "teensy_raquette", "icons"]:
                 if (source_dir / d).exists():
                     shutil.copytree(source_dir / d, install_dir / d, dirs_exist_ok=True)
 
@@ -68,29 +68,40 @@ class InstallerApp(tk.Tk):
                 self.update_status(f"Installation de {req}...", 30 + (i * 10))
                 subprocess.run([str(pip_exe), "install", req], capture_output=True, text=True, check=True)
                 
-            # 3. Créer le raccourci Desktop
-            self.update_status("Création du raccourci...", 90)
+            # 3. Créer les raccourcis Desktop : configurateur et carte du ciel
+            self.update_status("Création des raccourcis...", 90)
             desktop_dir = Path.home() / "Bureau"
             if not desktop_dir.exists():
                 desktop_dir = Path.home() / "Desktop"
                 
             python_exe = venv_dir / "bin" / "python3"
-            main_script = install_dir / "goto_andrivet_config_tool.py"
-            
-            desktop_file = desktop_dir / "GotoMega.desktop"
-            content = f"""[Desktop Entry]
+            shortcuts = (
+                ("GotoMega.desktop", "Goto Universal Config", "Outil de configuration pour Goto Universal",
+                 "goto_andrivet_config_tool.py", "goto_andrivet_config.svg", "utilities-terminal"),
+                ("GotoAndrivet.desktop", "GotoAndrivet - Carte du ciel", "Carte du ciel, GoTo et dérotateur pour monture GotoAndrivet",
+                 "goto_andrivet.py", "goto_andrivet.svg", "applications-science"),
+            )
+            for file_name, name, comment, script, icon_file, fallback_icon in shortcuts:
+                icon = install_dir / "icons" / icon_file
+                content = f"""[Desktop Entry]
 Version=1.0
 Type=Application
-Name=Goto Universal Config
-Comment=Outil de configuration pour Goto Universal
-Exec={python_exe} {main_script}
-Icon=utilities-terminal
+Name={name}
+Comment={comment}
+Exec={python_exe} {install_dir / script}
+Icon={icon if icon.exists() else fallback_icon}
 Path={install_dir}
 Terminal=false
 Categories=Utility;Science;Astronomy;
 """
-            desktop_file.write_text(content)
-            os.chmod(desktop_file, 0o755)
+                desktop_file = desktop_dir / file_name
+                desktop_file.write_text(content)
+                os.chmod(desktop_file, 0o755)
+                # GNOME : sans ce drapeau, le bureau demande d'autoriser le lancement du raccourci
+                try:
+                    subprocess.run(["gio", "set", str(desktop_file), "metadata::trusted", "true"], capture_output=True)
+                except OSError:
+                    pass
             
             self.update_status("Installation terminée avec succès !", 100)
             def on_success():
