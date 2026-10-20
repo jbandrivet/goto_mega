@@ -1239,7 +1239,8 @@ class Mount:
         self._cmd(f":SC{now.month:02d}/{now.day:02d}/{now.year%100:02d}", reply=True)
         self._cmd(f":SL{now.hour:02d}:{now.minute:02d}:{now.second:02d}", reply=True)
         sign = '+' if utc_offset >= 0 else '-'
-        self._cmd(f":SG{sign}{int(abs(utc_offset)):02d}", reply=True)
+        # :SG (LX200) : heures à ajouter à l'heure locale pour obtenir l'UTC, donc UTC+2 -> :SG-02
+        self._cmd(f":SG{'-' if utc_offset >= 0 else '+'}{int(abs(utc_offset)):02d}", reply=True)
         log.info(f"Date/heure envoyées : {now.strftime('%Y-%m-%d %H:%M:%S')} "
                  f"(UTC{sign}{int(abs(utc_offset))})")
         return True

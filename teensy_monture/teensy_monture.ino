@@ -72,7 +72,7 @@ static double         maxSlewRate   = DEFAULT_SLEW_RATE;
 // === COORDONNEES PAR DEFAUT ===
 static double siteLat = 0.0;
 static double siteLon = 0.0;
-static double utcOff  = 0.0;
+static double utcOff  = 0.0;   // :SG (LX200/OnStep) : heures a ajouter a l'heure locale pour obtenir l'UTC
 
 // Date/Heure
 static int dt_y=2026, dt_m=4, dt_d=26;
@@ -482,7 +482,7 @@ static uint8_t daysInMonth(int m, int y) {
 }
 
 static void getUTC(int *uy, int *um, int *ud, int *uh, int *umi, int *us) {
-  double utcH = dt_h + dt_mi/60.0 + dt_s/3600.0 - utcOff;
+  double utcH = dt_h + dt_mi/60.0 + dt_s/3600.0 + utcOff;
   int dayOff = 0;
   while(utcH < 0.0)   { utcH += 24.0; dayOff--; }
   while(utcH >= 24.0) { utcH -= 24.0; dayOff++; }
@@ -543,9 +543,9 @@ static void handleGPS() {
         int new_mi = gps.time.minute();
         int new_s = gps.time.second();
 
-        // Le GPS donne l'heure UTC. Application de l'utcOff pour l'heure locale
+        // Le GPS donne l'heure UTC : heure locale = UTC - utcOff
         int offsetH = (int)utcOff;
-        new_h += offsetH;
+        new_h -= offsetH;
 
         // Wrap-around simple pour ajustement du jour selon l'heure locale
         if (new_h >= 24) {
@@ -2523,7 +2523,15 @@ static void processCmd(const char* cmd, uint8_t ci, Print& out) {
     out.write('1'); return;
   }
   if(c1=='S'&&c2=='G' && ci>=4){
-    utcOff=atof(cmd+3); out.write('1'); return;
+    // Convention LX200/OnStep, celle du driver INDI : UTC+2 -> :SG-02#. INDI
+    // envoie "sHH:MM", d'ou la lecture des minutes. Avant, le firmware prenait
+    // le signe inverse : avec Ekos, l'heure UTC etait fausse de deux fois le
+    // decalage (4 h en ete), et l'heure siderale avec.
+    double h = atof(cmd+3);
+    const char* colon = strchr(cmd+3, ':');
+    if (colon) { double mn = atof(colon+1) / 60.0; h += (cmd[3]=='-') ? -mn : mn; }
+    if (fabs(h) > 14.0) { out.write('0'); return; }
+    utcOff = h; out.write('1'); return;
   }
   if(c1=='S'&&c2=='L' && ci>=11){
     dt_h =(cmd[3]-'0')*10+(cmd[4]-'0');

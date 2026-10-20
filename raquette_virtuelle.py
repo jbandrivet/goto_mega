@@ -450,7 +450,8 @@ class VirtualTeensyApp(tk.Tk):
                 utc_offset = -time.timezone / 3600.0
                 if time.daylight and time.localtime().tm_isdst:
                     utc_offset = -time.altzone / 3600.0
-                sign = '+' if utc_offset >= 0 else '-'
+                # :SG (LX200) : heures à ajouter à l'heure locale pour obtenir l'UTC, donc UTC+2 -> :SG-02
+                sign = '-' if utc_offset >= 0 else '+'
                 self.ser.write(f":SG{sign}{int(abs(utc_offset)):02d}#".encode('ascii'))
                 self.ser.read_until(b"#")
                 
@@ -1540,8 +1541,9 @@ class VirtualTeensyApp(tk.Tk):
                 self.send_cmd(f":SC{time.strftime('%m/%d/%y', t)}#")
                 self.send_cmd(f":SL{time.strftime('%H:%M:%S', t)}#")
                 offset = -time.timezone // 3600
-                if time.daylight: offset = -time.altzone // 3600
-                self.send_cmd(f":SG{offset:+03d}#")
+                if time.daylight and t.tm_isdst: offset = -time.altzone // 3600
+                # :SG (LX200) : heures à ajouter à l'heure locale pour obtenir l'UTC, donc UTC+2 -> :SG-02
+                self.send_cmd(f":SG{-offset:+03d}#")
                 lang = self.cfg.get("language", "fr")
                 self.set_msg("    HEURE SYNC   " if lang=="fr" else "    TIME SYNC    ", "       (PC)     ", "", "", 1200, self.UI_SETTINGS)
                 

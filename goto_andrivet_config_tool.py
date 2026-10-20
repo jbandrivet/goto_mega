@@ -1499,7 +1499,8 @@ print(json.dumps(res))
                 utc_offset = -time.timezone / 3600.0
                 if time.daylight and time.localtime().tm_isdst:
                     utc_offset = -time.altzone / 3600.0
-                sign = '+' if utc_offset >= 0 else '-'
+                # :SG (LX200) : heures à ajouter à l'heure locale pour obtenir l'UTC, donc UTC+2 -> :SG-02
+                sign = '-' if utc_offset >= 0 else '+'
                 self.ser.write(f":SG{sign}{int(abs(utc_offset)):02d}#".encode('ascii'))
                 self.ser.read(1)
                 
