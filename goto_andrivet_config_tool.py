@@ -13,6 +13,7 @@ import subprocess
 import threading
 import os
 import re
+import mise_a_jour
 
 CONFIG_FILE = Path.home() / ".config" / "goto_andrivet" / "config_tool_settings.json"
 
@@ -277,43 +278,20 @@ class ConfigToolApp(tk.Tk):
                     pass
 
     def check_for_updates(self):
-        import urllib.request
-        import json
-        import subprocess
+        """Vérification en arrière-plan (module mise_a_jour, partagé avec la carte du ciel)."""
         try:
-            url = "https://api.github.com/repos/jbandrivet/goto_mega/commits/main"
-            req = urllib.request.Request(url, headers={"User-Agent": "GotoMega-Updater/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as response:
-                data = json.loads(response.read().decode())
-                remote_sha = data["sha"]
-                
-            local_sha = ""
-            script_dir = Path(__file__).parent
-            if (script_dir / ".git").exists():
-                res = subprocess.run(["git", "rev-parse", "HEAD"], cwd=str(script_dir), capture_output=True, text=True)
-                if res.returncode == 0:
-                    local_sha = res.stdout.strip()
-            else:
-                version_file = Path.home() / ".config" / "goto_andrivet" / "version.txt"
-                if version_file.exists():
-                    local_sha = version_file.read_text().strip()
-                
-            if local_sha == "":
-                version_file = Path.home() / ".config" / "goto_andrivet" / "version.txt"
-                version_file.parent.mkdir(parents=True, exist_ok=True)
-                version_file.write_text(remote_sha)
-                self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
-                
-            elif local_sha != remote_sha:
-                self.update_available = True
-                self.after(0, lambda: self.update_btn.config(
-                    text="🔴 Mise à jour disponible !", 
-                    bg="#ffcccc", fg="red", font=("MS Sans Serif", 9, "bold"), state="normal"
-                ))
-                self.remote_sha = remote_sha
-            else:
-                self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
+            available, remote, _ = mise_a_jour.check(Path(__file__).parent)
         except Exception:
+            self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
+            return
+        if available:
+            self.update_available = True
+            self.remote_sha = remote
+            self.after(0, lambda: self.update_btn.config(
+                text="● Mise à jour disponible !",
+                bg="#ffcccc", fg="red", font=("MS Sans Serif", 9, "bold"), state="normal"
+            ))
+        else:
             self.after(0, lambda: self.update_btn.config(text="Vérifier les mises à jour", state="normal"))
 
     def load_local_settings(self):
@@ -348,12 +326,6 @@ class ConfigToolApp(tk.Tk):
 
     def update_software(self):
         import sys
-        import os
-        import subprocess
-        import urllib.request
-        import zipfile
-        import shutil
-        import tempfile
         
         if getattr(sys, 'frozen', False):
             # Le logiciel est compilé (PyInstaller)
@@ -367,59 +339,13 @@ class ConfigToolApp(tk.Tk):
                 
             ans = messagebox.askyesno("Mise à jour", "Une nouvelle version est disponible ! Ceci va la télécharger et redémarrer le configurateur.\nContinuer ?")
             if ans:
-                script_dir = Path(__file__).parent
-                
-                # Si c'est un dépôt Git (développeur)
-                if (script_dir / ".git").exists():
-                    res = subprocess.run(["git", "pull"], cwd=str(script_dir), capture_output=True, text=True)
-                    if res.returncode == 0:
-                        messagebox.showinfo("Succès", "Mise à jour Git réussie. Le logiciel va redémarrer.")
-                        os.execv(sys.executable, ['python3'] + sys.argv)
-                    else:
-                        messagebox.showerror("Erreur", f"Erreur Git:\n{res.stderr}")
-                    return
-
-                # Sinon (installation via install_linux.py) : téléchargement du ZIP
                 try:
-                    url = "https://github.com/jbandrivet/goto_mega/archive/refs/heads/main.zip"
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".zip") as tmp:
-                        zip_path = tmp.name
-                    
-                    req = urllib.request.Request(url, headers={"User-Agent": "GotoMega-Updater/1.0"})
-                    with urllib.request.urlopen(req) as response, open(zip_path, 'wb') as out_file:
-                        shutil.copyfileobj(response, out_file)
-                        
-                    with tempfile.TemporaryDirectory() as extract_dir:
-                        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-                            zip_ref.extractall(extract_dir)
-                            
-                        # Github crée un sous-dossier "goto_mega-main" dans le zip
-                        extracted_items = list(Path(extract_dir).iterdir())
-                        source_dir = extracted_items[0] if extracted_items else None
-                            
-                        if source_dir and source_dir.is_dir():
-                            for item in source_dir.iterdir():
-                                if item.name in ["venv", ".git", "__pycache__", "astrometry_data"]:
-                                    continue
-                                if item.is_file():
-                                    shutil.copy2(item, script_dir / item.name)
-                                elif item.is_dir():
-                                    dest_item = script_dir / item.name
-                                    if dest_item.exists():
-                                        shutil.rmtree(dest_item)
-                                    shutil.copytree(item, dest_item)
-                                    
-                    os.unlink(zip_path)
-                    
-                    if hasattr(self, 'remote_sha'):
-                        version_file = Path.home() / ".config" / "goto_andrivet" / "version.txt"
-                        version_file.parent.mkdir(parents=True, exist_ok=True)
-                        version_file.write_text(self.remote_sha)
-                        
-                    messagebox.showinfo("Succès", "Mise à jour réussie avec succès ! Le logiciel va maintenant redémarrer.")
-                    os.execv(sys.executable, ['python3'] + sys.argv)
+                    mise_a_jour.apply(Path(__file__).parent, getattr(self, 'remote_sha', None))
                 except Exception as e:
                     messagebox.showerror("Erreur", f"Impossible de mettre à jour:\n{e}")
+                    return
+                messagebox.showinfo("Succès", "Mise à jour réussie avec succès ! Le logiciel va maintenant redémarrer.")
+                mise_a_jour.restart()
 
     def build_ui(self):
         # Fonts
