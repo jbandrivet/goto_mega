@@ -171,6 +171,8 @@ Il existe deux cartes monture, au choix selon les drivers utilisés. Elles ont l
 | **StepStick** | `pcb/monture/` | 4 modules au format StepStick sur la carte (A4988, DRV8825, TMC2208/2209, TMC5160 en SPI) | `boitier_monture.scad`, 45 mm de haut |
 | **Drivers externes** | `pcb/monture_ext/` | 4 drivers externes (DM542, DM556, TB6600…), signaux 5 V et alimentation par axe | `boitier_monture_ext.scad`, 35 mm de haut |
 
+Sans PCB, câblez vous-même le Mega ou le Teensy en suivant le plan de câblage de la section 4. Dans l'outil de configuration, indiquez votre choix sur la ligne **« Câblage monture »** (PCB StepStick, PCB drivers externes ou câblage manuel). Avec un PCB, l'outil impose le Teensy 4.1, et la section TMC5160 n'est active qu'avec la carte StepStick. Le bouton **« Plan de câblage »** affiche les broches de la carte choisie et les connecteurs du PCB.
+
 ### Commun aux deux cartes
 - **Alimentation** : un seul bus moteur, alimenté soit par le **bornier 36V**, soit par la **prise jack 12V**. Le jack passe par la diode `D_JACK` (SB560), ce qui évite que le 36V du bornier remonte dans le bloc 12V. Toute la carte et tous les drivers reçoivent la tension de l'entrée branchée.
   - En 36V, n'utilisez pas d'A4988 (35 V max) ni de TMC2208/TMC2209 (29 V max) : pour ces petits drivers, alimentez la carte uniquement par le jack 12V.
