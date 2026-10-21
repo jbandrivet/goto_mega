@@ -1,0 +1,64 @@
+name: Firmwares
+
+# Compile les trois firmwares (monture Mega, monture Teensy, raquette Teensy) et les publie avec leurs
+# sources dans la version « firmwares », derrière des liens stables :
+#   https://github.com/jbandrivet/goto_mega/releases/download/firmwares/<fichier>
+# Le configurateur compile et flashe lui-même les cartes ; ces fichiers servent si on ne peut pas l'utiliser.
+on:
+  push:
+    branches: [ main ]
+    paths: [ mega_monture/**, teensy_monture/**, teensy_raquette/**, .github/workflows/firmwares.yml ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  firmwares:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: arduino/setup-arduino-cli@v2
+
+    - name: Cartes et bibliothèques
+      run: |
+        arduino-cli config init
+        arduino-cli config add board_manager.additional_urls https://www.pjrc.com/teensy/package_teensy_index.json
+        arduino-cli core update-index
+        arduino-cli core install arduino:avr teensy:avr
+        arduino-cli lib install "TinyGPSPlus@1.0.3" "LiquidCrystal I2C@1.1.2"
+
+    - name: Compilation
+      run: |
+        mkdir -p dist
+        for c in "arduino:avr:mega mega_monture" "teensy:avr:teensy41 teensy_monture" "teensy:avr:teensy41 teensy_raquette"; do
+          set -- $c
+          arduino-cli compile --fqbn "$1" --output-dir "build/$2" "$2"
+          cp "build/$2/$2.ino.hex" "dist/$2.hex"
+          zip -q -r "dist/$2-source.zip" "$2"
+        done
+        ls -l dist
+
+    - name: Publication
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: firmwares
+        name: Firmwares GotoAndrivet
+        make_latest: false
+        body: |
+          Firmwares des cartes, prêts à flasher. Normalement, le configurateur de GotoAndrivet compile et flashe
+          les cartes lui-même : ces fichiers servent si vous ne pouvez pas l'utiliser.
+
+          | Carte | Fichier à flasher | Sources (IDE Arduino) |
+          | --- | --- | --- |
+          | Monture, Arduino Mega 2560 | `mega_monture.hex` | `mega_monture-source.zip` |
+          | Monture, Teensy 4.1 | `teensy_monture.hex` | `teensy_monture-source.zip` |
+          | Raquette, Teensy 4.1 | `teensy_raquette.hex` | `teensy_raquette-source.zip` |
+
+          - **Arduino Mega** : `avrdude -p atmega2560 -c wiring -P /dev/ttyACM0 -b 115200 -D -U flash:w:mega_monture.hex:i`
+          - **Teensy** : avec Teensy Loader (https://www.pjrc.com/teensy/loader.html), « File → Open HEX File », puis bouton de la carte.
+          - Sources : bibliothèques TinyGPSPlus et LiquidCrystal I2C à installer dans l'IDE Arduino.
+
+          Après un premier flashage, réglez la monture avec le configurateur (type de monture, rapports d'engrenage, micro-pas).
+        files: dist/*

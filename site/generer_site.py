@@ -34,7 +34,15 @@ SITE = "https://goto-andrivet.duckdns.org"          # adresse publique : liens c
 CONTACT = ("jeanbaptisteandrivet", "gmail.com")    # adresse de contact, en deux morceaux contre les robots
 GITHUB = f"https://github.com/{REPO}"
 RELEASE = f"{GITHUB}/releases/latest/download"
-FICHIERS = ("GotoAndrivet.deb", "Install_Goto_Universal")
+FIRMWARES = f"{GITHUB}/releases/download/firmwares"
+CARTES = (("mega_monture", "Monture, Arduino Mega 2560"), ("teensy_monture", "Monture, Teensy 4.1"),
+          ("teensy_raquette", "Raquette, Teensy 4.1"))
+# Fichiers copiés sur le site depuis les publications GitHub : nom -> adresse
+FICHIERS = {"GotoAndrivet.deb": f"{RELEASE}/GotoAndrivet.deb",
+            "Install_Goto_Universal": f"{RELEASE}/Install_Goto_Universal"}
+for _carte, _ in CARTES:
+    FICHIERS[f"{_carte}.hex"] = f"{FIRMWARES}/{_carte}.hex"
+    FICHIERS[f"{_carte}-source.zip"] = f"{FIRMWARES}/{_carte}-source.zip"
 COMMANDE = "wget -qO- https://raw.githubusercontent.com/jbandrivet/goto_mega/main/installer.sh | sh"
 ICI = Path(__file__).resolve().parent
 
@@ -123,8 +131,8 @@ def miroir(sortie):
     except (OSError, ValueError):
         etat = {}
     changes = []
-    for nom in FICHIERS:
-        req = urllib.request.Request(f"{RELEASE}/{nom}", headers={"User-Agent": "GotoAndrivet-Site/1.0"})
+    for nom, url in FICHIERS.items():
+        req = urllib.request.Request(url, headers={"User-Agent": "GotoAndrivet-Site/1.0"})
         try:
             with urllib.request.urlopen(req, timeout=60) as r:
                 signe = [r.headers.get("Content-Length"), r.headers.get("Last-Modified")]
@@ -394,14 +402,22 @@ def taille(p):
 
 def page_telecharger(sortie, version):
     local = sortie / "telechargements"
+    def lien(nom, texte):
+        f = local / nom
+        if f.exists():
+            return f'<a href="telechargements/{nom}" download>{texte}</a> <span class="petit">({taille(f)})</span>'
+        return f'<a href="{FICHIERS[nom]}">{texte}</a>'
+    lignes_firmwares = "\n".join(
+        f"<tr><td>{html.escape(carte)}</td><td>{lien(f'{nom}.hex', f'{nom}.hex')}</td>"
+        f"<td>{lien(f'{nom}-source.zip', 'sources .zip')}</td></tr>" for nom, carte in CARTES)
     def bouton(nom, texte):
         f = local / nom
         if f.exists():
             date = datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m/%Y")
             return (f'<a class="bouton" href="telechargements/{nom}" download>► {texte}</a>'
                     f'<p class="petit">{taille(f)}, publié le {date} · '
-                    f'<a href="{RELEASE}/{nom}">ou depuis GitHub</a></p>')
-        return f'<a class="bouton" href="{RELEASE}/{nom}">► {texte}</a><p class="petit">depuis GitHub</p>'
+                    f'<a href="{FICHIERS[nom]}">ou depuis GitHub</a></p>')
+        return f'<a class="bouton" href="{FICHIERS[nom]}">► {texte}</a><p class="petit">depuis GitHub</p>'
     contenu = f"""<section class="panneau">
 <h1>Télécharger</h1>
 <p>La carte du ciel avec le GoTo, la caméra et le guidage, et le configurateur de la monture s'installent
@@ -432,6 +448,23 @@ GotoAndrivet s'installe dans votre dossier personnel (quelques minutes), puis s'
 <h2><span class="pastille">3</span> En une commande</h2>
 <p>Dans un terminal :</p>
 <pre><code>{html.escape(COMMANDE)}</code></pre>
+</section>
+<section class="panneau">
+<h2>Firmwares des cartes</h2>
+<p>Normalement, le configurateur compile et flashe les cartes lui-même. Si jamais vous ne pouvez pas l'utiliser,
+voici les firmwares prêts à flasher, et leurs sources pour l'IDE Arduino.</p>
+<div class="tableau"><table>
+<tr><th>Carte</th><th>Fichier à flasher</th><th>Sources</th></tr>
+{lignes_firmwares}
+</table></div>
+<ul>
+<li><strong>Arduino Mega</strong> : <code>avrdude -p atmega2560 -c wiring -P /dev/ttyACM0 -b 115200 -D -U flash:w:mega_monture.hex:i</code></li>
+<li><strong>Teensy</strong> : avec <a href="https://www.pjrc.com/teensy/loader.html">Teensy Loader</a>,
+« File → Open HEX File », puis appui sur le bouton de la carte.</li>
+<li><strong>Sources</strong> : installez les bibliothèques TinyGPSPlus et LiquidCrystal I2C dans l'IDE Arduino.</li>
+</ul>
+<p class="petit">Après un premier flashage, réglez la monture avec le configurateur : type de monture, rapports
+d'engrenage, micro-pas.</p>
 </section>
 <section class="panneau">
 <h2>Prérequis</h2>
