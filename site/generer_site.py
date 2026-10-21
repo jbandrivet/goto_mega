@@ -30,6 +30,7 @@ from pathlib import Path
 import markdown
 
 REPO = "jbandrivet/goto_mega"
+SITE = "https://goto-andrivet.duckdns.org"          # adresse publique : liens canoniques, plan du site
 GITHUB = f"https://github.com/{REPO}"
 RELEASE = f"{GITHUB}/releases/latest/download"
 FICHIERS = ("GotoAndrivet.deb", "Install_Goto_Universal")
@@ -53,6 +54,23 @@ LIENS = (("OnStep", "https://onstep.groups.io/g/main/wiki"), ("KStars et Ekos", 
 BADGES = (("LINUX", "inside", "#000", "#ffcc00"), ("PYTHON", "powered", "#306998", "#ffd43b"),
           ("GPL v3", "libre !", "#a00", "#fff"), ("ARDUINO", "&amp; Teensy", "#00979d", "#fff"))
 JOURNAUX = Path("/var/log/nginx")
+
+# Description de chaque page pour les moteurs de recherche (balise description et aperçus de partage)
+DESCRIPTIONS = {
+    "index.html": "GotoAndrivet, contrôleur GoTo libre et gratuit pour télescopes : carte du ciel, GoTo, caméra ZWO, "
+                  "astrométrie, guidage, dérotateur et focuseur, montures AltAz et équatoriales, Arduino Mega ou Teensy.",
+    "telecharger.html": "Télécharger GotoAndrivet pour Linux : paquet .deb pour Ubuntu et Debian, installateur pour les "
+                        "autres distributions ou installation en une commande.",
+    "documentation.html": "Documentation de GotoAndrivet : installation, structure du projet, câblage de la monture, "
+                          "cartes Mega et Teensy, flashage et matériel compatible.",
+    "raquette.html": "Mode d'emploi de la raquette Teensy de GotoAndrivet : menus, catalogues, GoTo, parking et suivi "
+                     "sans ordinateur.",
+    "fiche-technique.html": "Fiche technique de GotoAndrivet : architecture Mega ou Teensy, communication LX200/OnStep, "
+                            "schéma de câblage, drivers et paramètres mécaniques.",
+    "nouveautes.html": "Les dernières nouveautés de GotoAndrivet, contrôleur GoTo libre pour télescopes.",
+    "contribuer.html": "Contribuer à GotoAndrivet : signaler un problème, proposer une modification, règles du projet "
+                       "et licence GPL v3.",
+}
 
 FONCTIONS = (
     ("✦", "Carte du ciel et GoTo", "Étoiles, constellations, planètes, Messier, NGC, IC et Caldwell, précessés à la date. "
@@ -183,8 +201,39 @@ def compteur(sortie, journaux=None):
 
 
 # ── Mise en page ──────────────────────────────────────────────
+def url_page(href):
+    return f"{SITE}/" if href == "index.html" else f"{SITE}/{href}"
+
+
+def donnees_structurees():
+    """Fiche « logiciel » lisible par les moteurs de recherche (schema.org, JSON-LD)."""
+    return json.dumps({
+        "@context": "https://schema.org", "@type": "SoftwareApplication", "name": "GotoAndrivet",
+        "description": DESCRIPTIONS["index.html"], "url": f"{SITE}/", "inLanguage": "fr",
+        "applicationCategory": "UtilitiesApplication", "operatingSystem": "Linux",
+        "downloadUrl": f"{SITE}/telecharger.html", "softwareHelp": f"{SITE}/documentation.html",
+        "license": "https://www.gnu.org/licenses/gpl-3.0.html", "sameAs": GITHUB,
+        "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
+    }, ensure_ascii=False)
+
+
 def page(titre, actif, contenu, version):
     sha, date, dernier, visiteurs = version
+    titre_complet = "GotoAndrivet : contrôleur GoTo libre pour télescopes" if actif == "index.html" \
+        else f"{titre} · GotoAndrivet"
+    description = DESCRIPTIONS.get(actif, DESCRIPTIONS["index.html"])
+    if actif:
+        tete = (f'<link rel="canonical" href="{url_page(actif)}">\n'
+                f'<meta property="og:type" content="website">\n'
+                f'<meta property="og:site_name" content="GotoAndrivet">\n'
+                f'<meta property="og:title" content="{html.escape(titre_complet)}">\n'
+                f'<meta property="og:description" content="{html.escape(description)}">\n'
+                f'<meta property="og:url" content="{url_page(actif)}">\n'
+                f'<meta property="og:locale" content="fr_FR">')
+        if actif == "index.html":
+            tete += f'\n<script type="application/ld+json">{donnees_structurees()}</script>'
+    else:
+        tete = '<meta name="robots" content="noindex">'          # page d'erreur
     nav = "\n".join(f'<a class="bouton95{" actif" if href == actif else ""}" href="{href}">► {html.escape(nom)}</a>'
                     for href, nom in MENU)
     liens = "\n".join(f'<li><a href="{u}">{html.escape(n)}</a></li>' for n, u in LIENS)
@@ -199,8 +248,9 @@ def page(titre, actif, contenu, version):
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{html.escape(titre)} · GotoAndrivet</title>
-<meta name="description" content="GotoAndrivet : contrôleur GoTo libre pour télescopes, carte du ciel, caméra, astrométrie et guidage.">
+<title>{html.escape(titre_complet)}</title>
+<meta name="description" content="{html.escape(description)}">
+{tete}
 <link rel="icon" href="statique/icone.svg" type="image/svg+xml">
 <link rel="stylesheet" href="statique/style.css">
 </head>
@@ -439,6 +489,29 @@ def page_404(version):
     return page("Page introuvable", "", contenu, version)
 
 
+# ── Plan du site et consignes aux robots ──────────────────────
+def plan_du_site(depot):
+    """sitemap.xml : les pages publiques, datées par la dernière modification de leur source."""
+    sources = {"index.html": None, "telecharger.html": None, "nouveautes.html": None}
+    sources.update({href: fichier for fichier, (href, _) in DOCS.items() if (depot / fichier).exists()})
+    lignes = ['<?xml version="1.0" encoding="UTF-8"?>',
+              '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
+    for href, fichier in sources.items():
+        args = ["log", "-1", "--format=%cs", "--"] + ([fichier] if fichier else [".", ":(exclude)site"])
+        date = git(depot, *args)
+        lignes.append(f"  <url><loc>{url_page(href)}</loc>" + (f"<lastmod>{date}</lastmod>" if date else "") + "</url>")
+    lignes.append("</urlset>")
+    return "\n".join(lignes) + "\n"
+
+
+ROBOTS_TXT = f"""User-agent: *
+Allow: /
+Disallow: /telechargements/
+
+Sitemap: {SITE}/sitemap.xml
+"""
+
+
 # ── Écriture ──────────────────────────────────────────────────
 def ecrire(chemin, texte):
     tmp = chemin.with_name(f".{chemin.name}.tmp")
@@ -474,6 +547,8 @@ def generer(depot, sortie, avec_miroir=False, force=False):
     ecrire(sortie / "telecharger.html", page_telecharger(sortie, version))
     ecrire(sortie / "nouveautes.html", page_nouveautes(commits, version))
     ecrire(sortie / "404.html", page_404(version))
+    ecrire(sortie / "sitemap.xml", plan_du_site(depot))
+    ecrire(sortie / "robots.txt", ROBOTS_TXT)
     for fichier in DOCS:
         if (depot / fichier).exists():
             href, texte = page_doc(depot, fichier, version)
