@@ -1,0 +1,47 @@
+name: Installateur Linux
+
+# Construit Install_Goto_Universal (install_linux.py en un seul exécutable) et le publie dans la version
+# « installateur », derrière un lien stable :
+#   https://github.com/jbandrivet/goto_mega/releases/latest/download/Install_Goto_Universal
+# Lancé seul, l'exécutable télécharge la dernière version de main : il n'a besoin d'être reconstruit
+# que si l'installateur lui-même change.
+on:
+  push:
+    branches: [ main ]
+    paths: [ install_linux.py, mise_a_jour.py, .github/workflows/installateur.yml ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  installateur:
+    runs-on: ubuntu-22.04        # glibc 2.35 : l'exécutable tourne aussi sur des distributions plus anciennes
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Construction
+      run: |
+        python -m pip install --upgrade pip pyinstaller
+        pyinstaller --noconfirm --onefile --name Install_Goto_Universal install_linux.py
+
+    - name: Publication
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: installateur
+        name: Installateur GotoAndrivet (Linux)
+        body: |
+          Installe la carte du ciel et GoTo (GotoAndrivet) et le configurateur, avec leurs raccourcis sur le Bureau.
+
+          1. Téléchargez **Install_Goto_Universal** ci-dessous.
+          2. Clic droit sur le fichier → Propriétés → autorisez son exécution.
+          3. Double-clic, puis « Installer ».
+
+          L'installateur télécharge toujours la dernière version du dépôt. Ensuite, le bouton « Mise à jour » des applications suffit.
+          Prérequis : `sudo apt install python3-venv python3-tk`.
+        files: dist/Install_Goto_Universal
+        make_latest: true
