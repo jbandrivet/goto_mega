@@ -31,6 +31,7 @@ import markdown
 
 REPO = "jbandrivet/goto_mega"
 SITE = "https://goto-andrivet.duckdns.org"          # adresse publique : liens canoniques, plan du site
+CONTACT = ("jeanbaptisteandrivet", "gmail.com")    # adresse de contact, en deux morceaux contre les robots
 GITHUB = f"https://github.com/{REPO}"
 RELEASE = f"{GITHUB}/releases/latest/download"
 FICHIERS = ("GotoAndrivet.deb", "Install_Goto_Universal")
@@ -201,6 +202,14 @@ def compteur(sortie, journaux=None):
 
 
 # ── Mise en page ──────────────────────────────────────────────
+def courriel():
+    """(lien mailto, adresse affichée) en entités HTML : le navigateur les montre et les suit normalement,
+    les robots qui ramassent les adresses dans le texte des pages ne les reconnaissent pas."""
+    adresse = "@".join(CONTACT)
+    code = lambda t: "".join(f"&#{ord(c)};" for c in t)
+    return code("mailto:" + adresse), code(adresse)
+
+
 def url_page(href):
     return f"{SITE}/" if href == "index.html" else f"{SITE}/{href}"
 
@@ -213,6 +222,7 @@ def donnees_structurees():
         "applicationCategory": "UtilitiesApplication", "operatingSystem": "Linux",
         "downloadUrl": f"{SITE}/telecharger.html", "softwareHelp": f"{SITE}/documentation.html",
         "license": "https://www.gnu.org/licenses/gpl-3.0.html", "sameAs": GITHUB,
+        "author": {"@type": "Person", "name": "Jean-Baptiste Andrivet"},
         "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"},
     }, ensure_ascii=False)
 
@@ -239,6 +249,7 @@ def page(titre, actif, contenu, version):
     liens = "\n".join(f'<li><a href="{u}">{html.escape(n)}</a></li>' for n, u in LIENS)
     badges = "\n".join(f'<span class="badge"><b style="background:{fond};color:{texte}">{a}</b><i>{b}</i></span>'
                         for a, b, fond, texte in BADGES)
+    mailto, adresse = courriel()
     compte = ""
     if visiteurs is not None:
         chiffres = "".join(f"<span>{c}</span>" for c in f"{visiteurs:06d}")
@@ -269,6 +280,10 @@ def page(titre, actif, contenu, version):
 <a class="bouton95" href="{GITHUB}">► GitHub</a>
   </nav>
   {compte}
+  <div class="cadre contact">
+    <p class="titre-cadre">Contact</p>
+    <p>✉ <a href="{mailto}">Écrivez-moi !</a><br><span class="adresse">{adresse}</span></p>
+  </div>
   <div class="cadre">
     <p class="titre-cadre">Mes liens astro</p>
     <ul>
@@ -287,6 +302,7 @@ def page(titre, actif, contenu, version):
 <footer>
   <p>GotoAndrivet est un logiciel libre sous licence <a href="{GITHUB}/blob/main/LICENSE">GNU GPL v3</a>
   · code source sur <a href="{GITHUB}">GitHub</a></p>
+  <p>Contact : <a href="{mailto}">{adresse}</a></p>
   <p class="petit">Site mis à jour automatiquement depuis GitHub · version <a href="{GITHUB}/commit/{sha}">{sha[:7]}</a> du {date}</p>
 </footer>
 </div>
