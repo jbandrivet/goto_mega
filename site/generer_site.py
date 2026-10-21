@@ -1,23 +1,29 @@
 #!/usr/bin/env python3
-"""Génère le site de GotoAndrivet à partir du dépôt : pages HTML statiques, style rétro, ciel étoilé.
+"""Génère le site de GotoAndrivet à partir du dépôt : pages HTML statiques, façon page perso des années 90
+sur fond étoilé (titre arc-en-ciel, texte qui défile, boutons Windows 95, compteur de visiteurs).
 
     python3 site/generer_site.py --depot . --sortie /var/www/gotoandrivet [--miroir] [--force]
 
 Les pages reprennent les documents du dépôt (README, manuel de la raquette, fiche technique, guide pour
 contribuer) et l'historique git. Avec --miroir, les fichiers d'installation publiés sur GitHub sont copiés
 dans <sortie>/telechargements, pour que le site reste utilisable même si GitHub ne répond pas ; ils ne sont
-retéléchargés que s'ils ont changé. Sans --force, rien n'est réécrit si le dépôt n'a pas bougé.
+retéléchargés que s'ils ont changé. Le compteur de visiteurs lit les journaux de nginx s'ils sont lisibles
+(groupe adm). Sans --force, rien n'est réécrit si ni le dépôt ni le compteur n'ont bougé.
 Dépendance : python3-markdown.
 """
 import argparse
+import gzip
 import html
 import json
 import os
+import random
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import urllib.request
+import zlib
 from datetime import datetime
 from pathlib import Path
 
@@ -40,6 +46,14 @@ DOCS = {
 MENU = (("index.html", "Accueil"), ("telecharger.html", "Télécharger"), ("documentation.html", "Documentation"),
         ("raquette.html", "Raquette"), ("fiche-technique.html", "Fiche technique"),
         ("nouveautes.html", "Nouveautés"), ("contribuer.html", "Contribuer"))
+
+LIENS = (("OnStep", "https://onstep.groups.io/g/main/wiki"), ("KStars et Ekos", "https://kstars.kde.org/fr/"),
+         ("Stellarium", "https://stellarium.org/fr/"), ("Astrometry.net", "https://astrometry.net/"),
+         ("PHD2 Guiding", "https://openphdguiding.org/"), ("INDI", "https://indilib.org/"))
+BADGES = (("LINUX", "inside", "#000", "#ffcc00"), ("PYTHON", "powered", "#306998", "#ffd43b"),
+          ("GPL v3", "libre !", "#a00", "#fff"), ("ARDUINO", "&amp; Teensy", "#00979d", "#fff"),
+          ("100 %", "fait main", "#408", "#0f0"))
+JOURNAUX = Path("/var/log/nginx")
 
 FONCTIONS = (
     ("✦", "Carte du ciel et GoTo", "Étoiles, constellations, planètes, Messier, NGC, IC et Caldwell, précessés à la date. "
@@ -108,12 +122,77 @@ def miroir(sortie):
     return changes
 
 
+# ── Fond étoilé et compteur de visiteurs ─────────────────────
+def fond_etoiles(chemin, cote=200, graine=1996):
+    """Motif de ciel étoilé à répéter en mosaïque, comme le GIF de fond des pages perso des années 90.
+    PNG écrit à la main (zlib) : aucune image à maintenir dans le dépôt."""
+    rnd = random.Random(graine)
+    px = [[(0, 0, 0)] * cote for _ in range(cote)]
+    def met(x, y, c):
+        px[y % cote][x % cote] = c
+    for _ in range(90):                                        # petites étoiles, plus ou moins brillantes
+        g = rnd.choice((70, 110, 150, 200, 255))
+        met(rnd.randrange(cote), rnd.randrange(cote), (g, g, min(255, g + 30)))
+    for _ in range(9):                                         # étoiles brillantes en croix
+        x, y = rnd.randrange(cote), rnd.randrange(cote)
+        c = rnd.choice(((255, 255, 255), (255, 255, 150), (170, 210, 255), (255, 190, 255)))
+        met(x, y, c)
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            met(x + dx, y + dy, tuple(v * 3 // 5 for v in c))
+        for dx, dy in ((2, 0), (-2, 0), (0, 2), (0, -2)):
+            met(x + dx, y + dy, tuple(v // 4 for v in c))
+    brut = b"".join(b"\x00" + bytes(v for p in ligne for v in p) for ligne in px)
+    def bloc(t, d):
+        return struct.pack(">I", len(d)) + t + d + struct.pack(">I", zlib.crc32(t + d) & 0xFFFFFFFF)
+    chemin.write_bytes(b"\x89PNG\r\n\x1a\n" + bloc(b"IHDR", struct.pack(">IIBBBBB", cote, cote, 8, 2, 0, 0, 0))
+                       + bloc(b"IDAT", zlib.compress(brut, 9)) + bloc(b"IEND", b""))
+
+
+LIGNE_LOG = re.compile(r'^(\S+) \S+ \S+ \[(\d{2}/\w{3}/\d{4}):[^\]]*\] "GET (?:/|/index\.html)(?:\?\S*)? HTTP/[\d.]+" 200 .*"([^"]*)"$')
+ROBOTS = re.compile(r"bot|crawl|spider|slurp|curl|wget|python|headless|monitor", re.I)
+
+
+def compteur(sortie, journaux=None):
+    """Visiteurs de l'accueil : adresses distinctes par jour (robots et scripts exclus), d'après les journaux
+    de nginx. Les jours déjà comptés sont gardés après la rotation des journaux : le total ne redescend jamais.
+    None si les journaux ne sont pas lisibles."""
+    journaux = journaux or JOURNAUX
+    vus, lisible = {}, False
+    for f in sorted(journaux.glob("access.log*")) if journaux.is_dir() else []:
+        try:
+            with (gzip.open if f.suffix == ".gz" else open)(f, "rt", errors="replace") as fh:
+                lisible = True
+                for ligne in fh:
+                    m = LIGNE_LOG.match(ligne.rstrip("\n"))
+                    if m and not ROBOTS.search(m.group(3)):
+                        vus.setdefault(m.group(2), set()).add(m.group(1))
+        except OSError:
+            continue
+    if not lisible:
+        return None
+    chemin = sortie / ".compteur.json"
+    try:
+        jours = json.loads(chemin.read_text())
+    except (OSError, ValueError):
+        jours = {}
+    for jour, adresses in vus.items():
+        jours[jour] = max(jours.get(jour, 0), len(adresses))
+    chemin.write_text(json.dumps(jours))
+    return sum(jours.values())
+
+
 # ── Mise en page ──────────────────────────────────────────────
 def page(titre, actif, contenu, version):
-    actif_cls = ' class="actif"'
-    nav = "\n".join(f'<a href="{href}"{actif_cls if href == actif else ""}>{html.escape(nom)}</a>'
+    sha, date, dernier, visiteurs = version
+    nav = "\n".join(f'<a class="bouton95{" actif" if href == actif else ""}" href="{href}">► {html.escape(nom)}</a>'
                     for href, nom in MENU)
-    sha, date = version
+    liens = "\n".join(f'<li><a href="{u}">{html.escape(n)}</a></li>' for n, u in LIENS)
+    badges = "\n".join(f'<span class="badge"><b style="background:{fond};color:{texte}">{a}</b><i>{b}</i></span>'
+                        for a, b, fond, texte in BADGES)
+    compte = ""
+    if visiteurs is not None:
+        chiffres = "".join(f"<span>{c}</span>" for c in f"{visiteurs:06d}")
+        compte = f'<div class="compteur"><p>Vous êtes le visiteur n°</p><p class="chiffres">{chiffres}</p></div>'
     return f"""<!doctype html>
 <html lang="fr">
 <head>
@@ -125,19 +204,43 @@ def page(titre, actif, contenu, version):
 <link rel="stylesheet" href="statique/style.css">
 </head>
 <body>
-<canvas id="ciel" aria-hidden="true"></canvas>
-<header class="bandeau">
-  <a class="logo" href="index.html"><img src="statique/icone.svg" alt="" width="36" height="36"><span>GOTO<em>ANDRIVET</em></span></a>
-  <nav>{nav}<a class="github" href="{GITHUB}">GitHub ↗</a></nav>
+<div class="page">
+<header class="entete">
+  <p class="scintille" aria-hidden="true"><span>★</span> <span>☆</span> <span>★</span> <span>☆</span> <span>★</span></p>
+  <p class="titre"><a href="index.html">GotoAndrivet</a></p>
+  <p class="sous-titre">~ Le contrôleur GoTo libre pour télescopes ~</p>
+  <marquee class="defile" scrollamount="5">★ Bienvenue sur le site de GotoAndrivet ! ★ Dernière nouveauté, le {date} : {html.escape(dernier)} ★ Logiciel libre et gratuit, sous licence GPL v3 ★ Bon ciel à toutes et à tous ! ★</marquee>
 </header>
-<main>
+<div class="mise-en-page">
+<aside class="menu">
+  <nav>
+{nav}
+<a class="bouton95" href="{GITHUB}">► GitHub</a>
+  </nav>
+  {compte}
+  <div class="cadre">
+    <p class="titre-cadre">Mes liens astro</p>
+    <ul>
+{liens}
+    </ul>
+  </div>
+  <div class="badges">
+{badges}
+  </div>
+</aside>
+<main class="contenu">
 {contenu}
 </main>
+</div>
+<hr class="arc-en-ciel">
 <footer>
   <p>GotoAndrivet est un logiciel libre sous licence <a href="{GITHUB}/blob/main/LICENSE">GNU GPL v3</a>
   · code source sur <a href="{GITHUB}">GitHub</a></p>
   <p class="petit">Site mis à jour automatiquement depuis GitHub · version <a href="{GITHUB}/commit/{sha}">{sha[:7]}</a> du {date}</p>
+  <p class="netscape">Ce site est optimisé pour Netscape Navigator 4.0 en 800 × 600 et 256 couleurs.<br>
+  (Il marche aussi très bien avec Firefox et Chrome.)</p>
 </footer>
+</div>
 <script src="statique/etoiles.js"></script>
 </body>
 </html>
@@ -230,10 +333,10 @@ def page_telecharger(sortie, version):
         f = local / nom
         if f.exists():
             date = datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m/%Y")
-            return (f'<a class="bouton" href="telechargements/{nom}" download>▶ {texte}</a>'
+            return (f'<a class="bouton" href="telechargements/{nom}" download>► {texte}</a>'
                     f'<p class="petit">{taille(f)}, publié le {date} · '
                     f'<a href="{RELEASE}/{nom}">ou depuis GitHub</a></p>')
-        return f'<a class="bouton" href="{RELEASE}/{nom}">▶ {texte}</a><p class="petit">depuis GitHub</p>'
+        return f'<a class="bouton" href="{RELEASE}/{nom}">► {texte}</a><p class="petit">depuis GitHub</p>'
     contenu = f"""<section class="panneau">
 <h1>Télécharger</h1>
 <p>La carte du ciel avec le GoTo, la caméra et le guidage, et le configurateur de la monture s'installent
@@ -277,28 +380,35 @@ GotoAndrivet s'installe dans votre dossier personnel (quelques minutes), puis s'
 
 
 def page_accueil(commits, version):
-    cartes = "\n".join(f'<div class="carte"><div class="symbole">{s}</div><h3>{html.escape(t)}</h3><p>{html.escape(d)}</p></div>'
-                       for s, t, d in FONCTIONS)
-    recents = "\n".join(f'<li><span class="date">{d}</span> {html.escape(t)}</li>' for _, d, t, _ in commits[:5])
-    contenu = f"""<section class="hero">
-  <p class="surtitre">Contrôleur GoTo libre pour télescopes</p>
-  <h1 class="titre">GOTO<br><em>ANDRIVET</em></h1>
-  <p class="accroche">Carte du ciel · GoTo · caméra · astrométrie · guidage<span class="curseur">_</span></p>
-  <div class="actions">
-    <a class="bouton" href="telecharger.html">▶ Télécharger</a>
-    <a class="bouton secondaire" href="{GITHUB}">Code sur GitHub</a>
-  </div>
-  <p class="montures">AltAz · fourche équatoriale · équatoriale allemande</p>
-</section>
-<section class="grille">
-{cartes}
+    lignes = "\n".join(f'<tr><td class="symbole">{sym}</td><td><strong>{html.escape(t)}</strong><br>{html.escape(d)}</td></tr>'
+                        for sym, t, d in FONCTIONS)
+    recents = []
+    for i, (_, d, t, _) in enumerate(commits[:5]):
+        nouveau = ' <span class="clignote">NOUVEAU !</span>' if i == 0 else ""
+        recents.append(f'<li><span class="date">{d}</span> {html.escape(t)}{nouveau}</li>')
+    recents = "\n".join(recents)
+    contenu = f"""<section class="panneau">
+<h1>Bienvenue sur le site de GotoAndrivet !</h1>
+<p>GotoAndrivet pilote votre télescope : monture <strong>AltAz</strong>, à <strong>fourche équatoriale</strong>
+ou <strong>équatoriale allemande</strong>, avec une carte <strong>Arduino Mega</strong> ou <strong>Teensy</strong>.
+Sur l'ordinateur, une carte du ciel envoie la monture sur n'importe quel objet, et s'occupe de la caméra,
+de l'astrométrie et du guidage.</p>
+<p class="centre"><a class="bouton" href="telecharger.html">► Télécharger GotoAndrivet</a></p>
+<div class="chantier"><span>SITE EN CONSTRUCTION</span></div>
+<p class="petit centre">Comme tout bon site des années 90, il ne sera jamais tout à fait fini.</p>
 </section>
 <section class="panneau">
-  <h2>Dernières nouveautés</h2>
-  <ul class="journal court">
+<h2>★ Ce que fait GotoAndrivet ★</h2>
+<table class="fonctions">
+{lignes}
+</table>
+</section>
+<section class="panneau">
+<h2>★ Quoi de neuf ? ★</h2>
+<ul class="journal court">
 {recents}
-  </ul>
-  <p><a href="nouveautes.html">Tout l'historique →</a></p>
+</ul>
+<p><a href="nouveautes.html">Tout l'historique →</a></p>
 </section>"""
     return page("Accueil", "index.html", contenu, version)
 
@@ -309,8 +419,9 @@ def page_nouveautes(commits, version):
         detail = ""
         if corps:
             detail = f"<details><summary>Détails</summary><pre class=\"corps\">{html.escape(corps)}</pre></details>"
+        nouveau = ' <span class="clignote">NOUVEAU !</span>' if not items else ""
         items.append(f'<li><span class="date">{d}</span> <a class="sha" href="{GITHUB}/commit/{sha}">{sha[:7]}</a> '
-                     f'<strong>{html.escape(titre)}</strong>{detail}</li>')
+                     f'<strong>{html.escape(titre)}</strong>{nouveau}{detail}</li>')
     contenu = f"""<section class="panneau">
 <h1>Nouveautés</h1>
 <p>Les dernières modifications du projet, les plus récentes en premier. Elles arrivent chez les utilisateurs
@@ -323,10 +434,10 @@ par le bouton « Mise à jour » des applications.</p>
 
 
 def page_404(version):
-    contenu = """<section class="panneau hero-petit">
-<h1>404</h1>
-<p>Cette page s'est perdue dans l'espace.</p>
-<p><a class="bouton" href="index.html">▶ Retour à l'accueil</a></p>
+    contenu = """<section class="panneau centre">
+<h1>Erreur 404 !</h1>
+<p>Cette page a été aspirée par un trou noir.</p>
+<p><a class="bouton" href="index.html">► Retour à l'accueil</a></p>
 </section>"""
     return page("Page introuvable", "", contenu, version)
 
@@ -339,23 +450,28 @@ def ecrire(chemin, texte):
 
 
 def generer(depot, sortie, avec_miroir=False, force=False):
+    """Régénère le site si besoin. Renvoie None (rien à faire), "compteur" (seul le compteur a changé)
+    ou "contenu"."""
     depot, sortie = Path(depot).resolve(), Path(sortie)
     sortie.mkdir(parents=True, exist_ok=True)
     changes = miroir(sortie) if avec_miroir else []
     sha = git(depot, "rev-parse", "HEAD") or "inconnu"
+    visiteurs = compteur(sortie)
     tampon = sortie / ".version"
-    marque = f"{sha} {sorted(changes)}" if changes else sha
-    if not force and not changes and tampon.exists() and tampon.read_text().split()[0] == sha:
-        return False
+    ancien = tampon.read_text().split() if tampon.exists() else []
+    if not force and not changes and ancien[:2] == [sha, str(visiteurs)]:
+        return None
+    raison = "compteur" if not force and not changes and ancien[:1] == [sha] else "contenu"
     date = git(depot, "log", "-1", "--format=%ad", "--date=format:%d/%m/%Y") or "?"
-    version = (sha, date)
     commits = historique(depot)
+    version = (sha, date, commits[0][2] if commits else "", visiteurs)
 
     statique = sortie / "statique"
     if statique.exists():
         shutil.rmtree(statique)
     shutil.copytree(ICI / "statique", statique)
     shutil.copy2(depot / "icons" / "goto_andrivet.svg", statique / "icone.svg")
+    fond_etoiles(statique / "fond-etoiles.png")
 
     ecrire(sortie / "index.html", page_accueil(commits, version))
     ecrire(sortie / "telecharger.html", page_telecharger(sortie, version))
@@ -365,8 +481,8 @@ def generer(depot, sortie, avec_miroir=False, force=False):
         if (depot / fichier).exists():
             href, texte = page_doc(depot, fichier, version)
             ecrire(sortie / href, texte)
-    ecrire(tampon, marque)
-    return True
+    ecrire(tampon, f"{sha} {visiteurs}")
+    return raison
 
 
 if __name__ == "__main__":
@@ -376,5 +492,5 @@ if __name__ == "__main__":
     ap.add_argument("--miroir", action="store_true", help="copier aussi les fichiers d'installation publiés")
     ap.add_argument("--force", action="store_true", help="tout régénérer même si rien n'a changé")
     a = ap.parse_args()
-    if generer(a.depot, a.sortie, a.miroir, a.force):
+    if generer(a.depot, a.sortie, a.miroir, a.force) == "contenu":      # le compteur seul ne remplit pas le journal
         print(f"{datetime.now():%d/%m/%Y %H:%M} site régénéré ({git(a.depot, 'rev-parse', '--short', 'HEAD')})")
