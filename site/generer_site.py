@@ -51,8 +51,7 @@ LIENS = (("OnStep", "https://onstep.groups.io/g/main/wiki"), ("KStars et Ekos", 
          ("Stellarium", "https://stellarium.org/fr/"), ("Astrometry.net", "https://astrometry.net/"),
          ("PHD2 Guiding", "https://openphdguiding.org/"), ("INDI", "https://indilib.org/"))
 BADGES = (("LINUX", "inside", "#000", "#ffcc00"), ("PYTHON", "powered", "#306998", "#ffd43b"),
-          ("GPL v3", "libre !", "#a00", "#fff"), ("ARDUINO", "&amp; Teensy", "#00979d", "#fff"),
-          ("100 %", "fait main", "#408", "#0f0"))
+          ("GPL v3", "libre !", "#a00", "#fff"), ("ARDUINO", "&amp; Teensy", "#00979d", "#fff"))
 JOURNAUX = Path("/var/log/nginx")
 
 FONCTIONS = (
@@ -394,7 +393,6 @@ ou <strong>équatoriale allemande</strong>, avec une carte <strong>Arduino Mega<
 Sur l'ordinateur, une carte du ciel envoie la monture sur n'importe quel objet, et s'occupe de la caméra,
 de l'astrométrie et du guidage.</p>
 <p class="centre"><a class="bouton" href="telecharger.html">► Télécharger GotoAndrivet</a></p>
-<div class="chantier"><span>SITE EN CONSTRUCTION</span></div>
 </section>
 <section class="panneau">
 <h2>★ Ce que fait GotoAndrivet ★</h2>
