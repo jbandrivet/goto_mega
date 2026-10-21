@@ -9,9 +9,12 @@ Ce projet supporte de manière universelle trois types de montures astronomiques
 
 ## Structure du Projet
 
-* **`goto_andrivet.py`** : L'application principale en Python (interface graphique Tkinter avec carte du ciel interactive, catalogues Messier/NGC/IC/Caldwell et dérotateur).
+* **`goto_andrivet.py`** : L'application principale en Python (interface graphique Tkinter avec carte du ciel interactive : étoiles, constellations, Soleil, Lune et planètes, catalogues Messier/NGC/IC/Caldwell, dérotateur et mise à jour en ligne).
 * **`goto_andrivet_config_tool.py`** : L'utilitaire de configuration en style Windows 95 permettant de régler les coordonnées, vitesses, rapports d'engrenage et de flasher le firmware.
 * **`raquette_virtuelle.py`** : L'émulateur de la raquette Teensy pour piloter le télescope depuis l'ordinateur.
+* **`ciel_donnees.py`** : Les données de la carte du ciel : étoiles du Yale Bright Star Catalogue jusqu'à la magnitude 6,5, lignes et noms des 88 constellations (Stellarium, CC BY-SA 4.0), objets Messier, Caldwell, NGC et IC (OpenNGC, CC BY-SA 4.0). Fichier généré par `outils/generer_ciel_donnees.py` : ne pas le modifier à la main.
+* **`mise_a_jour.py`** : La mise à jour en ligne depuis GitHub, commune à la carte du ciel et à l'utilitaire de configuration.
+* **`outils/`** : Le générateur de `ciel_donnees.py` (il télécharge les catalogues auprès du CDS, de Stellarium et d'OpenNGC).
 * **`mega_monture/`** : Le firmware classique (1 étoile) pour le contrôleur Arduino Mega 2560.
 * **`teensy_monture/`** : Le nouveau firmware haute performance pour contrôleur Teensy 4.1 (Inclut le Modèle de Pointage N-Étoiles par interpolation IDW).
 * **`teensy_raquette/`** : Le firmware C++ pour la raquette physique avec écran LCD (sur Teensy 4.1).
@@ -21,13 +24,13 @@ Ce projet supporte de manière universelle trois types de montures astronomiques
 ## Guide d'Installation & Mode d'Emploi
 
 ### 1. Prérequis
-Pour exécuter les applications graphiques en Python sur votre ordinateur, vous devez disposer de **Python 3**, du module **Tkinter** et de la bibliothèque **pyserial**.
+Pour exécuter les applications graphiques en Python sur votre ordinateur, vous devez disposer de **Python 3**, du module **Tkinter** et de la bibliothèque **pyserial**. La bibliothèque **ephem** est facultative : elle affiche le Soleil, la Lune et les planètes sur la carte du ciel.
 
 Sur Ubuntu / Debian / Raspberry Pi OS, installez-les via votre terminal :
 ```bash
 sudo apt update
 sudo apt install python3 python3-tk python3-pip
-pip3 install pyserial
+pip3 install pyserial ephem
 ```
 
 ### 2. Démarrage des Applications

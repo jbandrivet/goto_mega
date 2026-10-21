@@ -34,6 +34,7 @@ bool temp_displayRaDec = true;
 
 int dt_y=2026, dt_m=1, dt_d=1;
 int dt_hr=12, dt_min=0, dt_sec=0;
+double utcOffLx = 0.0;   // :GG de la monture (LX200) : heures a ajouter a l'heure locale pour obtenir l'UTC
 int cgo_ra_h=0, cgo_ra_m=0, cgo_ra_s=0;
 int cgo_dec_d=0, cgo_dec_m=0, cgo_dec_s=0;
 bool cgo_dec_neg=false;
@@ -1365,7 +1366,34 @@ void pollMega(){
 // ============================================================
 // SECTION 8 : COMMANDES VERS MEGA
 // ============================================================
-void cmd_goto(double ra_h, double dec_d){
+// Precession IAU 1976 : J2000 -> equinoxe de la date de la raquette. Les catalogues de la
+// raquette sont en J2000, la monture (comme LX200/OnStep) travaille en coordonnees de la
+// date : sans precession, l'ecart atteint 0,37 deg en 2026.
+void precessToDate(double &ra_h, double &dec_d){
+    double T = (julian_date(dt_y, dt_m, dt_d, 12.0) - 2451545.0) / 36525.0;
+    double zeta = (2306.2181*T + 0.30188*T*T + 0.017998*T*T*T) / 3600.0 * DEGRAD;
+    double z    = (2306.2181*T + 1.09468*T*T + 0.018203*T*T*T) / 3600.0 * DEGRAD;
+    double th   = (2004.3109*T - 0.42665*T*T - 0.041833*T*T*T) / 3600.0 * DEGRAD;
+    double a = ra_h * 15.0 * DEGRAD + zeta, d = dec_d * DEGRAD;
+    double A = cos(d) * sin(a);
+    double B = cos(th) * cos(d) * cos(a) - sin(th) * sin(d);
+    double C = sin(th) * cos(d) * cos(a) + cos(th) * sin(d);
+    ra_h  = rev((atan2(A, B) + z) * RADEG) / 15.0;
+    dec_d = atan2(C, sqrt(A*A + B*B)) * RADEG;
+}
+
+// Synchronisation sur une cible ; ofDate : coordonnees deja de la date (Systeme solaire)
+void cmd_sync_on(double ra_h, double dec_d, bool ofDate){
+    if (!ofDate) precessToDate(ra_h, dec_d);
+    mega_cmd(":Sr"+formatRA(ra_h));
+    mega_cmd(":Sd"+formatDEC(dec_d));
+    mega_cmd(":CM");
+}
+
+// GoTo ; ofDate : coordonnees deja de la date (Systeme solaire), sinon J2000 (catalogues).
+// La cible est gardee en coordonnees de la date, comme :Gr/:Gd de la monture (reprise, temps restant).
+void cmd_goto(double ra_h, double dec_d, bool ofDate){
+    if (!ofDate) precessToDate(ra_h, dec_d);
     targetRA = ra_h;
     targetDEC = dec_d;
     if (currentCat == CAT_SYSSOL && !selectedIsStar) {
@@ -1451,6 +1479,8 @@ void syncDataFromMega() {
     String glon = mega_cmd(":Gg#");
 
     String gs = mega_cmd(":GS#");
+    String gg = mega_cmd(":GG#");
+    if (gg.length() >= 2) utcOffLx = gg.toFloat();
 
     if(gt.length() >= 8 && gc.length() >= 8) {
         dt_hr = gt.substring(0,2).toInt();
@@ -1495,7 +1525,8 @@ uint32_t getCatalogCount(CatID c){
         case CAT_BSC:      return BSC_COUNT;
         case CAT_SYSSOL:
             if(!timeFetched) { syncDataFromMega(); timeFetched = true; }
-            computeSysSol(dt_y, dt_m, dt_d, dt_hr, dt_min, dt_sec);
+            // dt_* est l'heure locale de la monture (:GL) ; les ephemerides veulent l'UTC (UTC = locale + :GG)
+            computeSysSol(dt_y, dt_m, dt_d, dt_hr, dt_min, dt_sec + (int)lround(utcOffLx * 3600.0));
             return SYSSOL_COUNT;
         default: return 0;
     }
@@ -2291,13 +2322,7 @@ void handleButtons(){
                     showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_OBJECT_INFO);
                     return;
                 }
-                char buf[16];
-                int hr=(int)ra, mn=(int)((ra-hr)*60), sc=(int)((ra-hr-mn/60.0)*3600);
-                snprintf(buf,16,":Sr%02d:%02d:%02d#",hr,mn,sc); mega_cmd(buf);
-                bool n=dec<0; double d=abs(dec);
-                int deg=(int)d; mn=(int)((d-deg)*60); sc=(int)((d-deg-mn/60.0)*3600);
-                snprintf(buf,16,":Sd%c%02d*%02d:%02d#",n?'-':'+',deg,mn,sc); mega_cmd(buf);
-                mega_cmd(":CM#");
+                cmd_sync_on(ra, dec, currentCat == CAT_SYSSOL);
                 showMessage(isEnglish ? "  SYNCHRONIZED  " : "  SYNCHRONISE   ", "                ", 1500, UI_MAIN);
             }
             if(enter) {
@@ -2321,7 +2346,7 @@ void handleButtons(){
                     return;
                 }
                 trackedObjectName = String(objName);
-                cmd_goto(ra,dec);
+                cmd_goto(ra, dec, currentCat == CAT_SYSSOL);
                 if (isAlignWorkflow) {
                     uiState = UI_ALIGN_CENTER;
                 }
@@ -2434,13 +2459,7 @@ void handleButtons(){
             if(enter) {
                 double ra =selectedIsStar?selectedStar.ra  :selectedObj.ra;
                 double dec=selectedIsStar?selectedStar.dec :selectedObj.dec;
-                char buf[16];
-                int hr=(int)ra, mn=(int)((ra-hr)*60), sc=(int)((ra-hr-mn/60.0)*3600);
-                snprintf(buf,16,":Sr%02d:%02d:%02d#",hr,mn,sc); mega_cmd(buf);
-                bool n=dec<0; double d=abs(dec);
-                int deg=(int)d; mn=(int)((d-deg)*60); sc=(int)((d-deg-mn/60.0)*3600);
-                snprintf(buf,16,":Sd%c%02d*%02d:%02d#",n?'-':'+',deg,mn,sc); mega_cmd(buf);
-                mega_cmd(":CM#");
+                cmd_sync_on(ra, dec, false);
                 showMessage(isEnglish ? "  SYNCHRONIZED  " : "  SYNCHRONISE   ", "                ", 1500, UI_MAIN);
                 isAlignWorkflow = false;
             }
@@ -2644,7 +2663,7 @@ void handleButtons(){
                     showMessage(isEnglish ? " BELOW HORIZON! " : " SOUS HORIZON ! ", "                ", 2000, UI_CUSTOM_GOTO);
                 } else {
                     trackedObjectName = "Manuel";
-                    cmd_goto(ra,dec);
+                    cmd_goto(ra, dec, false);
                 }
             }
             break;

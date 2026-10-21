@@ -94,7 +94,7 @@ WIRING_HANDPAD = (
 
 TRANSLATIONS = {
     "en": {
-        "title": " GotoMega Configuration Utility",
+        "title": " GotoAndrivet Configuration Utility",
         "conn_lf": "Connection Settings",
         "port": "Port:",
         "baud": "Baud:",
@@ -164,7 +164,7 @@ TRANSLATIONS = {
         "wiring_close": "Close",
     },
     "fr": {
-        "title": " Utilitaire de Configuration GotoMega",
+        "title": " Utilitaire de Configuration GotoAndrivet",
         "conn_lf": "Paramètres de Connexion",
         "port": "Port :",
         "baud": "Baud :",
@@ -1517,7 +1517,7 @@ print(json.dumps(res))
                 else:
                     self.ser.close()
                     self.ser = None
-                    messagebox.showerror("Error", "Device on this port did not respond to GotoMega OnStep protocol.")
+                    messagebox.showerror("Error", "Device on this port did not respond to the GotoAndrivet (OnStep) protocol.")
             except Exception as e:
                 if self.ser:
                     self.ser.close()
@@ -2617,7 +2617,7 @@ finally:
                 pass
             self.save_local_settings()
 
-            messagebox.showinfo("Apply Config", "Configuration successfully saved to Arduino Mega!")
+            messagebox.showinfo("Apply Config", "Configuration successfully saved to the mount!")
         except Exception as e:
             self.handle_serial_error(e)
 
