@@ -1,4 +1,4 @@
-// Petites étoiles qui suivent la souris, comme sur les pages perso des années 90. Rien sur écran tactile ;
+// Petites étoiles qui suivent la souris. Rien sur écran tactile ;
 // rien non plus (et texte qui défile arrêté) si le visiteur a demandé moins d'animations.
 (function () {
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {

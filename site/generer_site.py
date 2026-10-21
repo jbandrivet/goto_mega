@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Génère le site de GotoAndrivet à partir du dépôt : pages HTML statiques, façon page perso des années 90
-sur fond étoilé (titre arc-en-ciel, texte qui défile, boutons Windows 95, compteur de visiteurs).
+"""Génère le site de GotoAndrivet à partir du dépôt : pages HTML statiques sur fond étoilé (titre arc-en-ciel,
+texte qui défile, boutons en relief, compteur de visiteurs).
 
     python3 site/generer_site.py --depot . --sortie /var/www/gotoandrivet [--miroir] [--force]
 
 Les pages reprennent les documents du dépôt (README, manuel de la raquette, fiche technique, guide pour
-contribuer) et l'historique git. Avec --miroir, les fichiers d'installation publiés sur GitHub sont copiés
+contribuer) et l'historique git du logiciel (les modifications du seul dossier site/ n'y figurent pas). Avec --miroir, les fichiers d'installation publiés sur GitHub sont copiés
 dans <sortie>/telechargements, pour que le site reste utilisable même si GitHub ne répond pas ; ils ne sont
 retéléchargés que s'ils ont changé. Le compteur de visiteurs lit les journaux de nginx s'ils sont lisibles
 (groupe adm). Sans --force, rien n'est réécrit si ni le dépôt ni le compteur n'ont bougé.
@@ -80,8 +80,10 @@ def git(depot, *args):
 
 
 def historique(depot, n=40):
-    """[(sha, date jj/mm/aaaa, titre, corps)] des n derniers commits."""
-    out = git(depot, "log", f"-n{n}", "--format=%H%x1f%ad%x1f%s%x1f%b%x1e", "--date=format:%d/%m/%Y")
+    """[(sha, date jj/mm/aaaa, titre, corps)] des n derniers commits du logiciel : ceux qui ne touchent que
+    le dossier site/ concernent le site lui-même, pas les utilisateurs, et ne sont pas listés."""
+    out = git(depot, "log", f"-n{n}", "--format=%H%x1f%ad%x1f%s%x1f%b%x1e", "--date=format:%d/%m/%Y",
+              "--", ".", ":(exclude)site")
     commits = []
     for bloc in out.split("\x1e"):
         champs = bloc.strip("\n").split("\x1f")
@@ -124,8 +126,8 @@ def miroir(sortie):
 
 # ── Fond étoilé et compteur de visiteurs ─────────────────────
 def fond_etoiles(chemin, cote=200, graine=1996):
-    """Motif de ciel étoilé à répéter en mosaïque, comme le GIF de fond des pages perso des années 90.
-    PNG écrit à la main (zlib) : aucune image à maintenir dans le dépôt."""
+    """Motif de ciel étoilé à répéter en mosaïque. PNG écrit à la main (zlib) : aucune image à maintenir
+    dans le dépôt."""
     rnd = random.Random(graine)
     px = [[(0, 0, 0)] * cote for _ in range(cote)]
     def met(x, y, c):
@@ -237,8 +239,6 @@ def page(titre, actif, contenu, version):
   <p>GotoAndrivet est un logiciel libre sous licence <a href="{GITHUB}/blob/main/LICENSE">GNU GPL v3</a>
   · code source sur <a href="{GITHUB}">GitHub</a></p>
   <p class="petit">Site mis à jour automatiquement depuis GitHub · version <a href="{GITHUB}/commit/{sha}">{sha[:7]}</a> du {date}</p>
-  <p class="netscape">Ce site est optimisé pour Netscape Navigator 4.0 en 800 × 600 et 256 couleurs.<br>
-  (Il marche aussi très bien avec Firefox et Chrome.)</p>
 </footer>
 </div>
 <script src="statique/etoiles.js"></script>
@@ -395,7 +395,6 @@ Sur l'ordinateur, une carte du ciel envoie la monture sur n'importe quel objet, 
 de l'astrométrie et du guidage.</p>
 <p class="centre"><a class="bouton" href="telecharger.html">► Télécharger GotoAndrivet</a></p>
 <div class="chantier"><span>SITE EN CONSTRUCTION</span></div>
-<p class="petit centre">Comme tout bon site des années 90, il ne sera jamais tout à fait fini.</p>
 </section>
 <section class="panneau">
 <h2>★ Ce que fait GotoAndrivet ★</h2>

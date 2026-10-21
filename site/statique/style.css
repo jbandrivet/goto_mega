@@ -1,5 +1,5 @@
-/* Site de GotoAndrivet : page perso des années 90. Fond étoilé en mosaïque, titre arc-en-ciel, texte qui
-   défile, boutons Windows 95, cadres en relief, compteur de visiteurs, badges 88 × 31. */
+/* Site de GotoAndrivet : fond étoilé en mosaïque, titre arc-en-ciel, texte qui défile, boutons et cadres
+   en relief, compteur de visiteurs, badges 88 × 31. */
 body {
   margin: 0; background: #000 url("fond-etoiles.png"); color: #fff;
   font-family: "Times New Roman", Times, "Liberation Serif", "DejaVu Serif", serif; font-size: 18px; line-height: 1.45;
@@ -73,7 +73,7 @@ h4 { color: #00ffff; }
 .clignote { color: #ff0000; font-weight: bold; font-family: Arial, sans-serif; background: #ffff00; padding: 0 4px;
   animation: clignote 1s steps(1) infinite; }
 @keyframes clignote { 50% { visibility: hidden; } }
-.chantier { margin: 14px auto 2px; max-width: 420px; padding: 7px; text-align: center;
+.chantier { margin: 14px auto 6px; max-width: 420px; padding: 7px; text-align: center;
   background: repeating-linear-gradient(-45deg, #ffcc00 0 14px, #000 14px 28px); border: 2px solid #ffcc00; }
 .chantier span { background: #ffcc00; color: #000; font-family: "Arial Black", Arial, sans-serif; font-weight: 900; padding: 2px 10px; letter-spacing: 1px; }
 table.fonctions { border: none; width: 100%; }
@@ -116,7 +116,6 @@ td { background: #000022; }
 /* ── Pied de page ── */
 footer { text-align: center; font-size: 15px; color: #c0c0c0; }
 footer p { margin: 4px 0; }
-.netscape { margin-top: 10px; font-family: Arial, sans-serif; font-size: 12px; color: #808080; }
 
 /* ── Étoiles qui suivent la souris ── */
 .paillette { position: absolute; z-index: 99; pointer-events: none; font-size: 15px; line-height: 1;
