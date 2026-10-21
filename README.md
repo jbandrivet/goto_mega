@@ -11,12 +11,17 @@ Ce projet supporte de manière universelle trois types de montures astronomiques
 
 La carte du ciel et GoTo (**GotoAndrivet**) et le **configurateur** s'installent ensemble, avec leurs raccourcis sur le Bureau et dans le menu des applications. L'installateur prend toujours la dernière version du dépôt ; ensuite, le bouton « Mise à jour » des applications suffit.
 
-**[⬇ Télécharger l'installateur Linux](https://github.com/jbandrivet/goto_mega/releases/latest/download/Install_Goto_Universal)**, puis, dans le dossier Téléchargements :
+**Ubuntu et Debian, le plus simple : [⬇ Télécharger GotoAndrivet.deb](https://github.com/jbandrivet/goto_mega/releases/latest/download/GotoAndrivet.deb)**
+
+1. Double-cliquez sur le fichier téléchargé : le Centre d'applications s'ouvre. Cliquez sur **Installer** (votre mot de passe est demandé).
+2. Ouvrez **GotoAndrivet - Carte du ciel** depuis le menu des applications. La première fois, GotoAndrivet s'installe dans votre dossier personnel (quelques minutes), puis s'ouvre.
+
+**Autres distributions : [⬇ Télécharger l'installateur Linux](https://github.com/jbandrivet/goto_mega/releases/latest/download/Install_Goto_Universal)**, puis, dans le dossier Téléchargements :
 
 1. clic droit sur `Install_Goto_Universal` → **Propriétés** → activez **Exécutable comme programme** ;
 2. clic droit → **Exécuter comme un programme**, puis « Installer ».
 
-Sur les Ubuntu récents, le double-clic ne lance pas un programme téléchargé : il propose de chercher une application dans le Centre d'applications, qui ne trouve rien. Passez par le clic droit.
+Le double-clic ne lance pas un programme téléchargé : il propose de chercher une application dans le Centre d'applications, qui ne trouve rien. Passez par le clic droit.
 
 Ou en une seule commande, dans un terminal :
 
@@ -24,7 +29,7 @@ Ou en une seule commande, dans un terminal :
 wget -qO- https://raw.githubusercontent.com/jbandrivet/goto_mega/main/installer.sh | sh
 ```
 
-Prérequis : `sudo apt install python3-venv python3-tk`. Pour le module caméra : `sudo apt install astrometry.net astrometry-data-tycho2` et le SDK caméra de ZWO.
+Prérequis pour l'installateur et la commande (le paquet .deb les installe tout seul) : `sudo apt install python3-venv python3-tk`. Pour le module caméra : `sudo apt install astrometry.net astrometry-data-tycho2` et le SDK caméra de ZWO.
 
 ---
 

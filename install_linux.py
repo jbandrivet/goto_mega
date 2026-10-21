@@ -6,8 +6,9 @@ Lancé depuis le dossier du projet, il installe les fichiers de ce dossier. Lanc
 la page GitHub, ou par la commande de installer.sh), il télécharge la dernière version de la branche main,
 comme le bouton « Mise à jour » des applications.
 
-    python3 install_linux.py            fenêtre d'installation
-    python3 install_linux.py --auto     installation dans le terminal, sans fenêtre
+    python3 install_linux.py                       fenêtre d'installation
+    python3 install_linux.py --auto                installation dans le terminal, sans fenêtre
+    python3 install_linux.py --premier-lancement   fenêtre qui installe seule (lanceur du paquet .deb)
 """
 import shutil
 import subprocess
@@ -85,28 +86,38 @@ def run_terminal():
     return 0
 
 
-def run_window():
+def run_window(first_launch=False):
+    """Fenêtre d'installation. first_launch : appelée par le lanceur du paquet .deb à la première ouverture
+    d'une application ; l'installation démarre seule et la fenêtre se ferme à la fin. Renvoie 0 si installé."""
     import tkinter as tk
     from tkinter import messagebox, ttk
 
     class InstallerApp(tk.Tk):
         def __init__(self):
             super().__init__()
+            self.done = False
             self.title("Installation de GotoAndrivet (Linux)")
             self.geometry("520x360")
             self.configure(bg="#f0f0f0")
             tk.Label(self, text="Installation de GotoAndrivet", font=("Arial", 16, "bold"), bg="#f0f0f0").pack(pady=20)
-            origin = "les fichiers de ce dossier" if (source_dir() / "goto_andrivet.py").exists() \
-                else "la dernière version depuis GitHub"
-            tk.Label(self, text="Cet assistant installe " + origin + "\ndans un environnement isolé, sans modifier "
-                     "votre système.\n\nIl crée deux raccourcis sur votre bureau :\nla carte du ciel et le configurateur.",
-                     bg="#f0f0f0", justify="center").pack(pady=10)
+            if first_launch:
+                text = ("Première ouverture : GotoAndrivet s'installe dans votre dossier personnel,\n"
+                        "avec la dernière version depuis GitHub.\n\nCela prend quelques minutes, "
+                        "puis l'application s'ouvre.")
+            else:
+                origin = "les fichiers de ce dossier" if (source_dir() / "goto_andrivet.py").exists() \
+                    else "la dernière version depuis GitHub"
+                text = ("Cet assistant installe " + origin + "\ndans un environnement isolé, sans modifier "
+                        "votre système.\n\nIl crée deux raccourcis sur votre bureau :\nla carte du ciel et le configurateur.")
+            tk.Label(self, text=text, bg="#f0f0f0", justify="center").pack(pady=10)
             self.progress = ttk.Progressbar(self, orient="horizontal", length=400, mode="determinate")
             self.progress.pack(pady=20)
             self.status_lbl = tk.Label(self, text="Prêt à installer.", bg="#f0f0f0")
             self.status_lbl.pack(pady=5)
             self.btn_install = tk.Button(self, text="Installer", command=self.start_install, font=("Arial", 12, "bold"))
             self.btn_install.pack(pady=20)
+            if first_launch:
+                self.after(300, self.start_install)
 
         def start_install(self):
             self.btn_install.config(state="disabled")
@@ -115,9 +126,11 @@ def run_window():
         def run_install(self):
             try:
                 install(self.update_status)
+                self.done = True
                 def on_success():
-                    messagebox.showinfo("Succès", "L'installation est terminée.\n"
-                                        "Vous pouvez maintenant lancer l'application depuis votre Bureau !")
+                    if not first_launch:
+                        messagebox.showinfo("Succès", "L'installation est terminée.\n"
+                                            "Vous pouvez maintenant lancer l'application depuis votre Bureau !")
                     self.destroy()
                 self.after(0, on_success)
             except Exception as e:
@@ -129,9 +142,12 @@ def run_window():
             self.after(0, lambda: self.status_lbl.config(text=text))
             self.after(0, lambda: self.progress.config(value=val))
 
-    InstallerApp().mainloop()
-    return 0
+    app = InstallerApp()
+    app.mainloop()
+    return 0 if app.done else 1
 
 
 if __name__ == "__main__":
-    sys.exit(run_terminal() if "--auto" in sys.argv else run_window())
+    if "--auto" in sys.argv:
+        sys.exit(run_terminal())
+    sys.exit(run_window(first_launch="--premier-lancement" in sys.argv))

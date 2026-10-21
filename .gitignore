@@ -34,3 +34,6 @@ fp-info-cache
 
 # Sauvegardes automatiques FreeCAD
 *.FCBak
+
+# Paquets et exécutables construits
+dist/
