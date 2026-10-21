@@ -27,6 +27,7 @@ Prérequis : `sudo apt install python3-venv python3-tk`. Pour le module caméra 
 
 * **`goto_andrivet.py`** : L'application principale en Python (interface graphique Tkinter avec carte du ciel interactive : étoiles, constellations, Soleil, Lune et planètes, catalogues Messier/NGC/IC/Caldwell, dérotateur et mise à jour en ligne).
 * **`photo.py`** : Le module caméra de la carte du ciel (caméra ZWO ou simulée, photos FITS, astrométrie locale avec solve-field, correction après GoTo, modèle de pointage, angle de cadrage).
+* **`guidage.py`** : Le module de guidage de la carte du ciel (deuxième caméra ZWO ou simulée, calibration automatique, corrections envoyées par le PC à la monture, courbe des erreurs, dithering entre les poses).
 * **`goto_andrivet_config_tool.py`** : L'utilitaire de configuration en style Windows 95 permettant de régler les coordonnées, vitesses, rapports d'engrenage et de flasher le firmware.
 * **`raquette_virtuelle.py`** : L'émulateur de la raquette Teensy pour piloter le télescope depuis l'ordinateur.
 * **`ciel_donnees.py`** : Les données de la carte du ciel : étoiles du Yale Bright Star Catalogue jusqu'à la magnitude 6,5, lignes et noms des 88 constellations (Stellarium, CC BY-SA 4.0), objets Messier, Caldwell, NGC et IC (OpenNGC, CC BY-SA 4.0). Fichier généré par `outils/generer_ciel_donnees.py` : ne pas le modifier à la main.
