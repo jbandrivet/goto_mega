@@ -783,13 +783,18 @@ class Derotator:
         self.moving=False; self.enabled=False; self.connected=False
         self.offset=0.0; self._mount=None
         self._ser=None; self._th=None; self._running=False
-        self._rev=False
+        self._rev=False; self._force=False
         self._zwo_caa=None
         self.kind=cfg.get("derot_type","integre")
 
     def set_mount(self, m): self._mount=m
 
-    def set_offset(self, o): self.offset=o
+    def set_offset(self, o): self.offset=o; self._force=True
+
+    def compensating(self):
+        """La rotation de champ n'existe qu'en AltAz. En équatoriale le champ ne tourne pas : le dérotateur
+        n'est plus qu'un rotateur de cadrage, commandé à la main ou par le module photo."""
+        return self.enabled and self.cfg.get("mount_type", "AltAz") == "AltAz"
 
     def _mount_ok(self):
         return self._mount is not None and self._mount.state.connected
@@ -803,7 +808,7 @@ class Derotator:
                 return False, "need_mount"
             ppd = float(self.cfg.get("derot_ppd", 100.0))
             self._mount._cmd(f":XDp{ppd:.4f}", reply=False)     # pas par degré de l'axe DEROT
-            self._mount._cmd(":XDe1", reply=False)               # axe actif (le firmware ne le pilote qu'en AltAz)
+            self._mount._cmd(":XDe1", reply=False)               # axe actif : il suit :XDa (compensation en AltAz seulement)
         elif kind == "zwo":
             try:
                 import zwocaa
@@ -856,10 +861,11 @@ class Derotator:
         while self._running:
             if self._mount_ok():
                 self.pa=self._mount.parallactic_angle()
-                if self.enabled:
+                if self.compensating():
                     if self._rev: tgt = (self.pa + self.offset) % 360
                     else: tgt = (-(self.pa + self.offset)) % 360
-                    if last_pa is None or abs(self.pa-last_pa)>0.1:
+                    if self._force or last_pa is None or abs(self.pa-last_pa)>0.1:
+                        self._force=False
                         self.target=tgt; self.moving=True
                         self._apply(tgt)
                         last_pa=self.pa
@@ -895,7 +901,16 @@ class Derotator:
         self._send("STOP\r\n")
 
     def home(self): self.goto_angle(0)
-    def nudge(self, d): self.offset+=d
+
+    def rotate_by(self, d):
+        """Tourne l'angle commandé de d degrés : par le décalage pendant la compensation, sinon directement."""
+        if self.compensating():
+            self.offset += d if self._rev else -d
+            self._force = True
+        else:
+            self.goto_angle(self.target + d)
+
+    def nudge(self, d): self.rotate_by(d)
 
 
 class Focuser:
@@ -1086,6 +1101,7 @@ class SkyMap(tk.Canvas):
         # Monture
         self._saz=0.0; self._salt=2.0; self._sra=0.0; self._sdec=0.0
         self._tracking=False; self._slewing=False; self._connected=False
+        self._cam_fov=None        # (largeur °, hauteur °, rotation ° vers l'Est) du module photo
         self._lst=0.0
         self._lat=cfg.get("latitude",45.764); self._lon=cfg.get("longitude",4.836)
         # Données
@@ -1463,9 +1479,46 @@ class SkyMap(tk.Canvas):
             self.create_oval(px - r, py - r, px + r, py + r, outline="#ffd400", width=w)
         self.create_text(px, py - 26, text=o["name"], fill="#ffd400", font=("Helvetica", 10, "bold"))
 
+    def _draw_camera_fov(self):
+        """Champ de la caméra du module photo, centré sur l'AD/Déc de la monture (coordonnées de la date),
+        orienté par la rotation de la dernière astrométrie ; le petit trait marque le haut de l'image."""
+        if not self._cam_fov: return
+        w, h, rot = self._cam_fov
+        a = self._sra * 15 * DEG; d = self._sdec * DEG
+        c = _vec(self._sra, self._sdec)
+        e = (-math.sin(a), math.cos(a), 0.0)
+        n = (-math.sin(d) * math.cos(a), -math.sin(d) * math.sin(a), math.cos(d))
+        t = rot * DEG
+        up = [math.sin(t) * e[i] + math.cos(t) * n[i] for i in range(3)]
+        right = [-math.cos(t) * e[i] + math.sin(t) * n[i] for i in range(3)]   # Est à gauche, Nord en haut si rot = 0
+        hw, hh = math.tan(w / 2 * DEG), math.tan(h / 2 * DEG)
+
+        def pt(x, y):   # (x, y) dans [-1, 1] : bords de l'image (projection gnomonique inverse)
+            v = [c[i] + x * hw * right[i] + y * hh * up[i] for i in range(3)]
+            k = math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2)
+            return self._pv(self._hz((v[0] / k, v[1] / k, v[2] / k), self._H_mat))
+
+        corners = ((-1, 1), (1, 1), (1, -1), (-1, -1), (-1, 1))
+        pts = []
+        for (x0, y0), (x1, y1) in zip(corners, corners[1:]):
+            pts += [pt(x0 + (x1 - x0) * i / 8, y0 + (y1 - y0) * i / 8) for i in range(8)]
+        if any(p is None for p in pts): return
+        col = "#d77dff"; kw = {"tags": ("scope",)}
+        flat = [v for p in pts + pts[:1] for v in p]
+        self.create_line(*flat, fill=col, width=1.4, **kw)
+        top, tip = pt(0, 1), pt(0, 1.18)
+        if top and tip: self.create_line(*top, *tip, fill=col, width=2, **kw)
+        x0, y0 = pts[0]
+        if math.hypot(pts[8][0] - x0, pts[8][1] - y0) < 70: return     # cadre plus petit que le réticule
+        fr = self._lang() == "fr"
+        size = f"{w * 60:.0f}′ × {h * 60:.0f}′" if w < 2 else f"{w:.1f}° × {h:.1f}°"
+        self.create_text(x0, y0 - 4, text=("Caméra  " if fr else "Camera  ") + size, fill=col,
+                         font=("Helvetica", 9), anchor="sw", **kw)
+
     def _draw_reticule(self):
         """Réticule du télescope."""
         if not self._connected: return
+        self._draw_camera_fov()
         p = self._proj(self._saz, self._salt)
         if not p: return
         px, py = p
@@ -1604,6 +1657,13 @@ class SkyMap(tk.Canvas):
     def set_objects(self, lst):  self._dso=lst;  self.redraw()
     def set_mag(self, m):        self._mag=m;    self.redraw()
     def set_selected(self, obj): self._selected=obj; self.redraw()
+    def set_camera_fov(self, fov): self._cam_fov=fov; self.redraw()
+    def center_radec(self):
+        """AD/Déc J2000 du centre de la carte."""
+        if not hasattr(self, "_c"): self._setup_view()
+        c = self._c; m = self._M      # horizontal = M · J2000, M orthogonale : J2000 = Mᵀ · horizontal
+        v = [m[0][i] * c[0] + m[1][i] * c[1] + m[2][i] * c[2] for i in range(3)]
+        return (math.atan2(v[1], v[0]) * RAD / 15) % 24, math.asin(max(-1.0, min(1.0, v[2]))) * RAD
     def center_on(self, az, alt):
         self._caz=az%360; self._calt=max(1.0,min(89.0,alt)); self.redraw()
 
@@ -1636,6 +1696,10 @@ def _theme(root):
     s.map("GoTo.TButton",background=[("active","#1a5040"),("pressed","#004422")])
     s.configure("Stop.TButton",background="#2a0a10",foreground=RED,padding=6)
     s.map("Stop.TButton",background=[("active","#4a1020")])
+    s.map("TCombobox",fieldbackground=[("readonly",BG3),("disabled",BG)],foreground=[("readonly",TXT),("disabled",DIM)],
+          selectbackground=[("readonly",BG3)],selectforeground=[("readonly",TXT)])
+    root.option_add("*TCombobox*Listbox.background",BG3); root.option_add("*TCombobox*Listbox.foreground",TXT)
+    root.option_add("*TCombobox*Listbox.selectBackground",ACC); root.option_add("*TCombobox*Listbox.selectForeground","white")
     s.configure("TNotebook.Tab",background=BG3,foreground=DIM,padding=(10,4))
     s.map("TNotebook.Tab",background=[("selected",BG2)],foreground=[("selected",ACC)])
     s.configure("Treeview",background=BG3,foreground=TXT,fieldbackground=BG3,rowheight=22)
@@ -1755,6 +1819,8 @@ TRANSLATIONS = {
         "sky_mag_lbl": "Mag :",
         "btn_zenith": "Zenith",
         "btn_scope": "Telescope",
+        "btn_photo": "◉ Camera",
+        "photo_missing": "The photo module needs numpy and Pillow (installed by install_linux.py):\n{err}",
         
         # Derotator Connection Frame
         "derot_conn_frame": "Derotator",
@@ -1764,8 +1830,9 @@ TRANSLATIONS = {
         "dev_connected": "Connected", "dev_disconnected": "Not connected",
         "need_mount": "Connect the mount first: this device is driven through it.",
         "ppd_invalid": "Steps per degree: enter a number.",
-        "derot_note_integre": "DEROT axis of the mount (mount connected). The firmware drives it in AltAz only.",
-        "derot_eq_note": "Equatorial mount: no field rotation to compensate.",
+        "derot_note_integre": "DEROT axis of the mount (mount connected).",
+        "derot_eq_note": "Equatorial: the axis is a framing rotator (firmware of 2026-10-21 or later).",
+        "derot_eq_rotator": "Equatorial mount: the field does not rotate, nothing to compensate. Set the framing angle with the manual control below.",
         "focus_frame": "Focuser", "focus_pos": "Position:", "focus_temp": "Temperature:",
         "focus_move_frame": "Move", "focus_steps": "Steps:", "focus_goto": "Go to:",
         "focus_hold_integre": "Hold a button to move (◀◀ ▶▶: fast). FOCUS axis of the mount, no position readout.",
@@ -1962,6 +2029,8 @@ TRANSLATIONS = {
         "sky_mag_lbl": "Mag :",
         "btn_zenith": "Zénith",
         "btn_scope": "Télescope",
+        "btn_photo": "◉ Caméra",
+        "photo_missing": "Le module photo demande numpy et Pillow (installés par install_linux.py) :\n{err}",
         
         # Derotator Connection Frame
         "derot_conn_frame": "Dérotateur",
@@ -1971,8 +2040,9 @@ TRANSLATIONS = {
         "dev_connected": "Connecté", "dev_disconnected": "Non connecté",
         "need_mount": "Connectez d'abord la monture : ce périphérique passe par elle.",
         "ppd_invalid": "Pas par degré : entrez un nombre.",
-        "derot_note_integre": "Axe DEROT de la monture (monture connectée). Le firmware ne l'anime qu'en AltAz.",
-        "derot_eq_note": "Monture équatoriale : pas de rotation de champ à compenser.",
+        "derot_note_integre": "Axe DEROT de la monture (monture connectée).",
+        "derot_eq_note": "Équatoriale : l'axe sert de rotateur de cadrage (firmware du 21/10/2026 ou plus récent).",
+        "derot_eq_rotator": "Monture équatoriale : le champ ne tourne pas, rien à compenser. Réglez l'angle de cadrage avec le contrôle manuel ci-dessous.",
         "focus_frame": "Focuseur", "focus_pos": "Position :", "focus_temp": "Température :",
         "focus_move_frame": "Déplacement", "focus_steps": "Pas :", "focus_goto": "Aller à :",
         "focus_hold_integre": "Maintenez un bouton pour déplacer (◀◀ ▶▶ : rapide). Axe FOCUS de la monture, sans lecture de position.",
@@ -1983,7 +2053,7 @@ TRANSLATIONS = {
         # Derotator State Frame
         "derot_state_frame": "État",
         "phys_angle": "Angle physique :",
-        "field_angle": "Field angle :",
+        "field_angle": "Angle de champ :",
         
         # Derotator Compensation Frame
         "derot_comp_frame": "Compensation rotation de champ",
@@ -1992,7 +2062,7 @@ TRANSLATIONS = {
         
         # Derotator Manual Control Frame
         "derot_ctrl_manual": "Contrôle manuel",
-        "derot_goto": "Goto angle :",
+        "derot_goto": "Aller à l'angle :",
         "derot_offset": "Offset capteur (°) :",
         
         # Log Frame
@@ -2109,6 +2179,9 @@ class App(tk.Tk):
                      "tgt_ra":tk.StringVar(value="00:00:00"),
                      "tgt_dec":tk.StringVar(value="+00:00:00")}
         self._all_objs = []
+        self._goto_target = None      # (ra, dec J2000, nom) du dernier GoTo, pour le centrage du module photo
+        self._derot_eq = False
+        self._photo_win = None
 
         _theme(self)
         self._build()
@@ -2356,6 +2429,8 @@ class App(tk.Tk):
         self._chk_follow=tk.Checkbutton(ctrl,text="Suivre",variable=self._bv["follow"],command=self._toggle_follow,
                                         bg=BG,fg=DIM,selectcolor=BG3,activebackground=BG,font=FS)
         self._chk_follow.pack(side=tk.LEFT,padx=6)
+        self._btn_photo=ttk.Button(ctrl,text="Photo",command=self._open_photo)
+        self._btn_photo.pack(side=tk.LEFT,padx=2)
         # Mise à jour : bouton toujours visible, pastille rouge quand une version plus récente existe
         self._upd_dot=tk.PhotoImage(width=12,height=12)
         for x in range(12):
@@ -2428,7 +2503,7 @@ class App(tk.Tk):
                  bg=BG2,fg=DIM,font=FS,justify="left",wraplength=260)
         self._lbl_derot_comp_desc.pack(anchor="w",pady=2)
         self._chk_derot_en=tk.Checkbutton(self._frm_derot_comp,text="✓  Activer compensation",variable=self._bv["derot_en"],
-                       bg=BG2,fg=GRN,selectcolor=BG3,activebackground=BG2,
+                       bg=BG2,fg=GRN,disabledforeground=DIM,selectcolor=BG3,activebackground=BG2,
                        font=("Courier",10,"bold"),command=self._toggle_derot)
         self._chk_derot_en.pack(anchor="w",pady=4)
 
@@ -2642,11 +2717,15 @@ class App(tk.Tk):
         dk = self._cur_kind("derot")
         self._ent_derot_ppd.configure(state="normal" if dk == "integre" and not self.derot.connected else "disabled")
         self._ent_derot_port.configure(state="normal" if dk == "serie" and not self.derot.connected else "disabled")
+        eq = self.cfg.get("mount_type", "AltAz") != "AltAz"
+        self._derot_eq = eq
         note = ""
         if dk == "integre":
             note = t["derot_note_integre"]
-            if self.cfg.get("mount_type", "AltAz") != "AltAz": note += "\n" + t["derot_eq_note"]
+            if eq: note += "\n" + t["derot_eq_note"]
         self._lbl_derot_note.configure(text=note)
+        self._chk_derot_en.configure(state="disabled" if eq else "normal")
+        self._lbl_derot_comp_desc.configure(text=t["derot_eq_rotator"] if eq else t["derot_comp_desc"])
         self._btn_derot_connect.configure(text=t["btn_disconnect"] if self.derot.connected else t["btn_connect_derot"])
         self._rv["derot_status"].set(t["dev_connected"] if self.derot.connected else t["dev_disconnected"])
         fk = self._cur_kind("focus")
@@ -2730,6 +2809,7 @@ class App(tk.Tk):
         lang = self.cfg.get("language", "fr")
         self.mount.stop(); self._logw(":Q#  STOP","tx")
         if self.focuser.moving: self.focuser.stop()
+        if self._photo_win: self._photo_win.stop()
         self._status("Arrêt." if lang == "fr" else "Stopped.")
 
     def _parking(self):
@@ -2771,8 +2851,10 @@ class App(tk.Tk):
         self._status(f"GoTo {name}…")
         resp=self.mount.goto(ra,dec)
         if resp.startswith("0"):
+            self._goto_target=(ra,dec,name)
             self._logw(f"GoTo accepté  Az{az:.1f}° Alt{alt:.1f}°","rx")
             self._sky.center_on(az,alt)
+            if self._photo_win: self._photo_win.after_goto()   # astrométrie et correction si l'option est cochée
         else:
             self._logw(f"GoTo refusé : {resp}","err")
             messagebox.showwarning("GoTo", TRANSLATIONS[lang]["msg_goto_rejected"].format(resp=resp))
@@ -2934,7 +3016,7 @@ class App(tk.Tk):
     def _on_derot(self, dr):
         def _ui():
             self._rv["derot_ang"].set(f"{dr.angle:+.1f}°")
-            self._rv["derot_pa"].set(f"{dr.pa:+.1f}°")
+            self._rv["derot_pa"].set(f"{dr.pa:+.1f}°" if not self._derot_eq else "—")
         self.after(0,_ui)
 
     # ════════════════════════════════════════════════════════════
@@ -3115,12 +3197,82 @@ class App(tk.Tk):
         if not self.mount.state.connected:
             self._sky.update_mount(0, 0, 0, 0, False, False, lst, connected=False)
             self._sky.refresh()
+        if (self.cfg.get("mount_type", "AltAz") != "AltAz") != self._derot_eq:
+            self._refresh_devices()           # type de monture lu à la connexion ou changé dans les paramètres
         self.after(1000,self._tick)
 
     # ════════════════════════════════════════════════════════════
     #  FERMETURE
     # ════════════════════════════════════════════════════════════
+    # ════════════════════════════════════════════════════════════
+    #  MODULE PHOTO (photo.py) : caméra, astrométrie, centrage
+    # ════════════════════════════════════════════════════════════
+    def _open_photo(self):
+        if self._photo_win and self._photo_win.winfo_exists():
+            self._photo_win.deiconify(); self._photo_win.lift(); return
+        try:
+            import photo
+        except ImportError as e:
+            messagebox.showerror("Photo", TRANSLATIONS[self.cfg.get("language", "fr")]["photo_missing"].format(err=e))
+            return
+        self._photo_win = photo.PhotoWindow(self, {"BG": BG, "BG2": BG2, "BG3": BG3, "TXT": TXT, "DIM": DIM,
+                                                   "ACC": ACC, "GRN": GRN, "FS": FS})
+        self._photo_win.bind("<Destroy>", lambda e: setattr(self, "_photo_win", None)
+                             if e.widget is self._photo_win else None)
+
+    def photo_pointing(self):
+        """AD/Déc J2000 de la monture, ou None si elle n'est pas connectée."""
+        st = self.mount.state
+        return Astro.precess(st.ra_h, st.dec_d, inverse=True) if st.connected else None
+
+    def photo_sky_center(self):
+        return self._sky.center_radec()
+
+    def photo_altaz_to_radec(self, az, alt):
+        """Az/Alt maintenant -> AD/Déc J2000."""
+        lst = Astro.lst(datetime.now(timezone.utc), self.cfg.get("longitude", 4.836))
+        return Astro.precess(*Astro.horiz_to_eq(az, alt, lst, self.cfg.get("latitude", 45.764)), inverse=True)
+
+    def photo_radec_to_altaz(self, ra, dec):
+        """AD/Déc J2000 -> Az/Alt maintenant."""
+        lst = Astro.lst(datetime.now(timezone.utc), self.cfg.get("longitude", 4.836))
+        return Astro.eq_to_horiz(*Astro.precess(ra, dec), lst, self.cfg.get("latitude", 45.764))
+
+    def photo_clear_model(self):
+        """:CML efface les points de synchronisation du modèle (firmware Teensy)."""
+        resp = self.mount._cmd(":CML")
+        self.after(0, lambda: self._logw(f":CML  modèle de pointage effacé → {resp}", "tx"))
+        return resp
+
+    def photo_rotator_angle(self):
+        return self.derot.angle if self.derot.connected else 0.0
+
+    def photo_target(self):
+        return self._goto_target
+
+    def photo_slewing(self):
+        return self.mount.state.slewing
+
+    def photo_bright_stars(self):
+        return [(ra, dec, mag) for ra, dec, mag, *_ in (CIEL.STARS if CIEL else [])]
+
+    def photo_set_fov(self, fov):
+        self._sky.set_camera_fov(fov)
+
+    def photo_sync(self, ra, dec):
+        """Synchronisation sur la position résolue (J2000), appelée depuis le fil du module photo."""
+        resp = self.mount.sync(ra, dec)
+        self.after(0, lambda: self._logw(f"Sync astrométrie  RA{Astro.fmt_ra(ra)} Dec{Astro.fmt_dec(dec)} → {resp}", "tx"))
+        return resp
+
+    def photo_goto(self, ra, dec, name):
+        resp = self.mount.goto(ra, dec)
+        self.after(0, lambda: self._logw(f"GoTo {name} (centrage)  RA{Astro.fmt_ra(ra)} Dec{Astro.fmt_dec(dec)} → {resp}",
+                                         "tx" if resp.startswith("0") else "err"))
+        return resp
+
     def _quit(self):
+        if self._photo_win: self._photo_win.close()
         self.cfg.save(); self.focuser.disconnect(); self.derot.disconnect(); self.mount.disconnect()
         self.destroy()
 
@@ -3215,6 +3367,7 @@ class App(tk.Tk):
         self._lbl_sky_mag.configure(text=TRANSLATIONS[lang]["sky_mag_lbl"])
         self._btn_zenith.configure(text=TRANSLATIONS[lang]["btn_zenith"])
         self._btn_scope.configure(text=TRANSLATIONS[lang]["btn_scope"])
+        self._btn_photo.configure(text=TRANSLATIONS[lang]["btn_photo"])
         self._chk_follow.configure(text=TRANSLATIONS[lang]["follow_short"])
         self._lbl_search_icon.configure(text=TRANSLATIONS[lang]["search_lbl"])
         self._set_update_badge()
@@ -3240,7 +3393,6 @@ class App(tk.Tk):
         self._lbl_derot_pa.configure(text=TRANSLATIONS[lang]["field_angle"])
         
         self._frm_derot_comp.configure(text=f" {TRANSLATIONS[lang]['derot_comp_frame']} ")
-        self._lbl_derot_comp_desc.configure(text=TRANSLATIONS[lang]["derot_comp_desc"])
         self._chk_derot_en.configure(text=TRANSLATIONS[lang]["derot_comp_enable"])
         
         self._frm_derot_manual.configure(text=f" {TRANSLATIONS[lang]['derot_ctrl_manual']} ")

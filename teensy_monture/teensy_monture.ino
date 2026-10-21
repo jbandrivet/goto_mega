@@ -2934,7 +2934,9 @@ void loop() {
   updateBuzzer();
 
   // Handle Derotator
-  if(derotEnabled && mountType == 0) { // Only in Alt-Az
+  // L'axe suit l'angle :XDa quel que soit le type de monture : le PC y envoie la compensation de
+  // rotation de champ en AltAz, et en equatoriale l'angle de cadrage choisi (rotateur simple).
+  if(derotEnabled) {
     long stepsPerRev = (long)(360.0 * derotPPD);
     long targetPos = (long)(derotTarget * derotPPD);
     long diff = targetPos - derotPos;
