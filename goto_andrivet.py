@@ -444,7 +444,7 @@ class Mount:
                 self._ser.reset_input_buffer()
                 self._ser.write((cmd+"#").encode())
                 if not reply: return ""
-                if cmd.startswith((":Sr", ":Sd", ":St", ":Sg", ":SG", ":SL", ":Bv", ":BV", ":U")):
+                if cmd.startswith((":Sr", ":Sd", ":St", ":Sg", ":SG", ":SL", ":Bv", ":BV", ":U", ":Rg")):
                     return self._ser.read(1).decode(errors='replace').strip()
                 r=b""; dl=time.time()+self.cfg.get("mount_timeout",0.5)
                 while time.time()<dl:
@@ -714,6 +714,15 @@ class Mount:
         if direction not in 'nsew': return
         ms = max(20, min(16399, int(ms)))
         self._cmd(f":Mg{direction}{ms:04d}", reply=False)
+
+    def guide_rate(self):
+        """Vitesse de guidage en × sidéral (:GX90#), 0,5 si la monture ne la donne pas."""
+        try: return float(self._cmd(":GX90"))
+        except ValueError: return 0.5
+
+    def set_guide_rate(self, r):
+        """:Rg<x.xx># (extension GotoAndrivet), entre 0,1 et 1 × sidéral."""
+        return self._cmd(f":Rg{max(0.1, min(1.0, r)):.2f}")
 
     def detect_firmware(self):
         """Détecte le firmware (OnStep ou LX200 générique) à la connexion.
@@ -1820,6 +1829,7 @@ TRANSLATIONS = {
         "btn_zenith": "Zenith",
         "btn_scope": "Telescope",
         "btn_photo": "◉ Camera",
+        "btn_guide": "◎ Guiding",
         "photo_missing": "The photo module needs numpy and Pillow (installed by install_linux.py):\n{err}",
         
         # Derotator Connection Frame
@@ -2030,6 +2040,7 @@ TRANSLATIONS = {
         "btn_zenith": "Zénith",
         "btn_scope": "Télescope",
         "btn_photo": "◉ Caméra",
+        "btn_guide": "◎ Guidage",
         "photo_missing": "Le module photo demande numpy et Pillow (installés par install_linux.py) :\n{err}",
         
         # Derotator Connection Frame
@@ -2182,6 +2193,7 @@ class App(tk.Tk):
         self._goto_target = None      # (ra, dec J2000, nom) du dernier GoTo, pour le centrage du module photo
         self._derot_eq = False
         self._photo_win = None
+        self._guide_win = None
 
         _theme(self)
         self._build()
@@ -2431,6 +2443,8 @@ class App(tk.Tk):
         self._chk_follow.pack(side=tk.LEFT,padx=6)
         self._btn_photo=ttk.Button(ctrl,text="Photo",command=self._open_photo)
         self._btn_photo.pack(side=tk.LEFT,padx=2)
+        self._btn_guide=ttk.Button(ctrl,text="Guidage",command=self._open_guide)
+        self._btn_guide.pack(side=tk.LEFT,padx=2)
         # Mise à jour : bouton toujours visible, pastille rouge quand une version plus récente existe
         self._upd_dot=tk.PhotoImage(width=12,height=12)
         for x in range(12):
@@ -2810,6 +2824,7 @@ class App(tk.Tk):
         self.mount.stop(); self._logw(":Q#  STOP","tx")
         if self.focuser.moving: self.focuser.stop()
         if self._photo_win: self._photo_win.stop()
+        if self._guide_win: self._guide_win.stop()
         self._status("Arrêt." if lang == "fr" else "Stopped.")
 
     def _parking(self):
@@ -2849,6 +2864,7 @@ class App(tk.Tk):
         self._sv["tgt_dec"].set(Astro.fmt_dec_lx(dec))
         self._logw(f"GoTo {name}  RA{Astro.fmt_ra(ra)} Dec{Astro.fmt_dec(dec)}","tx")
         self._status(f"GoTo {name}…")
+        if self._guide_win: self._guide_win.pause_for_goto()
         resp=self.mount.goto(ra,dec)
         if resp.startswith("0"):
             self._goto_target=(ra,dec,name)
@@ -3266,12 +3282,65 @@ class App(tk.Tk):
         return resp
 
     def photo_goto(self, ra, dec, name):
+        if self._guide_win: self._ui_call(self._guide_win.pause_for_goto)
         resp = self.mount.goto(ra, dec)
         self.after(0, lambda: self._logw(f"GoTo {name} (centrage)  RA{Astro.fmt_ra(ra)} Dec{Astro.fmt_dec(dec)} → {resp}",
                                          "tx" if resp.startswith("0") else "err"))
         return resp
 
+    def photo_camera_name(self):
+        w = self._photo_win
+        return w.camera.name if w and w.camera else None
+
+    def _ui_call(self, fn):
+        """Appelle fn dans le fil de Tk et attend qu'elle soit faite (appel depuis un fil de travail)."""
+        if threading.current_thread() is threading.main_thread():
+            return fn()
+        done = threading.Event()
+        self.after(0, lambda: (fn(), done.set()))
+        done.wait(5)
+
+    # ════════════════════════════════════════════════════════════
+    #  MODULE DE GUIDAGE (guidage.py) : deuxième caméra, impulsions :Mg envoyées par le PC
+    # ════════════════════════════════════════════════════════════
+    def _open_guide(self):
+        if self._guide_win and self._guide_win.winfo_exists():
+            self._guide_win.deiconify(); self._guide_win.lift(); return
+        try:
+            import guidage
+        except ImportError as e:
+            messagebox.showerror("Guidage", TRANSLATIONS[self.cfg.get("language", "fr")]["photo_missing"].format(err=e))
+            return
+        self._guide_win = guidage.GuideWindow(self, {"BG": BG, "BG2": BG2, "BG3": BG3, "TXT": TXT, "DIM": DIM,
+                                                     "ACC": ACC, "GRN": GRN, "FS": FS})
+        self._guide_win.bind("<Destroy>", lambda e: setattr(self, "_guide_win", None)
+                             if e.widget is self._guide_win else None)
+
+    def guide_active(self):
+        return bool(self._guide_win and self._guide_win.is_guiding())
+
+    def guide_dither(self, px):
+        return bool(self._guide_win and self._guide_win.dither(px))
+
+    def guide_pulse(self, direction, ms):
+        self.mount.pulse_guide(direction, ms)
+
+    def guide_rate(self):
+        return self.mount.guide_rate() if self.mount.state.connected else None
+
+    def set_guide_rate(self, r):
+        resp = self.mount.set_guide_rate(r) if self.mount.state.connected else ""
+        self._logw(f":Rg{r:.2f}  vitesse de guidage → {resp}", "tx")
+        return resp
+
+    def guide_pier_side(self):
+        """Côté du pilier (monture allemande seulement), pour savoir si la calibration vaut encore."""
+        if self.cfg.get("mount_type", "AltAz") != "GermanEq" or not self.mount.state.connected:
+            return None
+        return self.mount._cmd(":Gm") or None
+
     def _quit(self):
+        if self._guide_win: self._guide_win.close()
         if self._photo_win: self._photo_win.close()
         self.cfg.save(); self.focuser.disconnect(); self.derot.disconnect(); self.mount.disconnect()
         self.destroy()
@@ -3368,6 +3437,7 @@ class App(tk.Tk):
         self._btn_zenith.configure(text=TRANSLATIONS[lang]["btn_zenith"])
         self._btn_scope.configure(text=TRANSLATIONS[lang]["btn_scope"])
         self._btn_photo.configure(text=TRANSLATIONS[lang]["btn_photo"])
+        self._btn_guide.configure(text=TRANSLATIONS[lang]["btn_guide"])
         self._chk_follow.configure(text=TRANSLATIONS[lang]["follow_short"])
         self._lbl_search_icon.configure(text=TRANSLATIONS[lang]["search_lbl"])
         self._set_update_badge()

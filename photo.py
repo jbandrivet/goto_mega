@@ -142,19 +142,22 @@ class SimCamera:
         self._err_k = 0.12                                                 # partie qui varie sur le ciel (°)
         self._corr = np.zeros(2)                                           # part absorbée par la dernière synchro
         self.seeing_px = 1.6
-        self._cache = {}
+        self._field = None                  # (ra_h, dec_d, rayon °, étoiles) du dernier champ téléchargé
 
     def setup(self, gain, binning):
         self.gain, self.bin = gain, binning
 
     def _stars(self, ra_h, dec_d, radius):
-        key = (round(ra_h, 2), round(dec_d, 1), round(radius, 1))
-        if key not in self._cache:
-            stars = tycho2(ra_h, dec_d, radius)
+        """Étoiles du champ : un cercle deux fois plus grand est téléchargé une fois, puis réutilisé tant que
+        le champ y tient (les petits déplacements du guidage ne refont pas de requête au CDS)."""
+        f = self._field
+        if f is None or angular_dist(ra_h, dec_d, f[0], f[1]) + radius > f[2]:
+            big = 2 * radius
+            stars = tycho2(ra_h, dec_d, big)
             if not stars:   # hors ligne : étoiles brillantes seulement
-                stars = [s for s in self.bright if angular_dist(ra_h, dec_d, s[0], s[1]) < radius]
-            self._cache[key] = stars
-        return self._cache[key]
+                stars = [s for s in self.bright if angular_dist(ra_h, dec_d, s[0], s[1]) < big]
+            f = self._field = (ra_h, dec_d, big, stars)
+        return f[3]
 
     def expose(self, seconds, abort):
         for _ in range(int(min(seconds, 2.0) / 0.05)):     # la simulation ne fait pas attendre plus de 2 s
@@ -402,6 +405,8 @@ TEXTS = {
         "capture": "Prise de vue", "exposure": "Pose (s) :", "gain": "Gain :", "binning": "Binning :",
         "live": "▶ Vue en continu", "stop": "■ Arrêter", "shot": "Photo", "sequence": "Séquence :", "frames": "images",
         "start_seq": "Lancer", "folder": "Dossier :", "choose": "Choisir…",
+        "dither": "Dithering toutes les", "dither_by": "décalage de", "dither_px": "px de guidage", "dithering": "Dithering et stabilisation du guidage…",
+        "dither_fail": "Guidage non stabilisé après le dithering : la séquence continue.",
         "focus": "Mise au point", "stars": "Étoiles", "hfr": "HFR (px)", "focuser_off": "Focuseur non connecté (onglet Focuseur)",
         "astrometry": "Astrométrie", "solve": "Résoudre", "solve_sync": "Résoudre et synchroniser",
         "center": "Centrer la cible", "tolerance": "Tolérance (′) :",
@@ -438,6 +443,8 @@ TEXTS = {
         "capture": "Capture", "exposure": "Exposure (s):", "gain": "Gain:", "binning": "Binning:",
         "live": "▶ Live view", "stop": "■ Stop", "shot": "Shot", "sequence": "Sequence:", "frames": "frames",
         "start_seq": "Start", "folder": "Folder:", "choose": "Choose…",
+        "dither": "Dither every", "dither_by": "offset of", "dither_px": "guide px", "dithering": "Dithering and guiding settling…",
+        "dither_fail": "Guiding not settled after dithering: the sequence goes on.",
         "focus": "Focus", "stars": "Stars", "hfr": "HFR (px)", "focuser_off": "Focuser not connected (Focuser tab)",
         "astrometry": "Astrometry", "solve": "Solve", "solve_sync": "Solve and sync",
         "center": "Center target", "tolerance": "Tolerance (′):",
@@ -586,6 +593,18 @@ class PhotoWindow(tk.Toplevel):
         self._spin(r, self.v_nseq, 1, 999, 1, 5)
         tk.Label(r, text=t["frames"], bg=c["BG2"], fg=c["DIM"], font=c["FS"]).pack(side=tk.LEFT)
         ttk.Button(r, text=t["start_seq"], command=self._sequence).pack(side=tk.LEFT, padx=4)
+        r = self._row(f)
+        self.v_dither = tk.BooleanVar(value=self.cfg.get("photo_dither", False))
+        tk.Checkbutton(r, text=t["dither"], variable=self.v_dither, bg=c["BG2"], fg=c["DIM"], selectcolor=c["BG3"],
+                       activebackground=c["BG2"], font=c["FS"]).pack(side=tk.LEFT)
+        self.v_dither_n = tk.IntVar(value=int(self.cfg.get("photo_dither_every", 3)))
+        self._spin(r, self.v_dither_n, 1, 50, 1, 3)
+        tk.Label(r, text=t["frames"], bg=c["BG2"], fg=c["DIM"], font=c["FS"]).pack(side=tk.LEFT)
+        r = self._row(f)
+        tk.Label(r, text=t["dither_by"], bg=c["BG2"], fg=c["DIM"], font=c["FS"]).pack(side=tk.LEFT, padx=(24, 0))
+        self.v_dither_px = tk.DoubleVar(value=float(self.cfg.get("photo_dither_px", 5)))
+        self._spin(r, self.v_dither_px, 1, 30, 1, 3)
+        tk.Label(r, text=t["dither_px"], bg=c["BG2"], fg=c["DIM"], font=c["FS"]).pack(side=tk.LEFT)
         r = self._row(f); self._lbl(r, t["folder"], 8)
         self.v_dir = tk.StringVar(value=self.cfg.get("photo_dir", str(Path.home() / "Images" / "GotoAndrivet")))
         tk.Label(r, textvariable=self.v_dir, bg=c["BG3"], fg=c["TXT"], font=c["FS"], anchor="e", width=24).pack(side=tk.LEFT, padx=2)
@@ -731,12 +750,15 @@ class PhotoWindow(tk.Toplevel):
             self.p = {"exp": float(self.v_exp.get()), "gain": int(self.v_gain.get()), "bin": int(self.v_bin.get()),
                       "focal": self._focal(), "dir": self.v_dir.get(), "tol": float(self.v_tol.get()),
                       "nseq": int(self.v_nseq.get()), "angle": float(self.v_angle.get()),
-                      "npts": int(self.v_npts.get()), "altmin": float(self.v_altmin.get())}
+                      "npts": int(self.v_npts.get()), "altmin": float(self.v_altmin.get()),
+                      "dither": bool(self.v_dither.get()), "dither_n": int(self.v_dither_n.get()),
+                      "dither_px": float(self.v_dither_px.get())}
         except (tk.TclError, ValueError) as e:
             self._status(self.t["error"].format(e=e)); return False
         for k, v in (("photo_exposure", "exp"), ("photo_gain", "gain"), ("photo_bin", "bin"), ("photo_dir", "dir"),
                      ("photo_tolerance", "tol"), ("photo_seq", "nseq"), ("photo_frame_angle", "angle"),
-                     ("photo_model_points", "npts"), ("photo_model_alt_min", "altmin")):
+                     ("photo_model_points", "npts"), ("photo_model_alt_min", "altmin"), ("photo_dither", "dither"),
+                     ("photo_dither_every", "dither_n"), ("photo_dither_px", "dither_px")):
             self.cfg.set(k, self.p[v])
         self.busy = True; self.abort.clear()
 
@@ -825,6 +847,10 @@ class PhotoWindow(tk.Toplevel):
                 if img is None: break
                 path = self._save(img, i); done = i
                 self._ui(lambda p=path, i=i: self._status(f"{i}/{n} · " + self.t["saved"].format(f=p.name)))
+                if self.p["dither"] and i < n and i % self.p["dither_n"] == 0 and self.app.guide_active():
+                    self._ui(lambda: self._status(self.t["dithering"]))
+                    if not self.app.guide_dither(self.p["dither_px"]):
+                        self._ui(lambda: self._status(self.t["dither_fail"]))
             self._ui(lambda: self._status(self.t["seq_done"].format(n=done)))
         self._run(job)
 
