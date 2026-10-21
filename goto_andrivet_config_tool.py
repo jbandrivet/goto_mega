@@ -279,6 +279,7 @@ class ConfigToolApp(tk.Tk):
 
     def check_for_updates(self):
         """Vérification en arrière-plan (module mise_a_jour, partagé avec la carte du ciel)."""
+        mise_a_jour.register(Path(__file__).resolve().parent)     # entrées du menu des applications
         try:
             available, remote, _ = mise_a_jour.check(Path(__file__).parent)
         except Exception:

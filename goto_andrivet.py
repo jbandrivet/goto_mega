@@ -3509,7 +3509,8 @@ class App(tk.Tk):
     def _check_update(self, manual=False):
         """Vérifie en arrière-plan si une version plus récente est sur GitHub."""
         app_dir = Path(__file__).resolve().parent
-        try:
+        if not manual:
+            mise_a_jour.register(app_dir)          # entrées du menu des applications        try:
             available, remote, _ = mise_a_jour.check(app_dir)
         except Exception as e:
             if manual:

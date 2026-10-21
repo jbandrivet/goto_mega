@@ -9,7 +9,6 @@ comme le bouton « Mise à jour » des applications.
     python3 install_linux.py            fenêtre d'installation
     python3 install_linux.py --auto     installation dans le terminal, sans fenêtre
 """
-import os
 import shutil
 import subprocess
 import sys
@@ -69,43 +68,9 @@ def install(status):
         if r.returncode != 0:
             raise RuntimeError(f"pip install {req} a échoué :\n" + r.stderr.strip()[-400:])
 
-    # 3. Les raccourcis du Bureau : carte du ciel et configurateur
+    # 3. Les raccourcis : menu des applications et Bureau
     status("Création des raccourcis...", 92)
-    desktop_dir = Path.home() / "Bureau"
-    if not desktop_dir.exists():
-        desktop_dir = Path.home() / "Desktop"
-    desktop_dir.mkdir(exist_ok=True)
-    apps_dir = Path.home() / ".local" / "share" / "applications"       # menu des applications
-    apps_dir.mkdir(parents=True, exist_ok=True)
-    python_exe = venv_dir / "bin" / "python3"
-    shortcuts = (
-        ("GotoMega.desktop", "Goto Universal Config", "Outil de configuration pour Goto Universal",
-         "goto_andrivet_config_tool.py", "goto_andrivet_config.svg", "utilities-terminal"),
-        ("GotoAndrivet.desktop", "GotoAndrivet - Carte du ciel", "Carte du ciel, GoTo et dérotateur pour monture GotoAndrivet",
-         "goto_andrivet.py", "goto_andrivet.svg", "applications-science"),
-    )
-    for file_name, name, comment, script, icon_file, fallback_icon in shortcuts:
-        icon = INSTALL_DIR / "icons" / icon_file
-        content = f"""[Desktop Entry]
-Version=1.0
-Type=Application
-Name={name}
-Comment={comment}
-Exec={python_exe} {INSTALL_DIR / script}
-Icon={icon if icon.exists() else fallback_icon}
-Path={INSTALL_DIR}
-Terminal=false
-Categories=Utility;Science;Astronomy;
-"""
-        for folder in (desktop_dir, apps_dir):
-            desktop_file = folder / file_name
-            desktop_file.write_text(content)
-            os.chmod(desktop_file, 0o755)
-        # GNOME : sans ce drapeau, le bureau demande d'autoriser le lancement du raccourci
-        try:
-            subprocess.run(["gio", "set", str(desktop_dir / file_name), "metadata::trusted", "true"], capture_output=True)
-        except OSError:
-            pass
+    mise_a_jour.shortcuts(INSTALL_DIR, desktop="create")
     status("Installation terminée avec succès !", 100)
 
 
