@@ -1,5 +1,7 @@
 # GotoAndrivet — Contrôleur Multi-Montures OnStep
 
+**Site du projet : [goto-andrivet.duckdns.org](https://goto-andrivet.duckdns.org)**
+
 Ce projet supporte de manière universelle trois types de montures astronomiques :
 1. **Alt-Azimutale (AltAz)** : Pour montures Dobson et Alt-Azimutales standards.
 2. **Fourche Équatoriale (ForkEq)** : Pour montures équatoriales à fourche ou tables équatoriales (aucun retournement de méridien requis, suivi sidéral direct sur l'angle horaire).
