@@ -11,7 +11,12 @@ Ce projet supporte de manière universelle trois types de montures astronomiques
 
 La carte du ciel et GoTo (**GotoAndrivet**) et le **configurateur** s'installent ensemble, avec leurs raccourcis sur le Bureau et dans le menu des applications. L'installateur prend toujours la dernière version du dépôt ; ensuite, le bouton « Mise à jour » des applications suffit.
 
-**[⬇ Télécharger l'installateur Linux](https://github.com/jbandrivet/goto_mega/releases/latest/download/Install_Goto_Universal)** : clic droit sur le fichier → Propriétés → autorisez son exécution, puis double-clic et « Installer ».
+**[⬇ Télécharger l'installateur Linux](https://github.com/jbandrivet/goto_mega/releases/latest/download/Install_Goto_Universal)**, puis, dans le dossier Téléchargements :
+
+1. clic droit sur `Install_Goto_Universal` → **Propriétés** → activez **Exécutable comme programme** ;
+2. clic droit → **Exécuter comme un programme**, puis « Installer ».
+
+Sur les Ubuntu récents, le double-clic ne lance pas un programme téléchargé : il propose de chercher une application dans le Centre d'applications, qui ne trouve rien. Passez par le clic droit.
 
 Ou en une seule commande, dans un terminal :
 

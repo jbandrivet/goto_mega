@@ -9,6 +9,7 @@ et rafraîchies au démarrage de chaque application installée.
 """
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -36,10 +37,20 @@ def local_version(app_dir):
 
 
 def remote_version(timeout=5):
-    """Dernier commit de main sur GitHub (lève une exception si le réseau ne répond pas)."""
-    req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/commits/main", headers=_UA)
-    with urllib.request.urlopen(req, timeout=timeout) as r:
-        return json.loads(r.read().decode())["sha"]
+    """Dernier commit de main sur GitHub (lève une exception si le réseau ne répond pas).
+    L'API de GitHub n'accepte que 60 requêtes par heure et par adresse Internet, partagées par tous les
+    appareils de la maison : au-delà, on lit le flux public des commits, qui n'est pas compté."""
+    try:
+        req = urllib.request.Request(f"https://api.github.com/repos/{REPO}/commits/main", headers=_UA)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode())["sha"]
+    except Exception:
+        req = urllib.request.Request(f"https://github.com/{REPO}/commits/main.atom", headers=_UA)
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            m = re.search(r"Commit/([0-9a-f]{40})", r.read().decode(errors="replace"))
+        if not m:
+            raise RuntimeError("version distante introuvable")
+        return m.group(1)
 
 
 def check(app_dir):
@@ -73,6 +84,9 @@ def apply(app_dir, remote_sha=None):
             shutil.copyfileobj(r, f)
         with zipfile.ZipFile(zip_path) as z:
             z.extractall(tmp)
+            comment = z.comment.decode(errors="replace").strip()        # GitHub y met le commit de l'archive
+        if not remote_sha and re.fullmatch(r"[0-9a-f]{40}", comment):
+            remote_sha = comment
         src = next(p for p in Path(tmp).iterdir() if p.is_dir())       # « goto_mega-main »
         for item in src.iterdir():
             if item.name in KEEP:

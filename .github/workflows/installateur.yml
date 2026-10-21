@@ -38,8 +38,12 @@ jobs:
           Installe la carte du ciel et GoTo (GotoAndrivet) et le configurateur, avec leurs raccourcis sur le Bureau.
 
           1. Téléchargez **Install_Goto_Universal** ci-dessous.
-          2. Clic droit sur le fichier → Propriétés → autorisez son exécution.
-          3. Double-clic, puis « Installer ».
+          2. Clic droit sur le fichier → Propriétés → activez « Exécutable comme programme ».
+          3. Clic droit → « Exécuter comme un programme », puis « Installer ».
+
+          Sur les Ubuntu récents, le double-clic ne lance pas un programme téléchargé (il cherche une application dans le Centre d'applications) : passez par le clic droit.
+          Autre possibilité, une seule commande dans un terminal :
+          `wget -qO- https://raw.githubusercontent.com/jbandrivet/goto_mega/main/installer.sh | sh`
 
           L'installateur télécharge toujours la dernière version du dépôt. Ensuite, le bouton « Mise à jour » des applications suffit.
           Prérequis : `sudo apt install python3-venv python3-tk`.

@@ -47,8 +47,7 @@ def install(status):
                 mise_a_jour.save_version(sha)
     else:
         status("Téléchargement de la dernière version depuis GitHub...", 5)
-        sha = mise_a_jour.remote_version(timeout=20)
-        mise_a_jour.apply(INSTALL_DIR, sha)
+        mise_a_jour.apply(INSTALL_DIR)          # version lue dans l'archive : pas de requête à l'API
 
     # 1. L'environnement Python, à part du système
     status("Création de l'environnement virtuel...", 15)
