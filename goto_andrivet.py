@@ -17,7 +17,7 @@ Données du ciel (ciel_donnees.py, généré par outils/generer_ciel_donnees.py)
     ciel profond OpenNGC (Messier, Caldwell, NGC, IC). Positions J2000,
     précessées à la date pour la carte et pour la monture.
 
-En mode SIMULATION (coché par défaut), aucun matériel requis.
+En mode SIMULATION (case à cocher, décochée par défaut), aucun matériel requis.
 En mode réel, brancher l'Arduino Mega sur USB, sélectionner le port.
 
 Fonctions :
@@ -1738,6 +1738,7 @@ TRANSLATIONS = {
                           "Mouse wheel: zoom   ·   drag: move the map\nClick an object: select it, then confirm the GoTo",
         "check_updates": "Check for updates…",
         "update_available": "● Update available (click)",
+        "update_btn": "Update", "update_btn_new": "Update available",
         "update_none": "GotoAndrivet is up to date.",
         "update_confirm": "A new version is available on GitHub.\nDownload it and restart?",
         "update_running": "Downloading the update…",
@@ -1930,6 +1931,7 @@ TRANSLATIONS = {
                           "Molette : zoom   ·   glisser : déplacer la carte\nClic sur un objet : le choisir, puis confirmer le GoTo",
         "check_updates": "Rechercher une mise à jour…",
         "update_available": "● Mise à jour disponible (cliquer)",
+        "update_btn": "Mise à jour", "update_btn_new": "Mise à jour disponible",
         "update_none": "GotoAndrivet est à jour.",
         "update_confirm": "Une nouvelle version est disponible sur GitHub.\nLa télécharger et redémarrer ?",
         "update_running": "Téléchargement de la mise à jour…",
@@ -1959,7 +1961,7 @@ class App(tk.Tk):
         self._rv  = {k: tk.StringVar(value="---") for k in
                      ("ra","dec","az","alt","lst","state","conn","derot_ang","derot_pa")}
         self._bv  = {k: tk.BooleanVar() for k in ("track","sim","derot_en","derot_sim","follow")}
-        self._bv["sim"].set(True); self._bv["derot_sim"].set(True)
+        self._bv["sim"].set(False); self._bv["derot_sim"].set(True)
         self._bv["follow"].set(self.cfg.get("skymap_follow", False))
         self._update_sha = None
         self._dv  = {"speed": tk.DoubleVar(value=self.cfg.get("slew_speed_default", 2.0)), "mag": tk.DoubleVar(value=10.0),
@@ -2014,9 +2016,6 @@ class App(tk.Tk):
         self._slbl=tk.Label(sb,text="Prêt.",bg=BG,fg=DIM,font=FS,anchor="w")
         self._slbl.pack(side=tk.LEFT,padx=8)
         tk.Label(sb,textvariable=self._rv["conn"],bg=BG,fg=DIM,font=FS).pack(side=tk.RIGHT,padx=8)
-        self._upd_lbl=tk.Label(sb,text="",bg=BG,fg=AMB,font=("Courier",9,"bold"),cursor="hand2")
-        self._upd_lbl.pack(side=tk.RIGHT,padx=12)
-        self._upd_lbl.bind("<Button-1>",lambda e:self._do_update())
 
     def _build_menu(self):
         lang = self.cfg.get("language", "fr")
@@ -2223,6 +2222,17 @@ class App(tk.Tk):
         self._chk_follow=tk.Checkbutton(ctrl,text="Suivre",variable=self._bv["follow"],command=self._toggle_follow,
                                         bg=BG,fg=DIM,selectcolor=BG3,activebackground=BG,font=FS)
         self._chk_follow.pack(side=tk.LEFT,padx=6)
+        # Mise à jour : bouton toujours visible, pastille rouge quand une version plus récente existe
+        self._upd_dot=tk.PhotoImage(width=12,height=12)
+        for x in range(12):
+            for y in range(12):
+                if (x-5.5)**2+(y-5.5)**2 <= 30: self._upd_dot.put("#e53935",(x,y))
+        self._upd_nodot=tk.PhotoImage(width=1,height=12)
+        self._btn_update=tk.Button(ctrl,text=" Mise à jour",image=self._upd_nodot,compound="left",
+                                   command=self._update_clicked,bg=BG3,fg=TXT,activebackground=BD,
+                                   activeforeground=TXT,relief="flat",bd=0,padx=8,pady=3,
+                                   font=("Helvetica",9),cursor="hand2")
+        self._btn_update.pack(side=tk.LEFT,padx=(6,2))
 
         self._sky=SkyMap(p,self.cfg,bg=BG)
         self._sky.pack(fill=tk.BOTH,expand=True,padx=2,pady=2)
@@ -2911,7 +2921,7 @@ class App(tk.Tk):
         self._btn_scope.configure(text=TRANSLATIONS[lang]["btn_scope"])
         self._chk_follow.configure(text=TRANSLATIONS[lang]["follow_short"])
         self._lbl_search_icon.configure(text=TRANSLATIONS[lang]["search_lbl"])
-        if self._update_sha: self._upd_lbl.configure(text=TRANSLATIONS[lang]["update_available"])
+        self._set_update_badge()
         self._sky.redraw()
         
         # 8. Right Panel - Derotator
@@ -2982,10 +2992,24 @@ class App(tk.Tk):
         def _ui():
             t = TRANSLATIONS[self.cfg.get("language", "fr")]
             self._update_sha = remote if available else None
-            self._upd_lbl.configure(text=t["update_available"] if available else "")
+            self._set_update_badge()
             if manual and available: self._do_update()
             elif manual: messagebox.showinfo("GotoAndrivet", t["update_none"])
         self.after(0, _ui)
+
+    def _set_update_badge(self):
+        t = TRANSLATIONS[self.cfg.get("language", "fr")]
+        if self._update_sha:
+            self._btn_update.configure(image=self._upd_dot, text=" " + t["update_btn_new"], fg="#ff9a90")
+        else:
+            self._btn_update.configure(image=self._upd_nodot, text=" " + t["update_btn"], fg=TXT)
+
+    def _update_clicked(self):
+        """Pastille rouge : installer la mise à jour. Sinon : vérifier tout de suite sur GitHub."""
+        if self._update_sha:
+            self._do_update()
+        else:
+            threading.Thread(target=self._check_update, args=(True,), daemon=True).start()
 
     def _do_update(self):
         if not self._update_sha: return
