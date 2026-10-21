@@ -772,120 +772,223 @@ class Mount:
 #  SECTION 5 : DÉROTATEUR ZWO
 # ════════════════════════════════════════════════════════════════
 class Derotator:
+    """Dérotateur de champ. Types : « integre » (axe DEROT de la monture, commandes :XDe/:XDp/:XDa,
+    sans retour de position, en AltAz seulement), « zwo » (ZWO CAA par son SDK), « serie »
+    (protocole SETPOS sur un port série) et « sim » (simulation)."""
+    KINDS = ("integre", "zwo", "serie", "sim")
+
     def __init__(self, cfg, on_state=None):
         self.cfg=cfg; self.on_state=on_state
         self.angle=0.0; self.target=0.0; self.pa=0.0
         self.moving=False; self.enabled=False; self.connected=False
         self.offset=0.0; self._mount=None
-        self._ser=None; self._th=None; self._running=False; self._sim=True
+        self._ser=None; self._th=None; self._running=False
         self._rev=False
         self._zwo_caa=None
+        self.kind=cfg.get("derot_type","integre")
 
     def set_mount(self, m): self._mount=m
 
     def set_offset(self, o): self.offset=o
 
-    def connect(self, port, baud=9600, sim=True):
-        self._sim=sim; self._rev=self.cfg.get("derot_reversed",False)
-        self._zwo_caa = None
-        
-        # SUPPORT NATIF ZWO CAA SDK
-        if "ZWO" in str(port).upper():
+    def _mount_ok(self):
+        return self._mount is not None and self._mount.state.connected
+
+    def connect(self, kind, port="", baud=9600):
+        """Connecte le dérotateur choisi. Renvoie (réussi, message d'erreur)."""
+        self.disconnect()
+        self.kind=kind; self._rev=self.cfg.get("derot_reversed",False)
+        if kind == "integre":
+            if not self._mount_ok():
+                return False, "need_mount"
+            ppd = float(self.cfg.get("derot_ppd", 100.0))
+            self._mount._cmd(f":XDp{ppd:.4f}", reply=False)     # pas par degré de l'axe DEROT
+            self._mount._cmd(":XDe1", reply=False)               # axe actif (le firmware ne le pilote qu'en AltAz)
+        elif kind == "zwo":
             try:
                 import zwocaa
-                if zwocaa.CAA.get_num() > 0:
-                    self._zwo_caa = zwocaa.CAA(0)
-                    self._zwo_caa.open()
-                    self._sim = False
-                    self.connected = True
-                    print("Connecté au SDK ZWO CAA")
-                else:
-                    print("Aucun dérotateur ZWO CAA trouvé !")
-                    self._sim = True
+                self._zwo_caa = zwocaa.CAA(0); self._zwo_caa.open()
+                self.angle = self._zwo_caa.get_degree()
             except Exception as e:
-                print("Erreur ZWO CAA SDK:", e)
-                self._sim = True
-
-        if not self._sim and self._zwo_caa is None and HAS_SERIAL:
+                self._zwo_caa = None
+                return False, str(e)
+        elif kind == "serie":
+            if not HAS_SERIAL: return False, "pyserial"
             try:
                 self._ser=serial.Serial(port,baud,timeout=1); time.sleep(1)
-            except: self._sim=True
-            
+            except Exception as e:
+                return False, str(e)
         self.connected=True; self._running=True
         self._th=threading.Thread(target=self._run,daemon=True,name="derot")
-        self._th.start(); return True
+        self._th.start(); return True, ""
 
     def disconnect(self):
         self._running=False
-        if self._th: self._th.join(timeout=2)
+        if self._th: self._th.join(timeout=2); self._th=None
         if self._ser and self._ser.is_open: self._ser.close()
+        self._ser=None
         if self._zwo_caa:
             try: self._zwo_caa.close()
-            except: pass
+            except Exception: pass
+            self._zwo_caa=None
+        if self.connected and self.kind == "integre" and self._mount_ok():
+            self._mount._cmd(":XDe0", reply=False)
         self.connected=False
 
     def _send(self, cmd):
-        if self._sim or not self._ser: return
+        if self.kind != "serie" or not self._ser: return
         try: self._ser.write(cmd.encode())
-        except: pass
+        except Exception: pass
+
+    def _apply(self, a):
+        """Envoie l'angle cible au dérotateur."""
+        if self.kind == "zwo" and self._zwo_caa:
+            try: self._zwo_caa.move_to(a)
+            except Exception: pass
+        elif self.kind == "integre" and self._mount_ok():
+            self._mount._cmd(f":XDa{a:.2f}", reply=False)
+            self.angle = a                     # pas de retour de position : on affiche l'angle commandé
+        elif self.kind == "serie":
+            self._send(f"SETPOS:{a:.2f}\r\n")
 
     def _run(self):
         last_pa=None
         while self._running:
-            if self._mount and self._mount.state.connected:
+            if self._mount_ok():
                 self.pa=self._mount.parallactic_angle()
                 if self.enabled:
                     if self._rev: tgt = (self.pa + self.offset) % 360
                     else: tgt = (-(self.pa + self.offset)) % 360
                     if last_pa is None or abs(self.pa-last_pa)>0.1:
                         self.target=tgt; self.moving=True
-                        if self._zwo_caa:
-                            try: self._zwo_caa.move_to(tgt)
-                            except: pass
-                        elif self.cfg.get("derot_mega_en", False):
-                            self._mount._cmd(f":XDa{tgt:.2f}#", reply=False)
-                        else:
-                            self._send(f"SETPOS:{tgt:.2f}\r\n")
+                        self._apply(tgt)
                         last_pa=self.pa
             if self._zwo_caa:
                 try:
                     self.angle = self._zwo_caa.get_degree()
                     self.moving = self._zwo_caa.is_moving()
-                except: pass
-            elif self._sim and self.moving:
+                except Exception: pass
+            elif self.kind == "sim" and self.moving:
                 d=(self.target-self.angle+180)%360-180
                 if abs(d)<0.2: self.angle=self.target; self.moving=False
                 else: self.angle+=math.copysign(min(2.0,abs(d)),d); self.angle%=360
+            elif self.kind == "integre":
+                self.moving = False
             if self.on_state:
                 try: self.on_state(self)
-                except: pass
+                except Exception: pass
             time.sleep(0.5)
 
     def enable(self, on):
         self.enabled=on
         if not on: self.moving=False
-        if self.cfg.get("derot_mega_en", False) and self._mount and self._mount.state.connected:
-            self._mount._cmd(f":XDe{1 if on else 0}#", reply=False)
 
     def goto_angle(self, a):
         self.target=a%360; self.moving=True
-        if self._zwo_caa:
-            try: self._zwo_caa.move_to(a%360)
-            except: pass
-        elif self.cfg.get("derot_mega_en", False) and self._mount and self._mount.state.connected:
-            self._mount._cmd(f":XDa{a%360:.2f}#", reply=False)
-        else:
-            self._send(f"SETPOS:{a%360:.2f}\r\n")
+        self._apply(a%360)
 
     def stop(self):
         self.moving=False
         if self._zwo_caa:
             try: self._zwo_caa.stop()
-            except: pass
+            except Exception: pass
         self._send("STOP\r\n")
-        
+
     def home(self): self.goto_angle(0)
     def nudge(self, d): self.offset+=d
+
+
+class Focuser:
+    """Focuseur. Types : « integre » (axe FOCUS de la monture, commandes :XFe/:XF+/:XF-/:XFQ,
+    déplacement continu à deux vitesses, sans retour de position) et « eaf » (ZWO EAF par son
+    SDK, position absolue en pas)."""
+    KINDS = ("integre", "eaf")
+
+    def __init__(self, cfg, on_state=None):
+        self.cfg=cfg; self.on_state=on_state
+        self.kind=cfg.get("focus_type","integre")
+        self.connected=False; self.moving=False
+        self.position=None; self.max_step=None; self.temp=None
+        self._mount=None; self._eaf=None; self._th=None; self._running=False
+
+    def set_mount(self, m): self._mount=m
+
+    def _mount_ok(self):
+        return self._mount is not None and self._mount.state.connected
+
+    def connect(self, kind):
+        """Connecte le focuseur choisi. Renvoie (réussi, message d'erreur)."""
+        self.disconnect()
+        self.kind=kind
+        if kind == "integre":
+            if not self._mount_ok():
+                return False, "need_mount"
+            self._mount._cmd(":XFe1", reply=False)               # le firmware ignore :XF+/:XF- sans :XFe1
+        else:
+            try:
+                import zwoeaf
+                self._eaf = zwoeaf.EAF(0); self._eaf.open()
+                self.max_step = self._eaf.max_step()
+            except Exception as e:
+                self._eaf = None
+                return False, str(e)
+        self.connected=True; self._running=True
+        self._th=threading.Thread(target=self._run,daemon=True,name="focus")
+        self._th.start(); return True, ""
+
+    def disconnect(self):
+        if self.connected: self.stop()
+        self._running=False
+        if self._th: self._th.join(timeout=2); self._th=None
+        if self._eaf:
+            try: self._eaf.close()
+            except Exception: pass
+            self._eaf=None
+        self.connected=False; self.position=None; self.temp=None
+
+    def start(self, direction, fast=False):
+        """Mouvement continu tant que le bouton reste enfoncé : +1 sortir, -1 rentrer."""
+        if not self.connected: return
+        if self.kind == "integre":
+            if not self._mount_ok(): return
+            self._mount._cmd(":XFf" if fast else ":XFs", reply=False)
+            self._mount._cmd(":XF+" if direction > 0 else ":XF-", reply=False)
+        elif self._eaf:
+            try: self._eaf.move_to(self.max_step if direction > 0 else 0)   # vers la butée, arrêté au relâchement
+            except Exception: return
+        self.moving=True
+
+    def stop(self):
+        if self.kind == "integre":
+            if self._mount_ok(): self._mount._cmd(":XFQ", reply=False)
+        elif self._eaf:
+            try: self._eaf.stop()
+            except Exception: pass
+        self.moving=False
+
+    def move_by(self, steps):
+        """Déplacement relatif en pas (EAF seulement : le focuseur intégré n'a pas de position)."""
+        if self._eaf and self.position is not None:
+            self.move_to(self.position + steps)
+
+    def move_to(self, pos):
+        if not self._eaf: return
+        pos = max(0, min(int(pos), self.max_step or int(pos)))
+        try: self._eaf.move_to(pos); self.moving=True
+        except Exception: pass
+
+    def _run(self):
+        while self._running:
+            if self._eaf:
+                try:
+                    self.position = self._eaf.position()
+                    self.moving = self._eaf.is_moving()
+                    self.temp = self._eaf.temperature()
+                except Exception: pass
+            if self.on_state:
+                try: self.on_state(self)
+                except Exception: pass
+            time.sleep(0.5)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -1576,7 +1679,8 @@ TRANSLATIONS = {
         "control_tab": " Control ",
         "cat_tab": " Catalog ",
         "goto_tab": " GoTo/Sync ",
-        "derot_tab": " ZWO Derotator ",
+        "derot_tab": " Derotator ",
+        "focus_tab": " Focuser ",
         "log_tab": " Log LX200 ",
         
         # Connection Frame
@@ -1653,7 +1757,20 @@ TRANSLATIONS = {
         "btn_scope": "Telescope",
         
         # Derotator Connection Frame
-        "derot_conn_frame": "ZWO Derotator Connection",
+        "derot_conn_frame": "Derotator",
+        "type_lbl": "Type:", "ppd_lbl": "Steps/degree:",
+        "kind_integre": "Built-in (mount)", "kind_zwo": "ZWO CAA (USB)", "kind_serie": "Serial (SETPOS)",
+        "kind_sim": "Simulation", "kind_eaf": "ZWO EAF (USB)",
+        "dev_connected": "Connected", "dev_disconnected": "Not connected",
+        "need_mount": "Connect the mount first: this device is driven through it.",
+        "ppd_invalid": "Steps per degree: enter a number.",
+        "derot_note_integre": "DEROT axis of the mount (mount connected). The firmware drives it in AltAz only.",
+        "derot_eq_note": "Equatorial mount: no field rotation to compensate.",
+        "focus_frame": "Focuser", "focus_pos": "Position:", "focus_temp": "Temperature:",
+        "focus_move_frame": "Move", "focus_steps": "Steps:", "focus_goto": "Go to:",
+        "focus_hold_integre": "Hold a button to move (◀◀ ▶▶: fast). FOCUS axis of the mount, no position readout.",
+        "focus_hold_eaf": "Hold a button to move, or move by steps.",
+        "no_feedback": "— (no readout)",
         "btn_connect_derot": "Connect",
         
         # Derotator State Frame
@@ -1769,7 +1886,8 @@ TRANSLATIONS = {
         "control_tab": " Contrôle ",
         "cat_tab": " Catalogue ",
         "goto_tab": " GoTo/Sync ",
-        "derot_tab": " Dérotateur ZWO ",
+        "derot_tab": " Dérotateur ",
+        "focus_tab": " Focuseur ",
         "log_tab": " Log LX200 ",
         
         # Connection Frame
@@ -1846,7 +1964,20 @@ TRANSLATIONS = {
         "btn_scope": "Télescope",
         
         # Derotator Connection Frame
-        "derot_conn_frame": "Connexion dérotateur ZWO",
+        "derot_conn_frame": "Dérotateur",
+        "type_lbl": "Type :", "ppd_lbl": "Pas/degré :",
+        "kind_integre": "Intégré (monture)", "kind_zwo": "ZWO CAA (USB)", "kind_serie": "Série (SETPOS)",
+        "kind_sim": "Simulation", "kind_eaf": "ZWO EAF (USB)",
+        "dev_connected": "Connecté", "dev_disconnected": "Non connecté",
+        "need_mount": "Connectez d'abord la monture : ce périphérique passe par elle.",
+        "ppd_invalid": "Pas par degré : entrez un nombre.",
+        "derot_note_integre": "Axe DEROT de la monture (monture connectée). Le firmware ne l'anime qu'en AltAz.",
+        "derot_eq_note": "Monture équatoriale : pas de rotation de champ à compenser.",
+        "focus_frame": "Focuseur", "focus_pos": "Position :", "focus_temp": "Température :",
+        "focus_move_frame": "Déplacement", "focus_steps": "Pas :", "focus_goto": "Aller à :",
+        "focus_hold_integre": "Maintenez un bouton pour déplacer (◀◀ ▶▶ : rapide). Axe FOCUS de la monture, sans lecture de position.",
+        "focus_hold_eaf": "Maintenez un bouton pour déplacer, ou avancez d'un nombre de pas.",
+        "no_feedback": "— (pas de lecture)",
         "btn_connect_derot": "Connecter",
         
         # Derotator State Frame
@@ -1956,12 +2087,15 @@ class App(tk.Tk):
         self.mount = Mount(self.cfg, on_state=self._on_mount)
         self.derot = Derotator(self.cfg, on_state=self._on_derot)
         self.derot.set_mount(self.mount)
+        self.focuser = Focuser(self.cfg, on_state=self._on_focus)
+        self.focuser.set_mount(self.mount)
 
         # Variables Tk
         self._rv  = {k: tk.StringVar(value="---") for k in
-                     ("ra","dec","az","alt","lst","state","conn","derot_ang","derot_pa")}
-        self._bv  = {k: tk.BooleanVar() for k in ("track","sim","derot_en","derot_sim","follow")}
-        self._bv["sim"].set(False); self._bv["derot_sim"].set(True)
+                     ("ra","dec","az","alt","lst","state","conn","derot_ang","derot_pa",
+                      "derot_status","focus_status","focus_pos","focus_temp")}
+        self._bv  = {k: tk.BooleanVar() for k in ("track","sim","derot_en","follow")}
+        self._bv["sim"].set(False)
         self._bv["follow"].set(self.cfg.get("skymap_follow", False))
         self._update_sha = None
         self._dv  = {"speed": tk.DoubleVar(value=self.cfg.get("slew_speed_default", 2.0)), "mag": tk.DoubleVar(value=10.0),
@@ -2242,23 +2376,40 @@ class App(tk.Tk):
     # ── Panneau droit : dérotateur + log ──────────────────────
     def _build_right(self, p):
         self._nb_right=ttk.Notebook(p); self._nb_right.pack(fill=tk.BOTH,expand=True,padx=4,pady=4)
-        self._td=tk.Frame(self._nb_right,bg=BG2); self._nb_right.add(self._td,text=" Dérotateur ZWO ")
+        self._td=tk.Frame(self._nb_right,bg=BG2); self._nb_right.add(self._td,text=" Dérotateur ")
+        self._tf=tk.Frame(self._nb_right,bg=BG2); self._nb_right.add(self._tf,text=" Focuseur ")
         self._tl=tk.Frame(self._nb_right,bg=BG2); self._nb_right.add(self._tl,text=" Log LX200 ")
         self._build_derot(self._td)
+        self._build_focus(self._tf)
         self._build_log(self._tl)
 
     def _build_derot(self, p):
-        self._frm_derot_conn=self._frm(p,"Connexion dérotateur ZWO"); self._frm_derot_conn.pack(fill=tk.X,padx=6,pady=4)
+        self._frm_derot_conn=self._frm(p,"Dérotateur"); self._frm_derot_conn.pack(fill=tk.X,padx=6,pady=4)
         r=tk.Frame(self._frm_derot_conn,bg=BG2); r.pack(fill=tk.X,pady=2)
-        self._lbl_derot_port=tk.Label(r,text="Port :",bg=BG2,fg=DIM,font=FS)
+        self._lbl_derot_type=tk.Label(r,text="Type :",bg=BG2,fg=DIM,font=FS,width=11,anchor="w")
+        self._lbl_derot_type.pack(side=tk.LEFT)
+        self._sv["dtype"]=tk.StringVar()
+        self._cb_derot_type=ttk.Combobox(r,textvariable=self._sv["dtype"],state="readonly",width=19,font=FS)
+        self._cb_derot_type.pack(side=tk.LEFT,padx=4)
+        self._cb_derot_type.bind("<<ComboboxSelected>>",lambda e:self._derot_type_changed())
+        r=tk.Frame(self._frm_derot_conn,bg=BG2); r.pack(fill=tk.X,pady=2)
+        self._lbl_derot_ppd=tk.Label(r,text="Pas/degré :",bg=BG2,fg=DIM,font=FS,width=11,anchor="w")
+        self._lbl_derot_ppd.pack(side=tk.LEFT)
+        self._sv["dppd"]=tk.StringVar(value=str(self.cfg.get("derot_ppd",100.0)))
+        self._ent_derot_ppd=ttk.Entry(r,textvariable=self._sv["dppd"],width=10,font=FS)
+        self._ent_derot_ppd.pack(side=tk.LEFT,padx=4)
+        r=tk.Frame(self._frm_derot_conn,bg=BG2); r.pack(fill=tk.X,pady=2)
+        self._lbl_derot_port=tk.Label(r,text="Port :",bg=BG2,fg=DIM,font=FS,width=11,anchor="w")
         self._lbl_derot_port.pack(side=tk.LEFT)
-        ttk.Entry(r,textvariable=self._sv["dport"],width=14,font=FS).pack(side=tk.LEFT,padx=4)
+        self._ent_derot_port=ttk.Entry(r,textvariable=self._sv["dport"],width=14,font=FS)
+        self._ent_derot_port.pack(side=tk.LEFT,padx=4)
         r2=tk.Frame(self._frm_derot_conn,bg=BG2); r2.pack(fill=tk.X,pady=2)
-        self._chk_derot_sim=tk.Checkbutton(r2,text="Simulation",variable=self._bv["derot_sim"],
-                       bg=BG2,fg=DIM,selectcolor=BG3,activebackground=BG2,font=FS)
-        self._chk_derot_sim.pack(side=tk.LEFT)
         self._btn_derot_connect=ttk.Button(r2,text="Connecter",command=self._connect_derot)
-        self._btn_derot_connect.pack(side=tk.LEFT,padx=6)
+        self._btn_derot_connect.pack(side=tk.LEFT)
+        tk.Label(r2,textvariable=self._rv["derot_status"],bg=BG2,fg=DIM,font=FS).pack(side=tk.LEFT,padx=8)
+        self._lbl_derot_note=tk.Label(self._frm_derot_conn,text="",bg=BG2,fg=DIM,font=FS,justify="left",
+                                      wraplength=270,anchor="w")
+        self._lbl_derot_note.pack(fill=tk.X,pady=(2,0))
 
         self._frm_derot_state=self._frm(p,"État"); self._frm_derot_state.pack(fill=tk.X,padx=6,pady=4)
         
@@ -2304,6 +2455,59 @@ class App(tk.Tk):
         self._doff=tk.DoubleVar(value=0.0)
         ttk.Spinbox(r3,from_=-180,to=180,increment=0.5,textvariable=self._doff,
                     width=7,font=FS,command=lambda:self.derot.set_offset(self._doff.get())).pack(side=tk.LEFT,padx=4)
+
+    def _build_focus(self, p):
+        self._frm_focus_conn=self._frm(p,"Focuseur"); self._frm_focus_conn.pack(fill=tk.X,padx=6,pady=4)
+        r=tk.Frame(self._frm_focus_conn,bg=BG2); r.pack(fill=tk.X,pady=2)
+        self._lbl_focus_type=tk.Label(r,text="Type :",bg=BG2,fg=DIM,font=FS,width=11,anchor="w")
+        self._lbl_focus_type.pack(side=tk.LEFT)
+        self._sv["ftype"]=tk.StringVar()
+        self._cb_focus_type=ttk.Combobox(r,textvariable=self._sv["ftype"],state="readonly",width=19,font=FS)
+        self._cb_focus_type.pack(side=tk.LEFT,padx=4)
+        self._cb_focus_type.bind("<<ComboboxSelected>>",lambda e:self._focus_type_changed())
+        r2=tk.Frame(self._frm_focus_conn,bg=BG2); r2.pack(fill=tk.X,pady=2)
+        self._btn_focus_connect=ttk.Button(r2,text="Connecter",command=self._connect_focus)
+        self._btn_focus_connect.pack(side=tk.LEFT)
+        tk.Label(r2,textvariable=self._rv["focus_status"],bg=BG2,fg=DIM,font=FS).pack(side=tk.LEFT,padx=8)
+
+        self._frm_focus_state=self._frm(p,"État"); self._frm_focus_state.pack(fill=tk.X,padx=6,pady=4)
+        self._lbl_focus_pos_w=[]
+        for key in ("focus_pos","focus_temp"):
+            r=tk.Frame(self._frm_focus_state,bg=BG2); r.pack(fill=tk.X,pady=2)
+            l=tk.Label(r,text="",bg=BG2,fg=DIM,font=FS,width=13,anchor="w"); l.pack(side=tk.LEFT)
+            self._lbl_focus_pos_w.append(l)
+            tk.Label(r,textvariable=self._rv[key],bg=BG3,fg=ACC,font=FL,anchor="w",padx=6).pack(side=tk.LEFT,fill=tk.X,expand=True)
+
+        self._frm_focus_move=self._frm(p,"Déplacement"); self._frm_focus_move.pack(fill=tk.X,padx=6,pady=4)
+        r=tk.Frame(self._frm_focus_move,bg=BG2); r.pack(fill=tk.X,pady=2)
+        # Maintenir appuyé : le focuseur bouge jusqu'au relâchement (◀◀ ▶▶ : vitesse rapide)
+        for i,(lbl,d,fast) in enumerate((("◀◀",-1,True),("◀",-1,False),("▶",1,False),("▶▶",1,True))):
+            r.columnconfigure(i,weight=1,uniform="focus")
+            b=ttk.Button(r,text=lbl,width=4); b.grid(row=0,column=i,sticky="ew",padx=1)
+            b.bind("<ButtonPress-1>",lambda e,d=d,f=fast:self.focuser.start(d,f))
+            b.bind("<ButtonRelease-1>",lambda e:self.focuser.stop())
+        self._lbl_focus_hold=tk.Label(self._frm_focus_move,text="",bg=BG2,fg=DIM,font=FS,justify="left",
+                                      wraplength=270,anchor="w")
+        self._lbl_focus_hold.pack(fill=tk.X,pady=(0,4))
+        r=tk.Frame(self._frm_focus_move,bg=BG2); r.pack(fill=tk.X,pady=2)
+        self._lbl_focus_steps=tk.Label(r,text="Pas :",bg=BG2,fg=DIM,font=FS,width=9,anchor="w")
+        self._lbl_focus_steps.pack(side=tk.LEFT)
+        self._fstep=tk.IntVar(value=int(self.cfg.get("focus_step",50)))
+        self._eaf_widgets=[ttk.Spinbox(r,from_=1,to=10000,increment=10,textvariable=self._fstep,width=6,font=FS)]
+        self._eaf_widgets[-1].pack(side=tk.LEFT,padx=4)
+        for txt,sign in (("−",-1),("+",1)):
+            b=ttk.Button(r,text=txt,width=3,command=lambda sg=sign:self._focus_step(sg)); b.pack(side=tk.LEFT,padx=1)
+            self._eaf_widgets.append(b)
+        r=tk.Frame(self._frm_focus_move,bg=BG2); r.pack(fill=tk.X,pady=2)
+        self._lbl_focus_goto=tk.Label(r,text="Aller à :",bg=BG2,fg=DIM,font=FS,width=9,anchor="w")
+        self._lbl_focus_goto.pack(side=tk.LEFT)
+        self._sv["fgoto"]=tk.StringVar()
+        self._eaf_widgets.append(ttk.Entry(r,textvariable=self._sv["fgoto"],width=8,font=FS))
+        self._eaf_widgets[-1].pack(side=tk.LEFT,padx=4)
+        self._eaf_widgets.append(ttk.Button(r,text="→",width=3,command=self._focus_goto))
+        self._eaf_widgets[-1].pack(side=tk.LEFT)
+        self._btn_focus_stop=ttk.Button(self._frm_focus_move,text="■ Stop",style="Stop.TButton",command=self.focuser.stop)
+        self._btn_focus_stop.pack(fill=tk.X,pady=(6,2))
 
     def _build_log(self, p):
         self._frm_log=self._frm(p,"Log série LX200 (USB)"); self._frm_log.pack(fill=tk.BOTH,expand=True,padx=6,pady=4)
@@ -2414,11 +2618,101 @@ class App(tk.Tk):
         ports=Mount.list_ports() or ["/dev/ttyUSB0","/dev/ttyACM0"]
         self._pcb["values"]=ports
 
+    # ── Dérotateur et focuseur : type choisi, connexion ─────────
+    def _kinds(self, which):
+        t = TRANSLATIONS[self.cfg.get("language", "fr")]
+        kinds = Derotator.KINDS if which == "derot" else Focuser.KINDS
+        return kinds, [t["kind_" + k] for k in kinds]
+
+    def _cur_kind(self, which):
+        kinds, labels = self._kinds(which)
+        v = self._sv["dtype" if which == "derot" else "ftype"].get()
+        return kinds[labels.index(v)] if v in labels else kinds[0]
+
+    def _refresh_devices(self):
+        """Libellés, champs actifs et état des boutons du dérotateur et du focuseur."""
+        t = TRANSLATIONS[self.cfg.get("language", "fr")]
+        for which, dev, cb, var in (("derot", self.derot, self._cb_derot_type, "dtype"),
+                                    ("focus", self.focuser, self._cb_focus_type, "ftype")):
+            kinds, labels = self._kinds(which)
+            cb.configure(values=labels)
+            kind = dev.kind if dev.kind in kinds else kinds[0]
+            self._sv[var].set(labels[kinds.index(kind)])
+            cb.configure(state="disabled" if dev.connected else "readonly")
+        dk = self._cur_kind("derot")
+        self._ent_derot_ppd.configure(state="normal" if dk == "integre" and not self.derot.connected else "disabled")
+        self._ent_derot_port.configure(state="normal" if dk == "serie" and not self.derot.connected else "disabled")
+        note = ""
+        if dk == "integre":
+            note = t["derot_note_integre"]
+            if self.cfg.get("mount_type", "AltAz") != "AltAz": note += "\n" + t["derot_eq_note"]
+        self._lbl_derot_note.configure(text=note)
+        self._btn_derot_connect.configure(text=t["btn_disconnect"] if self.derot.connected else t["btn_connect_derot"])
+        self._rv["derot_status"].set(t["dev_connected"] if self.derot.connected else t["dev_disconnected"])
+        fk = self._cur_kind("focus")
+        for w in self._eaf_widgets:
+            w.configure(state="normal" if fk == "eaf" and self.focuser.connected else "disabled")
+        self._btn_focus_connect.configure(text=t["btn_disconnect"] if self.focuser.connected else t["btn_connect_derot"])
+        self._rv["focus_status"].set(t["dev_connected"] if self.focuser.connected else t["dev_disconnected"])
+        self._lbl_focus_hold.configure(text=t["focus_hold_" + fk])
+        if not (self.focuser.connected and fk == "eaf"):
+            self._rv["focus_pos"].set(t["no_feedback"] if self.focuser.connected else "---")
+            self._rv["focus_temp"].set("---")
+
+    def _derot_type_changed(self):
+        self.derot.kind = self._cur_kind("derot"); self.cfg.set("derot_type", self.derot.kind)
+        self._refresh_devices()
+
+    def _focus_type_changed(self):
+        self.focuser.kind = self._cur_kind("focus"); self.cfg.set("focus_type", self.focuser.kind)
+        self._refresh_devices()
+
+    def _device_error(self, msg):
+        t = TRANSLATIONS[self.cfg.get("language", "fr")]
+        messagebox.showerror("GotoAndrivet", t["need_mount"] if msg == "need_mount" else msg)
+
     def _connect_derot(self):
-        port=self._sv["dport"].get(); sim=self._bv["derot_sim"].get()
-        ok=self.derot.connect(port,9600,sim=sim)
-        self._logw(f"Dérotateur {'sim' if sim else port} {'OK' if ok else 'ERREUR'}",
-                   "rx" if ok else "err")
+        if self.derot.connected:
+            self.derot.disconnect(); self._logw("Dérotateur déconnecté","info")
+        else:
+            kind = self._cur_kind("derot")
+            if kind == "integre":
+                try: self.cfg.set("derot_ppd", float(self._sv["dppd"].get().replace(",", ".")))
+                except ValueError:
+                    self._device_error(TRANSLATIONS[self.cfg.get("language", "fr")]["ppd_invalid"]); return
+            ok, msg = self.derot.connect(kind, port=self._sv["dport"].get())
+            self._logw(f"Dérotateur {kind} {'OK' if ok else 'ERREUR ' + msg}", "rx" if ok else "err")
+            if not ok: self._device_error(msg)
+            elif self._bv["derot_en"].get(): self.derot.enable(True)
+        self._refresh_devices()
+
+    def _connect_focus(self):
+        if self.focuser.connected:
+            self.focuser.disconnect(); self._logw("Focuseur déconnecté","info")
+        else:
+            kind = self._cur_kind("focus")
+            ok, msg = self.focuser.connect(kind)
+            self._logw(f"Focuseur {kind} {'OK' if ok else 'ERREUR ' + msg}", "rx" if ok else "err")
+            if not ok: self._device_error(msg)
+        self._refresh_devices()
+
+    def _focus_step(self, sign):
+        try: n = int(self._fstep.get())
+        except (ValueError, tk.TclError): return
+        self.cfg.set("focus_step", n)
+        self.focuser.move_by(sign * n)
+
+    def _focus_goto(self):
+        try: self.focuser.move_to(int(self._sv["fgoto"].get()))
+        except ValueError: pass
+
+    def _on_focus(self, fo):
+        def _ui():
+            if fo.kind == "eaf" and fo.position is not None:
+                mx = f" / {fo.max_step}" if fo.max_step else ""
+                self._rv["focus_pos"].set(f"{fo.position}{mx}" + ("  ▸" if fo.moving else ""))
+                self._rv["focus_temp"].set("---" if fo.temp is None else f"{fo.temp:.1f} °C")
+        self.after(0,_ui)
 
     # ============================================================
     #  MONTURE
@@ -2435,6 +2729,7 @@ class App(tk.Tk):
     def _stop(self):
         lang = self.cfg.get("language", "fr")
         self.mount.stop(); self._logw(":Q#  STOP","tx")
+        if self.focuser.moving: self.focuser.stop()
         self._status("Arrêt." if lang == "fr" else "Stopped.")
 
     def _parking(self):
@@ -2826,7 +3121,7 @@ class App(tk.Tk):
     #  FERMETURE
     # ════════════════════════════════════════════════════════════
     def _quit(self):
-        self.cfg.save(); self.mount.disconnect(); self.derot.disconnect()
+        self.cfg.save(); self.focuser.disconnect(); self.derot.disconnect(); self.mount.disconnect()
         self.destroy()
 
     # ════════════════════════════════════════════════════════════
@@ -2847,7 +3142,8 @@ class App(tk.Tk):
         self._nb_left.tab(2, text=TRANSLATIONS[lang]["goto_tab"])
         
         self._nb_right.tab(0, text=TRANSLATIONS[lang]["derot_tab"])
-        self._nb_right.tab(1, text=TRANSLATIONS[lang]["log_tab"])
+        self._nb_right.tab(1, text=TRANSLATIONS[lang]["focus_tab"])
+        self._nb_right.tab(2, text=TRANSLATIONS[lang]["log_tab"])
         
         # 4. Left Panel - Connexion / Control
         self._frm_conn.configure(text=f" {TRANSLATIONS[lang]['conn_frame']} ")
@@ -2927,8 +3223,17 @@ class App(tk.Tk):
         # 8. Right Panel - Derotator
         self._frm_derot_conn.configure(text=f" {TRANSLATIONS[lang]['derot_conn_frame']} ")
         self._lbl_derot_port.configure(text=TRANSLATIONS[lang]["port"])
-        self._chk_derot_sim.configure(text=TRANSLATIONS[lang]["simulation"])
-        self._btn_derot_connect.configure(text=TRANSLATIONS[lang]["btn_connect_derot"])
+        self._lbl_derot_type.configure(text=TRANSLATIONS[lang]["type_lbl"])
+        self._lbl_derot_ppd.configure(text=TRANSLATIONS[lang]["ppd_lbl"])
+        self._frm_focus_conn.configure(text=f" {TRANSLATIONS[lang]['focus_frame']} ")
+        self._lbl_focus_type.configure(text=TRANSLATIONS[lang]["type_lbl"])
+        self._frm_focus_state.configure(text=f" {TRANSLATIONS[lang]['derot_state_frame']} ")
+        self._lbl_focus_pos_w[0].configure(text=TRANSLATIONS[lang]["focus_pos"])
+        self._lbl_focus_pos_w[1].configure(text=TRANSLATIONS[lang]["focus_temp"])
+        self._frm_focus_move.configure(text=f" {TRANSLATIONS[lang]['focus_move_frame']} ")
+        self._lbl_focus_steps.configure(text=TRANSLATIONS[lang]["focus_steps"])
+        self._lbl_focus_goto.configure(text=TRANSLATIONS[lang]["focus_goto"])
+        self._refresh_devices()
         
         self._frm_derot_state.configure(text=f" {TRANSLATIONS[lang]['derot_state_frame']} ")
         self._lbl_derot_ang.configure(text=TRANSLATIONS[lang]["phys_angle"])

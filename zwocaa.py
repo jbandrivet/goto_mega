@@ -26,6 +26,8 @@ CAA_ERROR_CODE = ctypes.c_int
 
 # ... (rest is same)
 caa_lib.CAAGetNum.restype = ctypes.c_int
+caa_lib.CAAGetID.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
+caa_lib.CAAGetID.restype = CAA_ERROR_CODE
 caa_lib.CAAOpen.argtypes = [ctypes.c_int]
 caa_lib.CAAOpen.restype = CAA_ERROR_CODE
 caa_lib.CAAClose.argtypes = [ctypes.c_int]
@@ -40,14 +42,22 @@ caa_lib.CAAGetDegree.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_float)]
 caa_lib.CAAGetDegree.restype = CAA_ERROR_CODE
 
 class CAA:
-    def __init__(self, caa_id=0):
-        self.caa_id = caa_id
+    def __init__(self, index=0):
+        # Le SDK numérote les appareils par index mais les pilote par un identifiant (CAAGetID)
+        self.index = index
+        self.caa_id = index
         
     @staticmethod
     def get_num():
         return caa_lib.CAAGetNum()
         
     def open(self):
+        if caa_lib.CAAGetNum() <= self.index:
+            raise RuntimeError("Aucun dérotateur ZWO CAA détecté")
+        i = ctypes.c_int()
+        err = caa_lib.CAAGetID(self.index, ctypes.byref(i))
+        if err != 0: raise RuntimeError(f"CAAGetID failed with code {err}")
+        self.caa_id = i.value
         err = caa_lib.CAAOpen(self.caa_id)
         if err != 0: raise RuntimeError(f"CAAOpen failed with code {err}")
         

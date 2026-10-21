@@ -2296,7 +2296,6 @@ finally:
                     self.eaf_lib.EAFGetNum.restype = ctypes.c_int
                     self.eaf_lib.EAFGetID.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
                     self.eaf_lib.EAFOpen.argtypes = [ctypes.c_int]
-                    self.eaf_lib.EAFInit.argtypes = [ctypes.c_int]
                     self.eaf_lib.EAFGetPosition.argtypes = [ctypes.c_int, ctypes.POINTER(ctypes.c_int)]
                     self.eaf_lib.EAFMove.argtypes = [ctypes.c_int, ctypes.c_int]
                     self.eaf_id = -1
@@ -2305,7 +2304,6 @@ finally:
                         self.eaf_lib.EAFGetID(0, ctypes.byref(_id))
                         self.eaf_id = _id.value
                         self.eaf_lib.EAFOpen(self.eaf_id)
-                        self.eaf_lib.EAFInit(self.eaf_id)
                 except Exception:
                     self.eaf_lib = None
             if getattr(self, 'eaf_lib', None) and self.eaf_id >= 0:
