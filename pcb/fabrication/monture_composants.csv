@@ -1,0 +1,16 @@
+Désignation;Quantité;Repères;Empreinte
+100nF;1;C_DEC;C_Disc_D5.0mm_W2.5mm_P5.00mm
+100uF 63V;1;C_IN;CP_Radial_D8.0mm_P3.50mm
+220uF 16V;1;C_OUT;CP_Radial_D8.0mm_P3.50mm
+220uF 63V;4;C_ALT C_AZ C_DEROT C_FOCUS;CP_Radial_D10.0mm_P5.00mm
+33uH 3A;1;L_BUCK;L_Radial_D12.5mm_P7.00mm_Fastron_09HCP
+Barrette femelle 1 x 8, pas 2,54 mm (support StepStick);8;DRV_ALT_L DRV_ALT_R DRV_AZ_L DRV_AZ_R DRV_DEROT_L DRV_DEROT_R DRV_FOCUS_L DRV_FOCUS_R;PinSocket_1x08_P2.54mm_Vertical
+Barrette mâle 1 x 4, pas 2,54 mm;3;J_GPS J_PC_SERIAL J_RAQUETTE;PinHeader_1x04_P2.54mm_Vertical
+Bornier à vis 2 points, pas 5,08 mm;1;J_PWR_36V;TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal
+Bornier à vis 4 points, pas 5,08 mm;4;M_ALT M_AZ M_DEROT M_FOCUS;TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal
+Buzzer 12 mm;1;BZ1;Buzzer_12x9.5RM7.6
+Jack d'alimentation 12 V;1;J_12V;BarrelJack_Horizontal
+LM2596HVT-5.0;1;U_LM2596;TO-220-5_Vertical
+Réseau de résistances 4 x 10 kOhm, commun broche 1 (SIP5);1;RN_EN;R_Array_SIP5
+SB560 (60V 5A);2;D_JACK D_SCHOTTKY;D_DO-201AD_P15.24mm_Horizontal
+Teensy 4.1;1;U1;Teensy41

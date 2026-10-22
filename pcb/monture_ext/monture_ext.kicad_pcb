@@ -529,10 +529,10 @@
 			(layer "F.Fab")
 			(uuid "aa1cce2e-3050-417f-9311-694cb63db888")
 		)
-		(fp_text user "K"
-			(at 0 -2.6 270)
-			(layer "F.SilkS")
-			(uuid "b79d8b3a-d8e9-4b5d-9687-f03d02f56827")
+		(fp_text user "${REFERENCE}"
+			(at 8.3325 0 270)
+			(layer "F.Fab")
+			(uuid "007a0f13-e049-4c39-afb9-b6e5bc7a763f")
 			(effects
 				(font
 					(size 1 1)
@@ -540,10 +540,10 @@
 				)
 			)
 		)
-		(fp_text user "${REFERENCE}"
-			(at 8.3325 0 270)
+		(fp_text user "K"
+			(at 0 -2.6 270)
 			(layer "F.Fab")
-			(uuid "007a0f13-e049-4c39-afb9-b6e5bc7a763f")
+			(uuid "b79d8b3a-d8e9-4b5d-9687-f03d02f56827")
 			(effects
 				(font
 					(size 1 1)
@@ -601,7 +601,7 @@
 		(descr "Terminal Block Phoenix PT-1,5-4-3.5-H, 4 pins, pitch 3.5mm, size 14x7.6mm, drill diameter 1.2mm, pad diameter 2.4mm, ")
 		(tags "THT Terminal Block Phoenix PT-1,5-4-3.5-H pitch 3.5mm size 14x7.6mm drill 1.2mm pad 2.4mm")
 		(property "Reference" "J_SIG_DEROT"
-			(at 5.25 -4.22 180)
+			(at 5.25 -2.2 0)
 			(layer "F.SilkS")
 			(uuid "1aa0535d-a11b-430b-b8a9-2bfd668c781b")
 			(effects
@@ -1013,18 +1013,18 @@
 		(descr "Terminal Block Phoenix MKDS-1,5-2-5.08, 2 pins, pitch 5.08mm, size 10.2x9.8mm, drill diameter 1.3mm, pad diameter 2.6mm, http://www.farnell.com/datasheets/100425.pdf")
 		(tags "THT Terminal Block Phoenix MKDS-1,5-2-5.08 pitch 5.08mm size 10.2x9.8mm drill 1.3mm pad 2.6mm")
 		(property "Reference" "J_VM_AZ"
-			(at 2.54 -6.32 180)
+			(at 2.54 -3.81 0)
 			(layer "F.SilkS")
 			(uuid "0a75deed-167b-4840-9a15-a6f82761d84d")
 			(effects
 				(font
-					(size 1 1)
+					(size 1 0.85)
 					(thickness 0.15)
 				)
 			)
 		)
 		(property "Value" "ALIM DRIVER AZ"
-			(at 2.54 5.72 180)
+			(at 2.540001 5.72 180)
 			(layer "F.Fab")
 			(uuid "170f7f5c-5c72-4073-9311-edb66997824d")
 			(effects
@@ -1365,12 +1365,12 @@
 		(descr "Terminal Block Phoenix MKDS-1,5-2-5.08, 2 pins, pitch 5.08mm, size 10.2x9.8mm, drill diameter 1.3mm, pad diameter 2.6mm, http://www.farnell.com/datasheets/100425.pdf")
 		(tags "THT Terminal Block Phoenix MKDS-1,5-2-5.08 pitch 5.08mm size 10.2x9.8mm drill 1.3mm pad 2.6mm")
 		(property "Reference" "J_VM_ALT"
-			(at 2.54 -6.32 180)
+			(at 2.54 -3.81 0)
 			(layer "F.SilkS")
 			(uuid "b9d343f2-23d0-4058-bfe7-1d92fe581bd6")
 			(effects
 				(font
-					(size 1 1)
+					(size 1 0.85)
 					(thickness 0.15)
 				)
 			)
@@ -1858,6 +1858,7 @@
 		(property "Reference" "H4"
 			(at 0 -4.15 0)
 			(layer "F.SilkS")
+			(hide yes)
 			(uuid "8384cb2d-90e6-40db-873e-ff428f3fd7c3")
 			(effects
 				(font
@@ -3694,6 +3695,7 @@
 		(property "Reference" "H3"
 			(at 0 -4.15 0)
 			(layer "F.SilkS")
+			(hide yes)
 			(uuid "0aa7eb6d-b382-401a-9dae-911d126f0e5d")
 			(effects
 				(font
@@ -3800,6 +3802,7 @@
 		(property "Reference" "H2"
 			(at 0 -4.15 0)
 			(layer "F.SilkS")
+			(hide yes)
 			(uuid "bfad1def-eef5-4ba6-b900-a36096ce436b")
 			(effects
 				(font
@@ -3904,7 +3907,7 @@
 		(descr "Terminal Block Phoenix PT-1,5-4-3.5-H, 4 pins, pitch 3.5mm, size 14x7.6mm, drill diameter 1.2mm, pad diameter 2.4mm, ")
 		(tags "THT Terminal Block Phoenix PT-1,5-4-3.5-H pitch 3.5mm size 14x7.6mm drill 1.2mm pad 2.4mm")
 		(property "Reference" "J_SIG_FOCUS"
-			(at 5.25 -4.22 180)
+			(at 5.25 -2.2 0)
 			(layer "F.SilkS")
 			(uuid "51bf92bf-3dc1-4d66-b7b1-9517767beac0")
 			(effects
@@ -4316,7 +4319,7 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3.0*1.6mm^2, Capacitor, http://www.vishay.com/docs/45233/krseries.pdf")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3.0mm width 1.6mm Capacitor")
 		(property "Reference" "C_DIR"
-			(at 1.25 -2.05 90)
+			(at 4.3 -0.000001 0)
 			(layer "F.SilkS")
 			(uuid "627212b9-7e5c-402e-b8e3-4ce9c75a2f74")
 			(effects
@@ -4327,7 +4330,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 1.25 2.05 90)
+			(at 1.25 2.049999 90)
 			(layer "F.Fab")
 			(uuid "b9f953a8-0b8a-4751-9813-1a56630e1a9d")
 			(effects
@@ -4843,7 +4846,7 @@
 		(descr "14-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U_STEP"
-			(at 3.81 -2.33 90)
+			(at 4.7 7.62 0)
 			(layer "F.SilkS")
 			(uuid "1f62029a-62ad-44de-a780-4235e4125447")
 			(effects
@@ -4853,7 +4856,7 @@
 				)
 			)
 		)
-		(property "Value" "74HCT125"
+		(property "Value" "74ACT125"
 			(at 3.81 17.57 90)
 			(layer "F.Fab")
 			(uuid "0a72c5bf-a452-4eaa-ad4a-c9d4a6919f13")
@@ -5186,7 +5189,7 @@
 		(descr "TO-220-5, Vertical, RM 1.7mm, Pentawatt, see http://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/ltc-legacy-to-220/to-220_5_05-08-1421_straight_lead.pdf")
 		(tags "TO-220-5 Vertical RM 1.7mm Pentawatt")
 		(property "Reference" "U_LM2596"
-			(at 3.4 -4.1 0)
+			(at 3.4 -4.6 0)
 			(layer "F.SilkS")
 			(uuid "0a4182d2-c012-4d85-8e7d-65923c18197f")
 			(effects
@@ -5196,7 +5199,7 @@
 				)
 			)
 		)
-		(property "Value" "LM2596-5.0"
+		(property "Value" "LM2596HVT-5.0"
 			(at 3.4 2.2 0)
 			(layer "F.Fab")
 			(uuid "8b6a5e44-6d9f-442e-91ad-38a8c15994db")
@@ -5441,7 +5444,7 @@
 		(descr "Terminal Block Phoenix PT-1,5-4-3.5-H, 4 pins, pitch 3.5mm, size 14x7.6mm, drill diameter 1.2mm, pad diameter 2.4mm, ")
 		(tags "THT Terminal Block Phoenix PT-1,5-4-3.5-H pitch 3.5mm size 14x7.6mm drill 1.2mm pad 2.4mm")
 		(property "Reference" "J_SIG_ALT"
-			(at 5.25 -4.22 180)
+			(at 5.25 -2.2 0)
 			(layer "F.SilkS")
 			(uuid "29683335-9edd-4088-be9f-b8c7f7cdb0d4")
 			(effects
@@ -5853,7 +5856,7 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3.0*1.6mm^2, Capacitor, http://www.vishay.com/docs/45233/krseries.pdf")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3.0mm width 1.6mm Capacitor")
 		(property "Reference" "C_STEP"
-			(at 1.25 -2.05 90)
+			(at 4.3 0 0)
 			(layer "F.SilkS")
 			(uuid "fdb863e0-a8de-44aa-ac05-7f6ca35173f4")
 			(effects
@@ -6001,7 +6004,7 @@
 		(descr "Terminal Block Phoenix PT-1,5-4-3.5-H, 4 pins, pitch 3.5mm, size 14x7.6mm, drill diameter 1.2mm, pad diameter 2.4mm, ")
 		(tags "THT Terminal Block Phoenix PT-1,5-4-3.5-H pitch 3.5mm size 14x7.6mm drill 1.2mm pad 2.4mm")
 		(property "Reference" "J_SIG_AZ"
-			(at 5.25 -4.22 180)
+			(at 5.25 -2.2 0)
 			(layer "F.SilkS")
 			(uuid "4fc9d85b-29cb-40cd-b0ce-9b45f975d2a0")
 			(effects
@@ -6508,7 +6511,7 @@
 		)
 		(fp_text user "+"
 			(at -0.01 -2.54 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
 			(uuid "d3730fb2-273b-450e-b472-c801d0c25f9a")
 			(effects
 				(font
@@ -7110,9 +7113,20 @@
 				)
 			)
 		)
+		(fp_text user "Micro SD"
+			(at 24.13 0 0)
+			(layer "F.SilkS")
+			(uuid "16aa5a20-c013-40b4-a909-57336d891b3e")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(fp_text user "DVJ6A"
 			(at -2.54 -0.18 270)
-			(layer "F.SilkS")
+			(layer "F.Fab")
 			(uuid "6bbfb243-247a-47b8-89fc-95062c3d9991")
 			(effects
 				(font
@@ -7123,22 +7137,11 @@
 		)
 		(fp_text user "MIMXRT1062"
 			(at -1.27 0 270)
-			(layer "F.SilkS")
+			(layer "F.Fab")
 			(uuid "e7590255-92b5-4377-a1dd-83a24584572f")
 			(effects
 				(font
 					(size 0.7 0.7)
-					(thickness 0.15)
-				)
-			)
-		)
-		(fp_text user "Micro SD"
-			(at 24.13 0 0)
-			(layer "F.SilkS")
-			(uuid "16aa5a20-c013-40b4-a909-57336d891b3e")
-			(effects
-				(font
-					(size 1 1)
 					(thickness 0.15)
 				)
 			)
@@ -7788,7 +7791,7 @@
 		(descr "14-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U_EN"
-			(at 3.81 -2.33 90)
+			(at 4.7 7.62 0)
 			(layer "F.SilkS")
 			(uuid "c9ba0579-febd-4d48-ae0f-a76d3ff55e73")
 			(effects
@@ -7798,7 +7801,7 @@
 				)
 			)
 		)
-		(property "Value" "74HCT125"
+		(property "Value" "74ACT125"
 			(at 3.81 17.57 90)
 			(layer "F.Fab")
 			(uuid "fcf6d89a-06f2-446b-b2e4-6ad29742151f")
@@ -10211,12 +10214,12 @@
 		(descr "Terminal Block Phoenix MKDS-1,5-2-5.08, 2 pins, pitch 5.08mm, size 10.2x9.8mm, drill diameter 1.3mm, pad diameter 2.6mm, http://www.farnell.com/datasheets/100425.pdf")
 		(tags "THT Terminal Block Phoenix MKDS-1,5-2-5.08 pitch 5.08mm size 10.2x9.8mm drill 1.3mm pad 2.6mm")
 		(property "Reference" "J_VM_DEROT"
-			(at 2.54 -6.32 180)
+			(at 2.54 -3.81 0)
 			(layer "F.SilkS")
 			(uuid "cd87a154-06f6-43c5-9236-348c450b04fc")
 			(effects
 				(font
-					(size 1 1)
+					(size 1 0.85)
 					(thickness 0.15)
 				)
 			)
@@ -10563,7 +10566,7 @@
 		(descr "Terminal Block Phoenix MKDS-1,5-2-5.08, 2 pins, pitch 5.08mm, size 10.2x9.8mm, drill diameter 1.3mm, pad diameter 2.6mm, http://www.farnell.com/datasheets/100425.pdf")
 		(tags "THT Terminal Block Phoenix MKDS-1,5-2-5.08 pitch 5.08mm size 10.2x9.8mm drill 1.3mm pad 2.6mm")
 		(property "Reference" "J_PWR_36V"
-			(at 2.54 -6.32 270)
+			(at 2.54 -3.81 90)
 			(layer "F.SilkS")
 			(uuid "7e87a206-8f29-4c5c-a849-8da761fb684c")
 			(effects
@@ -15320,12 +15323,12 @@
 		(descr "Terminal Block Phoenix MKDS-1,5-2-5.08, 2 pins, pitch 5.08mm, size 10.2x9.8mm, drill diameter 1.3mm, pad diameter 2.6mm, http://www.farnell.com/datasheets/100425.pdf")
 		(tags "THT Terminal Block Phoenix MKDS-1,5-2-5.08 pitch 5.08mm size 10.2x9.8mm drill 1.3mm pad 2.6mm")
 		(property "Reference" "J_VM_FOCUS"
-			(at 2.54 -6.32 180)
+			(at 2.54 -3.81 0)
 			(layer "F.SilkS")
 			(uuid "2fe74a27-f972-4e5d-bd6a-9aa800e58e9c")
 			(effects
 				(font
-					(size 1 1)
+					(size 1 0.85)
 					(thickness 0.15)
 				)
 			)
@@ -17997,7 +18000,7 @@
 		(descr "C, Disc series, Radial, pin pitch=2.50mm, diameter*width=3.0*1.6mm^2, Capacitor, http://www.vishay.com/docs/45233/krseries.pdf")
 		(tags "C Disc series Radial pin pitch 2.50mm diameter 3.0mm width 1.6mm Capacitor")
 		(property "Reference" "C_EN"
-			(at 1.25 -2.05 90)
+			(at 4.3 0 0)
 			(layer "F.SilkS")
 			(uuid "16156845-fba1-416b-aef9-7e686e8397d8")
 			(effects
@@ -18145,7 +18148,7 @@
 		(descr "14-lead though-hole mounted DIP package, row spacing 7.62mm (300 mils)")
 		(tags "THT DIP DIL PDIP 2.54mm 7.62mm 300mil")
 		(property "Reference" "U_DIR"
-			(at 3.81 -2.33 90)
+			(at 4.7 7.62 0)
 			(layer "F.SilkS")
 			(uuid "d37ebc17-6c2e-4746-af6c-a156bd6063be")
 			(effects
@@ -18155,7 +18158,7 @@
 				)
 			)
 		)
-		(property "Value" "74HCT125"
+		(property "Value" "74ACT125"
 			(at 3.81 17.57 90)
 			(layer "F.Fab")
 			(uuid "0f624cdc-0fa8-430d-9f84-fa98f62804b7")
@@ -19054,7 +19057,7 @@
 		)
 		(fp_text user "K"
 			(at 0 -2.6 0)
-			(layer "F.SilkS")
+			(layer "F.Fab")
 			(uuid "19da4500-7b85-423b-bf18-ba11078be1c9")
 			(effects
 				(font
@@ -20856,6 +20859,7 @@
 		(property "Reference" "H1"
 			(at 0 -4.15 0)
 			(layer "F.SilkS")
+			(hide yes)
 			(uuid "0f777f8b-0083-470d-b068-dc852711f3b0")
 			(effects
 				(font
@@ -20954,84 +20958,44 @@
 		(embedded_fonts no)
 	)
 	(gr_line
-		(start 6 62)
-		(end 44 62)
-		(stroke
-			(width 0.2)
-			(type default)
-		)
-		(layer "F.SilkS")
-		(uuid "ba46f86d-8111-4a62-b7c6-c0c3ebc9b49b")
-	)
-	(gr_line
-		(start 6 106)
-		(end 6 62)
-		(stroke
-			(width 0.2)
-			(type default)
-		)
-		(layer "F.SilkS")
-		(uuid "6ad935ec-2d2c-4577-bc16-0b01f84f4422")
-	)
-	(gr_line
-		(start 44 62)
-		(end 44 106)
-		(stroke
-			(width 0.2)
-			(type default)
-		)
-		(layer "F.SilkS")
-		(uuid "2ddc109a-73c1-4fa7-a0ce-3b81b8b1bdb9")
-	)
-	(gr_line
-		(start 44 106)
-		(end 6 106)
-		(stroke
-			(width 0.2)
-			(type default)
-		)
-		(layer "F.SilkS")
-		(uuid "ec6c66d6-8a6b-4245-87be-ce85a99083ad")
-	)
-	(gr_line
-		(start 119.5 95)
-		(end 140.8 95)
+		(start 107.5 94.6)
+		(end 141.5 94.6)
 		(stroke
 			(width 0.15)
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "c4b7891b-ee16-42eb-b357-156c01aaca29")
+		(uuid "4f697c43-52ac-43cc-814a-489bf19f2ae3")
 	)
 	(gr_line
-		(start 119.5 107)
-		(end 119.5 95)
+		(start 107.5 104.2)
+		(end 107.5 94.6)
 		(stroke
 			(width 0.15)
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "d232c9b3-b093-4378-ad82-8cb74abba7b5")
+		(uuid "9c8a6383-10bb-4465-8394-5472e649b2ee")
 	)
 	(gr_line
-		(start 140.8 95)
-		(end 140.8 107)
+		(start 141.5 94.6)
+		(end 141.5 104.2)
 		(stroke
 			(width 0.15)
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "2afcee20-3296-4f41-9c45-085ddf00b9ea")
+		(uuid "ef249ab6-de93-4e20-ba32-694f3ee4be7f")
 	)
 	(gr_line
-		(start 140.8 107)
-		(end 119.5 107)
+		(start 141.5 104.2)
+		(end 107.5 104.2)
 		(stroke
 			(width 0.15)
 			(type default)
 		)
 		(layer "F.SilkS")
-		(uuid "112da01c-496a-4232-8e69-58738f5207ec")
+		(uuid "eea14674-5142-49d3-9726-63311ce3f2cd")
 	)
 	(gr_line
 		(start 0 0)
@@ -21073,643 +21037,755 @@
 		(layer "Edge.Cuts")
 		(uuid "9b1f58b0-7b54-4a60-a45f-dcf991d820f9")
 	)
-	(gr_text "RAPPELS EN"
-		(at 115.1 83.6 0)
-		(layer "F.SilkS")
-		(uuid "46ec6a95-c17e-4cf7-9317-4ee88d3db9af")
-		(effects
-			(font
-				(size 0.5 0.5)
-			)
-		)
-	)
-	(gr_text "- VM/GND : alim. du driver (36V ou 12V)"
-		(at 130.15 98.6 0)
-		(layer "F.SilkS")
-		(uuid "d0277f8f-816b-4967-b925-eaaa0c94e4b6")
-		(effects
-			(font
-				(size 0.5 0.5)
-			)
-		)
-	)
-	(gr_text "- EN/STEP/DIR 5V -> ENA+/PUL+/DIR+"
-		(at 130.15 100.9 0)
-		(layer "F.SilkS")
-		(uuid "ef1f8a69-0995-447c-a1de-1d2e7786a6d8")
-		(effects
-			(font
-				(size 0.5 0.5)
-			)
-		)
-	)
-	(gr_text "* PUL-, DIR-, ENA- du driver au GND"
-		(at 130.15 103.2 0)
-		(layer "F.SilkS")
-		(uuid "2c040f6a-675e-4c97-bc5a-ca826b96dae6")
-		(effects
-			(font
-				(size 0.5 0.5)
-			)
-		)
-	)
-	(gr_text "* RX/TX = cote Teensy : croiser vers l'appareil"
-		(at 130.15 105.5 0)
-		(layer "F.SilkS")
-		(uuid "454fa79c-2290-4b45-8637-3d496d75c1a8")
-		(effects
-			(font
-				(size 0.5 0.5)
-			)
-		)
-	)
 	(gr_text "EN"
-		(at 28.38 13.6 0)
+		(at 28.38 14.65 0)
 		(layer "F.SilkS")
-		(uuid "9dab5be6-c973-4d1c-afcf-1c1991785ba5")
+		(uuid "d8a98009-1732-45d8-aeb1-bf9ee7507124")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "STEP"
-		(at 31.88 13.6 0)
+		(at 31.88 14.65 0)
 		(layer "F.SilkS")
-		(uuid "a076387a-7682-4c7e-9c3f-65e59e2fb965")
+		(uuid "8fdd948f-d015-46fa-92cf-016a21ebdb65")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "DIR"
-		(at 35.38 13.6 0)
+		(at 35.38 14.65 0)
 		(layer "F.SilkS")
-		(uuid "f499422c-e112-4c60-ad4b-ffbfa195d5e3")
+		(uuid "51730f74-902e-455a-afa8-2b1947c34e46")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "GND"
-		(at 38.88 13.6 0)
+		(at 38.88 14.65 0)
 		(layer "F.SilkS")
-		(uuid "dfbe26b7-7173-4598-ac21-6f927d4ad175")
+		(uuid "42b93fab-3daa-4cb2-8eb2-33d03f17272e")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "EN"
-		(at 60.05 13.6 0)
+		(at 60.05 14.65 0)
 		(layer "F.SilkS")
-		(uuid "df7d826f-f582-43e2-8e2f-92b2c3230885")
+		(uuid "57abf263-75bf-474b-a802-5373f37a1f26")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "STEP"
-		(at 63.55 13.6 0)
+		(at 63.55 14.65 0)
 		(layer "F.SilkS")
-		(uuid "742d2ee9-750f-408f-9a19-afcf7320d508")
+		(uuid "8475bb36-8dfc-4448-ba6a-9ae051a34e7b")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "DIR"
-		(at 67.05 13.6 0)
+		(at 67.05 14.65 0)
 		(layer "F.SilkS")
-		(uuid "521322de-25b7-4281-abac-459133917bad")
+		(uuid "2f50ff34-7950-4bbb-aee3-bdc7b1a324ac")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "GND"
-		(at 70.55 13.6 0)
+		(at 70.55 14.65 0)
 		(layer "F.SilkS")
-		(uuid "3332069a-ac51-422a-b9a3-5b0bfbd0b6cf")
+		(uuid "0906e808-3420-491b-b8fd-72506169711a")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "EN"
-		(at 91.71 13.6 0)
+		(at 91.71 14.65 0)
 		(layer "F.SilkS")
-		(uuid "c3d6c7ae-f89d-493a-88be-f681284ce01d")
+		(uuid "46470848-c011-4aa9-a9be-ae61d4bf308e")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "STEP"
-		(at 95.21 13.6 0)
+		(at 95.21 14.65 0)
 		(layer "F.SilkS")
-		(uuid "ba3390d0-7cbc-418d-a7c8-5fa6ddcf4dd2")
+		(uuid "31e97f16-593d-4282-b885-e2f42723d020")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "DIR"
-		(at 98.71 13.6 0)
+		(at 98.71 14.65 0)
 		(layer "F.SilkS")
-		(uuid "05a77667-df89-4f1f-8ea7-d5ad21d0443d")
+		(uuid "6d179470-e1c7-470a-9582-4b80c7d201d3")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "GND"
-		(at 102.21 13.6 0)
+		(at 102.21 14.65 0)
 		(layer "F.SilkS")
-		(uuid "3ffa6701-b4cc-4c42-8111-b343f29575d7")
+		(uuid "048dcec4-7fd5-4872-91a4-fe5ec04bb5dd")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "EN"
-		(at 123.38 13.6 0)
+		(at 123.38 14.65 0)
 		(layer "F.SilkS")
-		(uuid "9dd2ca37-8e84-4c94-8c14-1a3e952191e6")
+		(uuid "396d9b27-954a-4bfd-85be-80b475a2bc70")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "STEP"
-		(at 126.88 13.6 0)
+		(at 126.88 14.65 0)
 		(layer "F.SilkS")
-		(uuid "4e89d86b-9dfd-4af7-8814-d6da801543b9")
+		(uuid "36da105a-bfcb-4bd6-b20b-9804cf526697")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "DIR"
-		(at 130.38 13.6 0)
+		(at 130.38 14.65 0)
 		(layer "F.SilkS")
-		(uuid "0de016cb-4c49-4b43-9ca6-656a10d26854")
+		(uuid "d8920849-3a61-4e3a-a3cf-ff18a2a43822")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "GND"
-		(at 133.88 13.6 0)
+		(at 133.88 14.65 0)
 		(layer "F.SilkS")
-		(uuid "88d0e2a5-50b3-4a4d-b151-49ab5c957944")
+		(uuid "390b32f4-e9af-41ad-a4cd-735679f05f47")
 		(effects
 			(font
-				(size 0.55 0.55)
+				(size 1 0.8)
+				(thickness 0.15)
 			)
 		)
 	)
-	(gr_text "C_IN 63V"
-		(at 10.25 89.4 0)
+	(gr_text "BUCK 36V -> 5V 3A"
+		(at 7 64.599999 0)
 		(layer "F.SilkS")
-		(uuid "784ccaef-981f-4237-8bdf-972e5dea7857")
+		(uuid "285fa2b0-e037-41a0-82c7-4aec789a2095")
 		(effects
 			(font
-				(size 0.6 0.6)
+				(size 1 1)
+				(thickness 0.15)
 			)
-		)
-	)
-	(gr_text "D_JACK"
-		(at 11.2 26 0)
-		(layer "F.SilkS")
-		(uuid "06408c4c-6658-4788-88f7-bdc8dee5c31d")
-		(effects
-			(font
-				(size 0.6 0.6)
-			)
-		)
-	)
-	(gr_text "DIODE SB560"
-		(at 13 97 0)
-		(layer "F.SilkS")
-		(uuid "8ed8ae62-e3b4-4b3b-b7af-1aae12d7b663")
-		(effects
-			(font
-				(size 0.6 0.6)
-			)
-		)
-	)
-	(gr_text "GND (Pin 1)"
-		(at 14 55 0)
-		(layer "F.SilkS")
-		(uuid "59d983b0-a5e3-40d4-ba41-ca284bc8795f")
-		(effects
-			(font
-				(size 0.6 0.6)
-			)
-		)
-	)
-	(gr_text "+36V (Pin 2)"
-		(at 14 60 0)
-		(layer "F.SilkS")
-		(uuid "2d52c786-cf2f-4c8a-8f67-8a2dc1a07832")
-		(effects
-			(font
-				(size 0.6 0.6)
-			)
-		)
-	)
-	(gr_text "L 33uH"
-		(at 30 76 0)
-		(layer "F.SilkS")
-		(uuid "d0fc193a-0805-44ad-b84d-68bfc506c6d1")
-		(effects
-			(font
-				(size 0.6 0.6)
-			)
-		)
-	)
-	(gr_text "C_OUT 16V"
-		(at 36.75 102.3 0)
-		(layer "F.SilkS")
-		(uuid "33d58daa-4100-4466-acac-4bdf4f649f04")
-		(effects
-			(font
-				(size 0.6 0.6)
-			)
-		)
-	)
-	(gr_text "TAMPONS 5V (74HCT125)"
-		(at 75 39.4 0)
-		(layer "F.SilkS")
-		(uuid "06bbad69-f3be-4177-a98e-674e576c3a16")
-		(effects
-			(font
-				(size 0.6 0.6)
-			)
-		)
-	)
-	(gr_text "1: RX <- TX"
-		(at 127 61.2 0)
-		(layer "F.SilkS")
-		(uuid "cf899b5e-9c71-4dfe-89ad-75a19997c10b")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
-		)
-	)
-	(gr_text "2: TX -> RX"
-		(at 127 63.7 0)
-		(layer "F.SilkS")
-		(uuid "8bc97e32-0fd5-4f29-ae0c-1ff9e835aab1")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
-		)
-	)
-	(gr_text "GUIDE DRIVERS EXTERNES :"
-		(at 130.15 96.3 0)
-		(layer "F.SilkS")
-		(uuid "2a36766d-9ea2-4d88-9832-279b705ba646")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
-		)
-	)
-	(gr_text "1: GND"
-		(at 133 41.2 0)
-		(layer "F.SilkS")
-		(uuid "32451c90-2264-4ecb-b1e6-82f100388db5")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
-		)
-	)
-	(gr_text "2: +5V"
-		(at 133 43.7 0)
-		(layer "F.SilkS")
-		(uuid "163abb47-2b1b-4b60-be4b-99330062f01b")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
-		)
-	)
-	(gr_text "3: +5V"
-		(at 133 66.3 0)
-		(layer "F.SilkS")
-		(uuid "5932953f-39ee-4650-86c4-7fc785d63a02")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
-		)
-	)
-	(gr_text "4: GND"
-		(at 133 68.8 0)
-		(layer "F.SilkS")
-		(uuid "32899569-f107-4cd0-9a7a-8b77dd35f35a")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
-		)
-	)
-	(gr_text "3: RX3"
-		(at 134 46.3 0)
-		(layer "F.SilkS")
-		(uuid "fe53c116-1a9e-4b52-a030-5e3f5a5ff01c")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
-		)
-	)
-	(gr_text "4: TX3"
-		(at 134 48.8 0)
-		(layer "F.SilkS")
-		(uuid "612d4dcc-fc99-422c-8c61-8ab9768ac8a5")
-		(effects
-			(font
-				(size 0.65 0.65)
-			)
+			(justify left)
 		)
 	)
 	(gr_text "1 GND"
-		(at 146.8 16 0)
+		(at 14.6 55 0)
 		(layer "F.SilkS")
-		(uuid "af381331-e790-425b-a755-c1ee4644bf8e")
+		(uuid "406bafed-3468-4f40-9ba7-c32f3d84b4d3")
 		(effects
 			(font
-				(size 0.65 0.65)
+				(size 1 1)
+				(thickness 0.15)
 			)
+			(justify left)
+		)
+	)
+	(gr_text "2 +36V"
+		(at 14.6 60.08 0)
+		(layer "F.SilkS")
+		(uuid "b4a81d10-f2b5-4a73-b713-54d37e799c59")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "1 GND"
+		(at 143.8 16 0)
+		(layer "F.SilkS")
+		(uuid "99d2ed88-20a8-4c6f-9f62-32c8a6345255")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
 		)
 	)
 	(gr_text "2 +5V"
-		(at 146.8 18.54 0)
+		(at 143.8 18.54 0)
 		(layer "F.SilkS")
-		(uuid "5e91eeb4-6865-4fcf-b9cb-a24fcabd44d0")
+		(uuid "9bf12df7-472c-4e09-83e3-ff3343ad1336")
 		(effects
 			(font
-				(size 0.65 0.65)
+				(size 1 1)
+				(thickness 0.15)
 			)
+			(justify left)
 		)
 	)
 	(gr_text "3 TX6"
-		(at 146.8 21.08 0)
+		(at 143.8 21.08 0)
 		(layer "F.SilkS")
-		(uuid "c1e7a1f2-9a9c-4d39-953d-87d8646e9960")
+		(uuid "a3af5688-6afe-474a-a0c7-66008023bad7")
 		(effects
 			(font
-				(size 0.65 0.65)
+				(size 1 1)
+				(thickness 0.15)
 			)
+			(justify left)
 		)
 	)
 	(gr_text "4 RX6"
-		(at 146.8 23.62 0)
+		(at 143.8 23.62 0)
 		(layer "F.SilkS")
-		(uuid "ec2f0c48-57ce-45ca-b2d9-836d5b247413")
+		(uuid "65ca85cd-8e18-432c-acf9-67315f7a32b3")
 		(effects
 			(font
-				(size 0.65 0.65)
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "1 GND"
+		(at 143.8 41.19 0)
+		(layer "F.SilkS")
+		(uuid "0104e3ba-afd8-422d-9a73-c2af2d9d2452")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "2 +5V"
+		(at 143.8 43.73 0)
+		(layer "F.SilkS")
+		(uuid "49c9c810-36f2-4c3f-93ed-88f460c5ed00")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "3 RX3"
+		(at 143.8 46.269999 0)
+		(layer "F.SilkS")
+		(uuid "3c62c7f9-5fc0-4a1a-94a3-7b4028e743bf")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "4 TX3"
+		(at 143.8 48.809999 0)
+		(layer "F.SilkS")
+		(uuid "532056d9-788c-4c5f-b79b-0cdc451878d4")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "1 RX4"
+		(at 143.8 61.19 0)
+		(layer "F.SilkS")
+		(uuid "b01678fd-ddc7-4185-a44b-a50672bf2764")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "2 TX4"
+		(at 143.8 63.73 0)
+		(layer "F.SilkS")
+		(uuid "40659df3-d4ff-473f-84c4-0517e54c5948")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "3 +5V"
+		(at 143.8 66.269999 0)
+		(layer "F.SilkS")
+		(uuid "46b1b9ab-06a8-40bf-bfc1-d51264c32c6d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "4 GND"
+		(at 143.8 68.81 0)
+		(layer "F.SilkS")
+		(uuid "0a711d23-5c84-4aef-88b0-7a2bf284b7ef")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+			(justify left)
+		)
+	)
+	(gr_text "ALIM 12V JACK"
+		(at 7.5 33.6 0)
+		(layer "F.SilkS")
+		(uuid "93a934a0-b8ba-446a-9b09-8b955f08d1f6")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
-	(gr_text "[ BUCK 36V->5V 3A ]"
-		(at 8 64 0)
+	(gr_text "63V"
+		(at 10.25 89.4 0)
 		(layer "F.SilkS")
-		(uuid "8bd3c370-22f0-4e8f-b03b-dc91ce13077b")
+		(uuid "8016137f-cf42-46db-ab08-7b89732ed67b")
 		(effects
 			(font
-				(size 0.7 0.7)
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
-	(gr_text "VM"
-		(at 16.93 15 0)
+	(gr_text "SB560"
+		(at 12 97 0)
 		(layer "F.SilkS")
-		(uuid "fa7cddef-b1bd-4c45-ae7f-ea8b901223fc")
+		(uuid "8b926712-37bf-4476-9b46-ec1516b52386")
 		(effects
 			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "LM2596-5.0"
-		(at 21.4 78.6 0)
-		(layer "F.SilkS")
-		(uuid "862b4d00-2f3c-414a-8624-32ebf79744bc")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "GND"
-		(at 22.009999 15 0)
-		(layer "F.SilkS")
-		(uuid "0bc81c66-49de-4249-8f5f-52a767396d28")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "VM"
-		(at 48.6 15 0)
-		(layer "F.SilkS")
-		(uuid "48bb4234-d6f5-4b85-9809-e4b52602c29e")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "GND"
-		(at 53.68 15 0)
-		(layer "F.SilkS")
-		(uuid "30b69dc0-60b9-462b-bf11-adb7c78b3ce3")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "VM"
-		(at 80.26 15 0)
-		(layer "F.SilkS")
-		(uuid "e0941f7b-c617-4d00-8922-70ee566041e3")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "GND"
-		(at 85.34 15 0)
-		(layer "F.SilkS")
-		(uuid "60c81042-6e20-4891-8e0f-5550af4a6aca")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "VM"
-		(at 111.93 15 0)
-		(layer "F.SilkS")
-		(uuid "9a890d9f-5be0-4590-a7a1-6d9cf9e4d6f5")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "GND"
-		(at 117.01 15 0)
-		(layer "F.SilkS")
-		(uuid "e4f2b054-a6e4-4117-b197-895b3ab13f74")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "BUZZER"
-		(at 134 80 0)
-		(layer "F.SilkS")
-		(uuid "8f4e55d8-5e8c-4afb-b772-87300b696bea")
-		(effects
-			(font
-				(size 0.7 0.7)
-			)
-		)
-	)
-	(gr_text "ALIM 12V (JACK)"
-		(at 8 33.6 0)
-		(layer "F.SilkS")
-		(uuid "ce0f6e01-3358-4668-8f32-f9db3bfd1087")
-		(effects
-			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "<- ENTREE 36V"
 		(at 14 50 0)
 		(layer "F.SilkS")
-		(uuid "6165916c-ff21-46f4-84e0-5ebc18402d78")
+		(uuid "37b52598-e27f-4e51-9f79-be4fb843c63a")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "VM"
+		(at 16.93 14.65 0)
+		(layer "F.SilkS")
+		(uuid "4c5ca3b0-5984-4cbf-a9e2-00c442726273")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "LM2596HV-5.0"
+		(at 21.4 77.6 0)
+		(layer "F.SilkS")
+		(uuid "8899cdd2-5f53-4737-958e-420871065a92")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "GND"
+		(at 22.009999 14.65 0)
+		(layer "F.SilkS")
+		(uuid "74f3b938-f462-4c1c-b48b-d81ef664270d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "AZ / RA"
-		(at 27.5 17.6 0)
+		(at 27.5 17.2 0)
 		(layer "F.SilkS")
-		(uuid "22068290-7a78-4d15-a776-5980e1c85826")
+		(uuid "da9a90a0-511d-4dce-8a39-b57ecad4c552")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "33uH"
+		(at 30 76 0)
+		(layer "F.SilkS")
+		(uuid "aed96345-f1f3-4562-a35a-6b2d575591a7")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "16V"
+		(at 36.75 102.3 0)
+		(layer "F.SilkS")
+		(uuid "971056ee-16e7-48b5-b402-cd3d0a17de4e")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "<- MICRO-USB"
-		(at 41 69 0)
+		(at 36.9 69 0)
 		(layer "F.SilkS")
-		(uuid "b1d38aac-7b4e-4f27-be68-948c4998261d")
+		(uuid "9b8c1043-4fb6-4d57-9a60-1ad4c17b6a35")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "VM"
+		(at 48.6 14.65 0)
+		(layer "F.SilkS")
+		(uuid "e9614e95-dd61-47a2-9cee-c847ec2c8f28")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "74ACT125"
+		(at 52.62 47.2 0)
+		(layer "F.SilkS")
+		(uuid "41a1ac24-b5ff-4f45-9510-6c59c8f4e2b5")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "GND"
+		(at 53.68 14.65 0)
+		(layer "F.SilkS")
+		(uuid "6d27a737-e1ee-4788-9cbf-05561f43741b")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "ALT / DEC"
-		(at 59.17 17.6 0)
+		(at 59.17 17.2 0)
 		(layer "F.SilkS")
-		(uuid "4bdca788-bdf2-4f4c-aa89-377904576312")
+		(uuid "c069d185-5c03-482f-b7a8-5f6b120ba798")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "TAMPONS 5V"
+		(at 75 38.2 0)
+		(layer "F.SilkS")
+		(uuid "65ff0c4c-d720-4631-aeab-0bf1555ab253")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "74ACT125"
+		(at 75.12 47.2 0)
+		(layer "F.SilkS")
+		(uuid "bc24bcea-6c21-40d7-9978-a883c835406a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "VM"
+		(at 80.26 14.65 0)
+		(layer "F.SilkS")
+		(uuid "c1ead300-ca86-4030-9d41-c4c39c89eff8")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "GND"
+		(at 85.34 14.65 0)
+		(layer "F.SilkS")
+		(uuid "46a8675a-97f1-435a-ba0e-5e4d449f9704")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "DEROTATEUR"
-		(at 90.83 17.6 0)
+		(at 90.83 17.2 0)
 		(layer "F.SilkS")
-		(uuid "1ef7fc78-ab2b-4954-aecb-d6be184db35e")
+		(uuid "5450d31f-eed3-412a-a09c-ac46cdbed0e5")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "74ACT125"
+		(at 97.62 47.2 0)
+		(layer "F.SilkS")
+		(uuid "d9d32cbb-13f4-429a-91cb-339bdd382cd1")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "VM"
+		(at 111.93 14.65 0)
+		(layer "F.SilkS")
+		(uuid "841ba9bd-4020-49a4-b02c-703de6054458")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "RAPPELS EN"
+		(at 115.08 88.6 0)
+		(layer "F.SilkS")
+		(uuid "0e3921f3-0f04-403e-ab73-b9eb2dc5cf72")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "GND"
+		(at 117.01 14.65 0)
+		(layer "F.SilkS")
+		(uuid "9fcb82b6-6249-4589-9b9c-a495d858df2d")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "FOCUSEUR"
-		(at 122.5 17.6 0)
+		(at 122.5 17.2 0)
 		(layer "F.SilkS")
-		(uuid "c219ffab-cf4e-4a72-bf80-e1a9daaeb3f2")
+		(uuid "2ce184d5-13d7-4acc-8728-a979d7c613fb")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
-	(gr_text "[ GPS SERIAL ]"
-		(at 123 58.5 0)
+	(gr_text "DRIVERS EXTERNES :"
+		(at 124.5 95.899999 0)
 		(layer "F.SilkS")
-		(uuid "abbd7ef8-bf00-4597-8230-b49ae3def8d5")
+		(uuid "bacfd77d-c297-433e-9f7e-46366102f8f4")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
-	(gr_text "[ RAQUETTE ]"
-		(at 133.8 38.8 0)
+	(gr_text "VM/GND : alim. du driver (12-36V)"
+		(at 124.5 97.699999 0)
 		(layer "F.SilkS")
-		(uuid "5b062883-878e-40a6-bec1-9f248c7b98da")
+		(uuid "5bb8a629-a864-40ab-ade4-9a6594069b70")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
-	(gr_text "[ PC SERIAL ]"
-		(at 142 11 0)
+	(gr_text "EN/STEP/DIR 5V -> ENA+/PUL+/DIR+"
+		(at 124.5 99.499999 0)
 		(layer "F.SilkS")
-		(uuid "d8c7af1a-5cc4-461d-ae12-e76667c0a1be")
+		(uuid "1af6ec2b-1b3b-4fa5-8b2a-e267482e270d")
 		(effects
 			(font
-				(size 0.8 0.8)
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "ENA-, PUL-, DIR- du driver au GND"
+		(at 124.5 101.3 0)
+		(layer "F.SilkS")
+		(uuid "6832db0f-e02b-4b4e-958c-a8d4cf9344bc")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "RX/TX cote Teensy : croiser"
+		(at 124.5 103.1 0)
+		(layer "F.SilkS")
+		(uuid "941f1dca-367f-4478-95ea-87a2c388cb16")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "BUZZER"
+		(at 134 80 0)
+		(layer "F.SilkS")
+		(uuid "831adc42-7a39-48ac-a07a-13ce0faf0d24")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "PC SERIAL"
+		(at 142 11.6 0)
+		(layer "F.SilkS")
+		(uuid "9bd4ef7b-8479-4806-802b-5f230aa5729a")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "RAQUETTE"
+		(at 142 37.2 0)
+		(layer "F.SilkS")
+		(uuid "33ef91cb-acac-49c8-8dd0-68028d0b768f")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "GPS SERIAL"
+		(at 142 57.2 0)
+		(layer "F.SilkS")
+		(uuid "bac7b3da-7420-49c5-8bd4-f017253dfa5c")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(gr_text "SB560"
+		(at 11.6 25.6 90)
+		(layer "F.SilkS")
+		(uuid "10a7710c-1c55-47c1-a0b3-7977951cdba7")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
 			)
 		)
 	)
 	(gr_text "GOTO-ANDRIVET : MONTURE 36V - TEENSY 4.1 / DRIVERS EXTERNES"
 		(at 75 108.6 0)
 		(layer "F.SilkS")
-		(uuid "b925ed04-73f8-475f-af54-dc9a777b09a5")
+		(uuid "14ea96b6-152d-4ec2-a381-3abea8ece129")
 		(effects
 			(font
 				(size 1.1 1.1)
+				(thickness 0.165)
 			)
 		)
 	)
