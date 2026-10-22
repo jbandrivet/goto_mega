@@ -37,7 +37,7 @@ DESIGNATIONS = {
     "TerminalBlock_Phoenix_PT-1,5-4-3.5-H_1x04_P3.50mm_Horizontal": "Bornier à vis 4 points, pas 3,5 mm",
     "PinHeader_1x04_P2.54mm_Vertical": "Barrette mâle 1 x 4, pas 2,54 mm",
     "PinSocket_1x08_P2.54mm_Vertical": "Barrette femelle 1 x 8, pas 2,54 mm (support StepStick)",
-    "SW_PUSH_6mm": "Bouton poussoir 6 x 6 mm",
+    "SW_PUSH_6mm": "Bouton poussoir 6 x 6 mm, 4,3 mm de haut (boutons imprimés calés dessus)",
     "BarrelJack_Horizontal": "Jack d'alimentation 12 V",
     "Buzzer_12x9.5RM7.6": "Buzzer 12 mm",
     "R_Array_SIP5": "Réseau de résistances 4 x 10 kOhm, commun broche 1 (SIP5)",

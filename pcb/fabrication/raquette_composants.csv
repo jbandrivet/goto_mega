@@ -1,4 +1,4 @@
 Désignation;Quantité;Repères;Empreinte
 Barrette mâle 1 x 4, pas 2,54 mm;2;J_GROVE J_LCD_I2C;PinHeader_1x04_P2.54mm_Vertical
-Bouton poussoir 6 x 6 mm;5;SW_DOWN SW_ENTER SW_LEFT SW_RIGHT SW_UP;SW_PUSH_6mm
+Bouton poussoir 6 x 6 mm, 4,3 mm de haut (boutons imprimés calés dessus);5;SW_DOWN SW_ENTER SW_LEFT SW_RIGHT SW_UP;SW_PUSH_6mm
 Teensy 4.1;1;U1;Teensy41
