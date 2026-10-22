@@ -352,6 +352,14 @@
       {
         "netclass": "Puissance",
         "pattern": "*_2B"
+      },
+      {
+        "netclass": "Puissance",
+        "pattern": "PWR_IN"
+      },
+      {
+        "netclass": "Puissance",
+        "pattern": "VIN_OR"
       }
     ]
   },

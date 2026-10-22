@@ -12,7 +12,9 @@ Deux cartes monture, mêmes dimensions, mêmes fixations et même plan de câbla
 
 Version Haute Puissance 36V avec :
 - CIRCUIT BUCK 36V -> 5V 100% DISCRET ET INTÉGRÉ AU PCB (LM2596HVT-5.0 60V, diode SB560 60V)
-- Jack 12V isolé du bornier 36V par la diode D_JACK
+- Entrées 36V (bornier) et 12V (jack) protégées contre l'inversion par une double diode Schottky
+  (MBR20100CT, une anode par entrée), puis fusible temporisé T4A commun avant le bus +36V
+- Buzzer commandé par un transistor (PN2222A), pas directement par une broche du Teensy
 - 4 supports StepStick (TMC5160 HV, 4A max), VIO en 3,3V, condensateurs 220uF/63V
 - 4 Borniers à vis moteurs orientés vers le haut (extérieur)
 - Bornier d'alimentation 36V orienté vers la gauche (extérieur)
@@ -42,6 +44,9 @@ LIB_HOLE = "/usr/share/kicad/footprints/MountingHole.pretty"
 LIB_USB = "/usr/share/kicad/footprints/Connector_USB.pretty"
 LIB_DIP = "/usr/share/kicad/footprints/Package_DIP.pretty"
 LIB_RES = "/usr/share/kicad/footprints/Resistor_THT.pretty"
+LIB_FUSE = "/usr/share/kicad/footprints/Fuse.pretty"
+LIB_SOT_SMD = "/usr/share/kicad/footprints/Package_TO_SOT_SMD.pretty"
+R_VERTICAL = "R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical"
 LIB_JUMPER = "/usr/share/kicad/footprints/Jumper.pretty"
 
 # Classes de nets du PCB monture (écrites dans monture.kicad_pro)
@@ -49,7 +54,7 @@ DEFAULT_NETCLASS = {"name": "Default", "clearance": 0.2, "track_width": 0.2, "vi
                     "priority": 2147483647}
 POWER_NETCLASS = {"name": "Puissance", "clearance": 0.25, "track_width": 1.5, "via_diameter": 1.2, "via_drill": 0.6,
                   "priority": 0}
-POWER_NET_PATTERNS = ["+36V", "GND", "+5V", "SW_NODE", "JACK_IN", "*_1A", "*_1B", "*_2A", "*_2B"]
+POWER_NET_PATTERNS = ["+36V", "GND", "+5V", "SW_NODE", "JACK_IN", "PWR_IN", "VIN_OR", "*_1A", "*_1B", "*_2A", "*_2B"]
 
 # Ponts SPI (TMC5160) : broches 2..6 du support StepStick -> bus SPI1 du Teensy.
 # Pont fermé : SDI -> MOSI, SCK -> SCK, CSN -> CS de l'axe, SDO -> MISO, CLK -> GND.
@@ -182,14 +187,21 @@ def _new_board(net_names):
 def _monture_net_names():
     """Nets communs aux deux cartes monture (alimentation, buck, Teensy, connecteurs)."""
     names = ["GND", "+36V", "+5V", "+3V3", "SW_NODE", "JACK_IN",
-             "RAQUETTE_TX", "RAQUETTE_RX", "GPS_TX", "GPS_RX", "PC_TX", "PC_RX", "BUZZER"]
+             "RAQUETTE_TX", "RAQUETTE_RX", "GPS_TX", "GPS_RX", "PC_TX", "PC_RX", "BUZZER",
+             "PWR_IN", "VIN_OR", "BUZ_A", "BUZ_B", "BUZ_C"]
     for ax in MONTURE_AXES:
         names += [f"{ax}_STEP", f"{ax}_DIR", f"{ax}_EN"]
     return names
 
 
+# Protection des entrées (en haut à gauche, à la place de l'ancienne diode du jack) et repères
+D_IN_XY = (12.0, 17.2)
+F_IN_XY = (16.0, 27.3)
+SILK_ENTREE = (("MBR20100CT", (8.6, 20.8), 90), ("T4A", (9.4, 29.6), 0))
+
+
 def _add_monture_power(board, nets):
-    """Entrées 36V (bornier) / 12V (jack via D_JACK) sur un seul bus +36V, et buck 36V -> 5V."""
+    """Entrées 36V (bornier) / 12V (jack) sur un seul bus +36V par D_IN et F_IN, et buck 36V -> 5V."""
     # Titre seul : un cadre autour du buck passait sur le trou H3 et sur le bornier 36V
     add_label(board, "BUCK 36V -> 5V 3A", 7, 64.6, justify=LEFT)
 
@@ -214,23 +226,36 @@ def _add_monture_power(board, nets):
     add_label(board, "1 GND", 14.6, 55, justify=LEFT)
     add_label(board, "2 +36V", 14.6, 60.08, justify=LEFT)
     connect_pad(pwr36, 1, nets["GND"])
-    connect_pad(pwr36, 2, nets["+36V"])
+    connect_pad(pwr36, 2, nets["PWR_IN"])
 
-    # DC Jack connections : le jack passe par D_JACK (sinon le 36V du bornier remonte dans le bloc 12V)
+    # Le jack passe par sa propre anode de D_IN (sinon le 36V du bornier remonterait dans le bloc 12V)
     connect_pad(dc_jack, 1, nets["JACK_IN"])
     connect_pad(dc_jack, 2, nets["GND"])
     connect_pad(dc_jack, 3, nets["GND"])
-    add_label(board, "ALIM 12V JACK", 7.5, 33.6)
+    add_label(board, "ALIM 12V JACK", 7.0, 33.6)
 
-    d_jack = pcbnew.FootprintLoad(LIB_DIODE, "D_DO-201AD_P15.24mm_Horizontal")
-    d_jack.SetReference("D_JACK")
-    d_jack.SetValue("SB560 (60V 5A)")
-    d_jack.SetOrientationDegrees(270)   # anode (pad 2) vers le jack, cathode (pad 1) en haut
-    d_jack.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(16), pcbnew.FromMM(18)))
-    board.Add(d_jack)
-    add_label(board, "SB560", 11.6, 25.6, angle=90)
-    connect_pad(d_jack, 1, nets["+36V"])
-    connect_pad(d_jack, 2, nets["JACK_IN"])
+    # Protection des deux entrées : double diode Schottky à cathode commune, une anode par entrée.
+    # Des fils inversés sur le bornier ou un jack à centre négatif ne passent pas ; sinon la plus haute
+    # des deux tensions alimente le bus. Puis un fusible temporisé commun aux deux entrées.
+    d_in = pcbnew.FootprintLoad(LIB_TO, "TO-220-3_Vertical")
+    d_in.SetReference("D_IN")
+    d_in.SetValue("MBR20100CT")       # 100 V, 2 x 10 A ; broche 2 (et languette) = cathode commune
+    d_in.SetOrientationDegrees(270)
+    d_in.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(D_IN_XY[0]), pcbnew.FromMM(D_IN_XY[1])))
+    board.Add(d_in)
+    connect_pad(d_in, 1, nets["JACK_IN"])
+    connect_pad(d_in, 2, nets["VIN_OR"])
+    connect_pad(d_in, 3, nets["PWR_IN"])
+    fusible = pcbnew.FootprintLoad(LIB_FUSE, "Fuse_Littelfuse_372_D8.50mm")
+    fusible.SetReference("F_IN")
+    fusible.SetValue("T4A (TR5)")
+    fusible.SetOrientationDegrees(270)
+    fusible.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(F_IN_XY[0]), pcbnew.FromMM(F_IN_XY[1])))
+    board.Add(fusible)
+    connect_pad(fusible, 1, nets["VIN_OR"])
+    connect_pad(fusible, 2, nets["+36V"])
+    for txt, (x, y), ang in SILK_ENTREE:
+        add_label(board, txt, x, y, angle=ang)
 
     # C_IN au plus pres du LM2596 et hors du passage du cable micro-USB du Teensy (Y 64..76)
     c_in = pcbnew.FootprintLoad(LIB_CAP, "CP_Radial_D8.0mm_P3.50mm")
@@ -363,7 +388,7 @@ def _add_monture_teensy_periph(board, nets):
     pc_port.SetValue("PC SERIAL6")
     pc_port.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(142), pcbnew.FromMM(16.0)))
     board.Add(pc_port)
-    add_label(board, "PC SERIAL", 142, 11.6)
+    add_label(board, "PC SERIAL 3V3", 142, 11.6)   # adaptateur USB-série en 3,3 V seulement
     add_pin_labels(board, 143.8, 16.0, ("1 GND", "2 +5V", "3 TX6", "4 RX6"))
     connect_pad(pc_port, 1, nets["GND"])
     connect_pad(pc_port, 2, nets["+5V"])
@@ -376,9 +401,42 @@ def _add_monture_teensy_periph(board, nets):
     buz.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(138), pcbnew.FromMM(88)))
     board.Add(buz)
     add_label(board, "BUZZER", 134, 80)
-    connect_pad(buz, 1, nets["BUZZER"])
-    connect_pad(buz, 2, nets["GND"])
+    connect_pad(buz, 1, nets["BUZ_A"])
+    connect_pad(buz, 2, nets["BUZ_C"])
+    _add_buzzer_driver(board, nets)
     return teensy
+
+
+# Commande du buzzer : une broche du Teensy ne donne que quelques mA, et un buzzer passif de 12 mm en
+# tirerait 80 à 200 sous 3,3 V. Le transistor l'alimente en 5 V à travers R_BUZ (68 ohms : 60 mA au plus
+# avec une bobine de 16 ohms), D_BUZ absorbe la surtension de la bobine à chaque coupure, et R_BUZ_PD
+# garde le transistor bloqué pendant le démarrage du Teensy (broche encore en l'air).
+# (référence, empreinte, valeur, position, rotation, nets des pastilles 1, 2, 3, position de la référence)
+BUZZER_DRIVER = (
+    ("Q_BUZ", (LIB_TO, "TO-92_Inline_Wide"), "PN2222A", (121.0, 77.0), 0, ("GND", "BUZ_B", "BUZ_C"), (123.54, 73.2)),  # E, B, C
+    ("R_BUZ_B", (LIB_RES, R_VERTICAL), "1k", (116.0, 72.0), 0, ("BUZZER", "BUZ_B"), (117.27, 70.0)),
+    ("R_BUZ_PD", (LIB_RES, R_VERTICAL), "10k", (116.0, 82.0), 0, ("BUZ_B", "GND"), (111.0, 82.0)),
+    ("R_BUZ", (LIB_RES, R_VERTICAL), "68", (128.0, 72.0), 0, ("+5V", "BUZ_A"), (129.27, 70.0)),
+    ("D_BUZ", (LIB_DIODE, "D_DO-35_SOD27_P2.54mm_Vertical_AnodeUp"), "1N4148", (124.0, 82.0), 0, ("BUZ_A", "BUZ_C"),
+     (125.27, 84.0)),  # K, A
+)
+
+
+def _add_parts(board, nets, parts):
+    for ref, (lib, nom), valeur, (x, y), rot, pads, ref_xy in parts:
+        fp = pcbnew.FootprintLoad(lib, nom)
+        fp.SetReference(ref)
+        fp.SetValue(valeur)
+        fp.SetOrientationDegrees(rot)
+        fp.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x), pcbnew.FromMM(y)))
+        board.Add(fp)
+        place_field(fp.Reference(), *ref_xy)
+        for k, net in enumerate(pads, 1):
+            connect_pad(fp, k, nets[net])
+
+
+def _add_buzzer_driver(board, nets):
+    _add_parts(board, nets, BUZZER_DRIVER)
 
 
 def _add_en_pullups(board, nets, x=108.0, y=57.6, rot=270, label_xy=(112.0, 62.68), label_angle=90):
@@ -627,6 +685,11 @@ def create_monture_ext_pcb(output_dir):
         u.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(x0), pcbnew.FromMM(y0)))
         board.Add(u)
         place_field(u.Reference(), x0 + 7.62, y0 - 4.7)   # dans le corps du boîtier
+        # Ces deux OE rejoignent le GND par une piste : entre les pistes du dessous, le plan GND n'a pas la
+        # place de leurs deux branches thermiques (erreur starved_thermal). Ils restent hors du plan.
+        for pad in u.Pads():
+            if (s, pad.GetNumber()) in (("STEP", "10"), ("EN", "13")):
+                pad.SetLocalZoneConnection(pcbnew.ZONE_CONNECTION_NONE)
         add_label(board, "74ACT125", x0 + 7.62, y0 - 2.8)
         connect_pad(u, 7, nets["GND"])
         connect_pad(u, 14, nets["+5V"])
@@ -662,6 +725,19 @@ def create_monture_ext_pcb(output_dir):
     print(f"[OK] PCB Monture drivers externes créé : {pcb_path}")
 
 
+# (référence, empreinte, valeur, position, rotation, nets des pastilles 1, 2, 3)
+I2C_LEVEL_SHIFTER = (
+    ("Q_SDA", (LIB_SOT_SMD, "SOT-23_Handsoldering"), "BSS138", (23.0, 100.5), 0, ("+3V3", "I2C_SDA_3V3", "I2C_SDA"),
+     (23.0, 97.6)),  # G, S, D
+    ("Q_SCL", (LIB_SOT_SMD, "SOT-23_Handsoldering"), "BSS138", (23.0, 107.0), 0, ("+3V3", "I2C_SCL_3V3", "I2C_SCL"),
+     (23.0, 104.1)),
+    ("R_SDA_3V3", (LIB_RES, R_VERTICAL), "10k", (28.0, 98.5), 0, ("+3V3", "I2C_SDA_3V3"), (35.6, 98.5)),
+    ("R_SDA_5V", (LIB_RES, R_VERTICAL), "10k", (28.0, 101.5), 0, ("+5V", "I2C_SDA"), (35.6, 101.5)),
+    ("R_SCL_3V3", (LIB_RES, R_VERTICAL), "10k", (28.0, 104.5), 0, ("+3V3", "I2C_SCL_3V3"), (35.6, 104.5)),
+    ("R_SCL_5V", (LIB_RES, R_VERTICAL), "10k", (28.0, 107.5), 0, ("+5V", "I2C_SCL"), (35.6, 107.5)),
+)
+
+
 def create_raquette_pcb(output_dir):
     os.makedirs(output_dir, exist_ok=True)
     board = pcbnew.BOARD()
@@ -669,7 +745,7 @@ def create_raquette_pcb(output_dir):
     net_names = [
         "GND", "+5V",
         "RAQ_TX", "RAQ_RX",
-        "I2C_SDA", "I2C_SCL",
+        "I2C_SDA", "I2C_SCL", "+3V3", "I2C_SDA_3V3", "I2C_SCL_3V3",
         "BTN_UP", "BTN_DOWN", "BTN_LEFT", "BTN_RIGHT", "BTN_ENTER"
     ]
     nets = {}
@@ -781,10 +857,17 @@ def create_raquette_pcb(output_dir):
     connect_pad(teensy, 10, nets["BTN_LEFT"])
     connect_pad(teensy, 11, nets["BTN_RIGHT"])
     connect_pad(teensy, 12, nets["BTN_ENTER"])
-    connect_pad(teensy, 40, nets["I2C_SDA"])
-    connect_pad(teensy, 41, nets["I2C_SCL"])
+    connect_pad(teensy, 40, nets["I2C_SDA_3V3"])
+    connect_pad(teensy, 41, nets["I2C_SCL_3V3"])
+    connect_pad(teensy, 46, nets["+3V3"])
     connect_pad(teensy, 47, nets["GND"])
     connect_pad(teensy, 48, nets["+5V"])
+
+    # Adaptateur de niveau I2C : le Teensy ne supporte pas le 5V, or l'afficheur (PCF8574) et le port
+    # Grove, alimentés en 5V, tirent SDA et SCL vers 5V. Montage classique à BSS138 : grille au 3,3V,
+    # source côté Teensy, drain côté 5V, une résistance de rappel de chaque côté.
+    _add_parts(board, nets, I2C_LEVEL_SHIFTER)
+    add_label(board, "I2C 3V3 <> 5V", 30.0, 95.7)
 
     board.BuildConnectivity()
 

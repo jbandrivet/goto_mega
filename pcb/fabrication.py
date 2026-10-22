@@ -41,7 +41,18 @@ DESIGNATIONS = {
     "BarrelJack_Horizontal": "Jack d'alimentation 12 V",
     "Buzzer_12x9.5RM7.6": "Buzzer 12 mm",
     "R_Array_SIP5": "Réseau de résistances 4 x 10 kOhm, commun broche 1 (SIP5)",
+    "Fuse_Littelfuse_372_D8.50mm": "Fusible TR5 temporisé 4 A (Littelfuse 372) et son support",
+    "TO-220-3_Vertical": "Double diode Schottky MBR20100CT, 100 V 2 x 10 A, cathode commune (TO-220)",
+    "TO-92_Inline_Wide": "Transistor NPN PN2222A (TO-92, brochage E B C)",
+    "D_DO-35_SOD27_P2.54mm_Vertical_AnodeUp": "Diode 1N4148",
+    "SOT-23_Handsoldering": "MOSFET canal N BSS138 (SOT-23)",
 }
+
+
+def designation_achat(empreinte, valeur):
+    if empreinte.startswith("R_Axial"):
+        return f"Résistance {valeur[:-1] + ' kOhm' if valeur.endswith('k') else valeur + ' Ohm'}, 1/4 W"
+    return DESIGNATIONS.get(empreinte, valeur)
 
 
 def kicad_cli(*args):
@@ -73,7 +84,7 @@ def composants(pcb, nom):
                 or f.GetReference().startswith(("H", "JP_")):
             continue
         empreinte = str(f.GetFPID().GetLibItemName())
-        groupes[(DESIGNATIONS.get(empreinte, f.GetValue()), empreinte)].append(f.GetReference())
+        groupes[(designation_achat(empreinte, f.GetValue()), empreinte)].append(f.GetReference())
     tampon = io.StringIO()
     w = csv.writer(tampon, delimiter=";", lineterminator="\n")
     w.writerow(("Désignation", "Quantité", "Repères", "Empreinte"))
