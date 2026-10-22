@@ -209,7 +209,7 @@ Sans PCB, câblez vous-même le Mega ou le Teensy en suivant le plan de câblage
 ### Commun aux deux cartes
 - **Alimentation** : un seul bus moteur, alimenté soit par le **bornier 36V**, soit par la **prise jack 12V**. Le jack passe par la diode `D_JACK` (SB560), ce qui évite que le 36V du bornier remonte dans le bloc 12V. Toute la carte et tous les drivers reçoivent la tension de l'entrée branchée.
   - En 36V, n'utilisez pas d'A4988 (35 V max) ni de TMC2208/TMC2209 (29 V max) : pour ces petits drivers, alimentez la carte uniquement par le jack 12V.
-- Le buck LM2596 fabrique le 5V à partir de 12V comme de 36V.
+- Le buck LM2596HV (jusqu'à 60 V en entrée) fabrique le 5V à partir de 12V comme de 36V.
 - Des résistances de rappel (`RN_EN`) maintiennent EN à l'état haut tant que le Teensy n'a pas démarré : les drivers restent désactivés à la mise sous tension.
 - Le Teensy 4.1 de la monture n'a pas de port USB Host câblé.
 - Sur le Teensy de la monture, **coupez le pont VUSB-VIN** sous la carte : le Teensy est alimenté par le 5V du PCB (VIN) et reste branché en USB au PC.
@@ -234,7 +234,7 @@ Sans PCB, câblez vous-même le Mega ou le Teensy en suivant le plan de câblage
 ### Carte drivers externes (`pcb/monture_ext/`)
 - Chaque axe a deux borniers sur le bord haut :
   - **`J_VM`** (5,08 mm, fil de 1,5 mm²) : `VM` et `GND`, l'alimentation du driver. `VM` est le bus moteur, donc 36V ou 12V selon l'entrée branchée. Chaque sortie a son condensateur de 220 µF.
-  - **`J_SIG`** (3,5 mm) : `EN`, `STEP`, `DIR`, `GND`, en 5 V. Les signaux du Teensy passent par trois 74HCT125, toujours actifs.
+  - **`J_SIG`** (3,5 mm) : `EN`, `STEP`, `DIR`, `GND`, en 5 V. Les signaux du Teensy passent par trois 74ACT125, toujours actifs.
 - Câblage d'un DM542 (cathode commune) : `STEP` → `PUL+`, `DIR` → `DIR+`, `EN` → `ENA+`, et `GND` → `PUL−`, `DIR−` et `ENA−` reliés ensemble. Le moteur se branche sur le driver. Avec `ENA` câblé, le driver relâche le moteur au parking ; sinon, le moteur reste alimenté en permanence.
 - Un plan de cuivre GND (face dessous) et un plan +36V (face dessus, de l'entrée jusqu'aux borniers `J_VM`) portent le courant des drivers.
 - Réglages : le *Microstepping* de l'outil de configuration doit être égal au nombre de pas par tour réglé sur le driver divisé par 200 (par exemple 128 pour 25 600 pas/tour). Toutes les valeurs sont acceptées, puissances de 2 ou non. AZ et ALT partagent ce réglage : réglez leurs deux drivers pareil.
