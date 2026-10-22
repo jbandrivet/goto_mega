@@ -5,13 +5,14 @@ texte qui défile, boutons en relief, compteur de visiteurs).
     python3 site/generer_site.py --depot . --sortie /var/www/gotoandrivet [--miroir] [--force]
 
 Les pages reprennent les documents du dépôt (README, manuel de la raquette, fiche technique, guide pour
-contribuer) et l'historique git du logiciel (les modifications du seul dossier site/ n'y figurent pas). Avec --miroir, les fichiers d'installation publiés sur GitHub sont copiés
+contribuer), les cartes électroniques et leurs boîtiers (dossier pcb/), et l'historique git du logiciel (les modifications du seul dossier site/ n'y figurent pas). Avec --miroir, les fichiers d'installation publiés sur GitHub sont copiés
 dans <sortie>/telechargements, pour que le site reste utilisable même si GitHub ne répond pas ; ils ne sont
 retéléchargés que s'ils ont changé. Le compteur de visiteurs lit les journaux de nginx s'ils sont lisibles
 (groupe adm). Sans --force, rien n'est réécrit si ni le dépôt ni le compteur n'ont bougé.
 Dépendance : python3-markdown.
 """
 import argparse
+import csv
 import gzip
 import html
 import json
@@ -23,6 +24,7 @@ import struct
 import subprocess
 import sys
 import urllib.request
+import zipfile
 import zlib
 from datetime import datetime
 from pathlib import Path
@@ -55,6 +57,7 @@ DOCS = {
 }
 MENU = (("index.html", "Accueil"), ("telecharger.html", "Télécharger"), ("documentation.html", "Documentation"),
         ("raquette.html", "Raquette"), ("fiche-technique.html", "Fiche technique"),
+        ("materiel.html", "Cartes et boîtiers"),
         ("nouveautes.html", "Nouveautés"), ("contribuer.html", "Contribuer"))
 
 LIENS = (("OnStep", "https://onstep.groups.io/g/main/wiki"), ("KStars et Ekos", "https://kstars.kde.org/fr/"),
@@ -76,6 +79,8 @@ DESCRIPTIONS = {
                      "sans ordinateur.",
     "fiche-technique.html": "Fiche technique de GotoAndrivet : architecture Mega ou Teensy, communication LX200/OnStep, "
                             "schéma de câblage, drivers et paramètres mécaniques.",
+    "materiel.html": "Cartes électroniques et boîtiers de GotoAndrivet : fichiers Gerber prêts pour le fabricant, "
+                     "projets KiCad, liste des composants et boîtiers à imprimer en 3D (STL et OpenSCAD).",
     "nouveautes.html": "Les dernières nouveautés de GotoAndrivet, contrôleur GoTo libre pour télescopes.",
     "contribuer.html": "Contribuer à GotoAndrivet : signaler un problème, proposer une modification, règles du projet "
                        "et licence GPL v3.",
@@ -397,7 +402,7 @@ def page_doc(depot, fichier, version):
 
 def taille(p):
     n = p.stat().st_size
-    return f"{n / 1e6:.1f} Mo" if n >= 1e6 else f"{n / 1e3:.0f} ko"
+    return f"{n / 1e6:.1f} Mo" if n >= 1e6 else f"{max(1, round(n / 1e3))} ko"
 
 
 def page_telecharger(sortie, version):
@@ -477,6 +482,116 @@ d'engrenage, micro-pas.</p>
     return page("Télécharger", "telecharger.html", contenu, version)
 
 
+# ── Cartes électroniques et boîtiers ─────────────────────────
+# (dossier dans pcb/, titre, la carte, pièces du boîtier à imprimer, le boîtier)
+MATERIEL = (
+    ("monture", "Carte monture : drivers StepStick",
+     "150 x 110 mm, deux couches. Un Teensy 4.1 et quatre supports StepStick (azimut, hauteur, dérotateur, "
+     "focuseur) pour TMC5160, TMC2209, A4988 ou DRV8825 ; les TMC5160 se règlent en SPI une fois les ponts à "
+     "souder fermés. Alimentation 36 V par le bornier ou 12 V par le jack, convertisseur 5 V sur la carte.",
+     ("base", "couvercle"), "Boîtier de 45 mm de haut, couvercle ajouré au-dessus des drivers."),
+    ("monture_ext", "Carte monture : drivers externes",
+     "150 x 110 mm, deux couches. Le même Teensy et la même alimentation, avec des borniers vers des drivers "
+     "externes (DM542, DM556, TB6600...) : signaux EN, STEP et DIR en 5 V, et alimentation de chaque driver.",
+     ("base", "couvercle"), "Boîtier de 35 mm de haut."),
+    ("raquette", "Carte raquette",
+     "105 x 150 mm, deux couches. Un Teensy 4.1, l'afficheur LCD 20 x 4 en I2C, cinq boutons et une prise "
+     "Grove I2C.",
+     ("base", "face_avant"), "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur."),
+)
+
+
+def page_materiel(depot, sortie, version):
+    """Vues, fichiers de fabrication et liste des composants des cartes, et boîtiers à imprimer,
+    recopiés du dossier pcb/ du dépôt dans <sortie>/materiel."""
+    pcb, dossier = depot / "pcb", sortie / "materiel"
+    if dossier.exists():
+        shutil.rmtree(dossier)
+    dossier.mkdir(parents=True)
+
+    def fichier(source, texte):
+        if not source.exists():
+            return ""
+        shutil.copy2(source, dossier / source.name)
+        return (f'<li><a href="materiel/{source.name}" download>{html.escape(texte)}</a> '
+                f'<span class="petit">({taille(source)})</span></li>')
+
+    def vue(source, legende):
+        if not source.exists():
+            return ""
+        shutil.copy2(source, dossier / source.name)
+        return (f'<figure><a href="materiel/{source.name}"><img src="materiel/{source.name}" '
+                f'alt="{html.escape(legende)}" loading="lazy"></a><figcaption>{html.escape(legende)}</figcaption></figure>')
+
+    def projet_kicad(carte):
+        zip_path = dossier / f"{carte}_kicad.zip"
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as z:
+            for ext in ("kicad_pcb", "kicad_pro"):
+                z.write(pcb / carte / f"{carte}.{ext}", f"{carte}/{carte}.{ext}")
+        return (f'<li><a href="materiel/{zip_path.name}" download>Projet KiCad 10 (.zip)</a> '
+                f'<span class="petit">({taille(zip_path)})</span></li>')
+
+    def composants(carte):
+        source = pcb / "fabrication" / f"{carte}_composants.csv"
+        if not source.exists():
+            return ""
+        lignes = list(csv.reader(source.read_text(encoding="utf-8").splitlines(), delimiter=";"))[1:]
+        corps = "\n".join(f"<tr><td>{html.escape(d)}</td><td>{q}</td><td>{html.escape(r)}</td></tr>"
+                          for d, q, r, _ in lignes)
+        return (f'<details><summary>Liste des composants ({sum(int(l[1]) for l in lignes)} pièces)</summary>\n'
+                f'<div class="tableau"><table>\n<tr><th>Désignation</th><th>Qté</th><th>Repères</th></tr>\n'
+                f"{corps}\n</table></div></details>")
+
+    sections = []
+    for carte, titre, texte, pieces, texte_boitier in MATERIEL:
+        rep, boitier = pcb / carte, f"boitier_{carte}"
+        fichiers_carte = "\n".join(filter(None, (
+            fichier(pcb / "fabrication" / f"{carte}_gerber.zip", "Gerber et perçages (.zip), pour le fabricant"),
+            projet_kicad(carte),
+            fichier(pcb / "fabrication" / f"{carte}_composants.csv", "Liste des composants (.csv)"),
+            fichier(rep / f"{carte}.glb", "Modèle 3D de la carte (.glb)"))))
+        fichiers_boitier = "\n".join(filter(None, [
+            *(fichier(rep / f"{boitier}_{p}.stl", f"{p.replace('_', ' ').capitalize()} (.stl)") for p in pieces),
+            fichier(rep / f"{boitier}.scad", "Source OpenSCAD (.scad)")]))
+        sections.append(f"""<section class="panneau">
+<h2>{html.escape(titre)}</h2>
+<p>{html.escape(texte)}</p>
+<div class="vues">
+{vue(rep / f"{carte}_perspective.jpg", "Vue en perspective")}
+{vue(rep / f"{carte}_3d.png", "Vue de dessus")}
+</div>
+<h3>Fichiers de la carte</h3>
+<ul class="fichiers">
+{fichiers_carte}
+</ul>
+{composants(carte)}
+<h3>Boîtier à imprimer</h3>
+<div class="vues">
+{vue(rep / f"{boitier}_3d.png", "Le boîtier ouvert")}
+</div>
+<p>{html.escape(texte_boitier)}</p>
+<ul class="fichiers">
+{fichiers_boitier}
+</ul>
+</section>""")
+    contenu = f"""<section class="panneau">
+<h1>Cartes et boîtiers</h1>
+<p>GotoAndrivet a ses propres cartes électroniques : une pour la monture, en deux versions selon les drivers
+des moteurs, et une pour la raquette. Ce sont des circuits à deux couches, à faire fabriquer, et chacune a son
+boîtier à imprimer en 3D.</p>
+<ul>
+<li><strong>Faire fabriquer une carte</strong> : envoyez le fichier « Gerber et perçages » tel quel au
+fabricant (JLCPCB, PCBWay, Aisler...), en épaisseur 1,6 mm.</li>
+<li><strong>Câbler</strong> : les branchements des moteurs, du GPS et de la raquette sont dans la
+<a href="fiche-technique.html">fiche technique</a> et la <a href="documentation.html">documentation</a>.</li>
+<li><strong>Modifier</strong> : les cartes s'ouvrent dans <a href="https://www.kicad.org/">KiCad</a> 10, les
+boîtiers dans <a href="https://openscad.org/">OpenSCAD</a>.</li>
+</ul>
+</section>
+{chr(10).join(sections)}"""
+    return page("Cartes et boîtiers", "materiel.html", contenu, version)
+
+
 def page_accueil(commits, version):
     lignes = "\n".join(f'<tr><td class="symbole">{sym}</td><td><strong>{html.escape(t)}</strong><br>{html.escape(d)}</td></tr>'
                         for sym, t, d in FONCTIONS)
@@ -541,7 +656,7 @@ def page_404(version):
 # ── Plan du site et consignes aux robots ──────────────────────
 def plan_du_site(depot):
     """sitemap.xml : les pages publiques, datées par la dernière modification de leur source."""
-    sources = {"index.html": None, "telecharger.html": None, "nouveautes.html": None}
+    sources = {"index.html": None, "telecharger.html": None, "materiel.html": "pcb", "nouveautes.html": None}
     sources.update({href: fichier for fichier, (href, _) in DOCS.items() if (depot / fichier).exists()})
     lignes = ['<?xml version="1.0" encoding="UTF-8"?>',
               '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
@@ -594,6 +709,7 @@ def generer(depot, sortie, avec_miroir=False, force=False):
 
     ecrire(sortie / "index.html", page_accueil(commits, version))
     ecrire(sortie / "telecharger.html", page_telecharger(sortie, version))
+    ecrire(sortie / "materiel.html", page_materiel(depot, sortie, version))
     ecrire(sortie / "nouveautes.html", page_nouveautes(commits, version))
     ecrire(sortie / "404.html", page_404(version))
     ecrire(sortie / "sitemap.xml", plan_du_site(depot))

@@ -112,6 +112,16 @@ th, td { border: 1px inset #808080; padding: 4px 8px; text-align: left; vertical
 th { background: #000080; color: #fff; font-family: Arial, sans-serif; }
 td { background: #000022; }
 
+/* ── Cartes et boîtiers ── */
+.vues { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+.vues figure { flex: 1 1 280px; max-width: 640px; margin: 0; }
+.vues img { display: block; width: 100%; height: auto; border: 3px ridge #c0c0c0; background: #000; }
+.vues figcaption { font-size: 15px; color: #c0c0c0; text-align: center; margin-top: 4px; }
+.fichiers { list-style: none; padding-left: 4px; }
+.fichiers li { padding: 3px 0; }
+.fichiers li::before { content: "► "; color: #ffff00; }
+details > summary { cursor: pointer; color: #ffff00; font-weight: bold; }
+
 /* ── Pied de page ── */
 footer { text-align: center; font-size: 15px; color: #c0c0c0; }
 footer p { margin: 4px 0; }
