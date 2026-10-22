@@ -497,7 +497,10 @@ MATERIEL = (
     ("raquette", "Carte raquette",
      "105 x 150 mm, deux couches. Un Teensy 4.1, l'afficheur LCD 20 x 4 en I2C, cinq boutons et une prise "
      "Grove I2C.",
-     ("base", "face_avant"), "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur."),
+     ("base", "face_avant", "boutons"),
+     "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur. Les cinq boutons "
+     "s'impriment tête en bas, sans support ; ils sont calés pour des poussoirs 6 x 6 mm de 4,3 mm de haut "
+     "(pour d'autres poussoirs, changez leur hauteur dans le script FreeCAD et relancez-le)."),
 )
 
 # Schéma de branchement, affiché sous les fichiers de la carte concernée
@@ -590,7 +593,8 @@ def page_materiel(depot, sortie, version):
             fichier(rep / f"{carte}.glb", "Modèle 3D de la carte (.glb)"))))
         fichiers_boitier = "\n".join(filter(None, [
             *(fichier(rep / f"{boitier}_{p}.stl", f"{p.replace('_', ' ').capitalize()} (.stl)") for p in pieces),
-            fichier(rep / f"{boitier}.scad", "Source OpenSCAD (.scad)")]))
+            fichier(rep / f"{boitier}.scad", "Source OpenSCAD (.scad)"),
+            fichier(rep / f"boutons_{carte}.py", "Source FreeCAD des boutons (.py)")]))
         sections.append(f"""<section class="panneau">
 <h2>{html.escape(titre)}</h2>
 <p>{html.escape(texte)}</p>
@@ -607,6 +611,7 @@ def page_materiel(depot, sortie, version):
 <h3>Boîtier à imprimer</h3>
 <div class="vues">
 {vue(rep / f"{boitier}_3d.png", "Le boîtier ouvert")}
+{vue(rep / f"{boitier}_boutons_3d.png", "Les boutons sur leurs poussoirs")}
 </div>
 <p>{html.escape(texte_boitier)}</p>
 <ul class="fichiers">
