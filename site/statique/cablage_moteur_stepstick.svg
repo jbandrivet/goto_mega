@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 560" font-family="'Courier New', 'Liberation Mono', monospace" font-size="15">
+  <title>Câblage d'un moteur pas à pas sur la carte GotoAndrivet à modules StepStick</title>
+  <rect width="760" height="560" fill="#000022"/>
+
+  <!-- Carte : un axe vu de dessus -->
+  <rect x="20" y="90" width="380" height="380" fill="#003300" stroke="#c0c0c0" stroke-width="2"/>
+  <text x="210" y="484" fill="#c0c0c0" text-anchor="middle" font-size="13">carte vue de dessus (un axe)</text>
+
+  <!-- Bornier moteur M_xx -->
+  <rect x="60" y="100" width="240" height="40" fill="#20a040" stroke="#004400" stroke-width="2"/>
+  <g fill="#c0c0c0" stroke="#404040" stroke-width="2">
+    <circle cx="90" cy="120" r="11"/><circle cx="150" cy="120" r="11"/>
+    <circle cx="210" cy="120" r="11"/><circle cx="270" cy="120" r="11"/>
+  </g>
+  <g stroke="#404040" stroke-width="3">
+    <line x1="83" y1="113" x2="97" y2="127"/><line x1="143" y1="113" x2="157" y2="127"/>
+    <line x1="203" y1="113" x2="217" y2="127"/><line x1="263" y1="113" x2="277" y2="127"/>
+  </g>
+  <g fill="#ffffff" text-anchor="middle">
+    <text x="90" y="160">1B</text><text x="150" y="160">1A</text>
+    <text x="210" y="160">2A</text><text x="270" y="160">2B</text>
+  </g>
+  <g fill="none" stroke="#c0c0c0" stroke-width="1.5">
+    <rect x="65" y="145" width="110" height="45"/><rect x="185" y="145" width="110" height="45"/>
+  </g>
+  <g fill="#c0c0c0" text-anchor="middle" font-size="13">
+    <text x="120" y="183">BOBINE 1</text><text x="240" y="183">BOBINE 2</text>
+  </g>
+
+  <!-- Module StepStick sur ses deux barrettes -->
+  <text x="210" y="226" fill="#ffff00" text-anchor="middle" font-size="12">module TMC5160, TMC2209, A4988 ou DRV8825</text>
+  <rect x="90" y="238" width="180" height="207" fill="#202060" stroke="#c0c0c0" stroke-width="2"/>
+  <g fill="#ffd700">
+    <circle cx="105" cy="255" r="6"/><circle cx="105" cy="280" r="6"/><circle cx="105" cy="305" r="6"/>
+    <circle cx="105" cy="330" r="6"/><circle cx="105" cy="355" r="6"/><circle cx="105" cy="380" r="6"/>
+    <circle cx="105" cy="405" r="6"/><circle cx="105" cy="430" r="6"/>
+    <circle cx="255" cy="255" r="6"/><circle cx="255" cy="280" r="6"/><circle cx="255" cy="305" r="6"/>
+    <circle cx="255" cy="330" r="6"/><circle cx="255" cy="355" r="6"/><circle cx="255" cy="380" r="6"/>
+    <circle cx="255" cy="405" r="6"/><circle cx="255" cy="430" r="6"/>
+  </g>
+  <g fill="#ffffff" font-size="12">
+    <text x="117" y="259">EN</text><text x="117" y="284">SDI</text><text x="117" y="309">SCK</text>
+    <text x="117" y="334">CSN</text><text x="117" y="359">SDO</text><text x="117" y="384">CLK</text>
+    <text x="117" y="409">STEP</text><text x="117" y="434">DIR</text>
+  </g>
+  <g fill="#ffffff" font-size="12" text-anchor="end">
+    <text x="243" y="259">VMOT</text><text x="243" y="284">GND</text><text x="243" y="309">2B</text>
+    <text x="243" y="334">2A</text><text x="243" y="359">1A</text><text x="243" y="384">1B</text>
+    <text x="243" y="409">VIO</text><text x="243" y="434">GND</text>
+  </g>
+  <g fill="#ffff00" font-weight="bold">
+    <text x="80" y="260" text-anchor="end">EN</text>
+    <text x="280" y="260">VM</text>
+  </g>
+  <text x="330" y="300" fill="#ffff00" font-size="12" text-anchor="middle">EN et VM</text>
+  <text x="330" y="315" fill="#ffff00" font-size="12" text-anchor="middle">en haut,</text>
+  <text x="330" y="330" fill="#ffff00" font-size="12" text-anchor="middle">comme sur</text>
+  <text x="330" y="345" fill="#ffff00" font-size="12" text-anchor="middle">la carte</text>
+
+  <!-- Moteur -->
+  <rect x="560" y="130" width="180" height="250" fill="#1a1a1a" stroke="#c0c0c0" stroke-width="2"/>
+  <text x="650" y="118" fill="#ffff00" text-anchor="middle" font-weight="bold">Moteur pas à pas</text>
+  <g fill="#ffffff" font-size="13">
+    <text x="572" y="155">fil 1B</text><text x="572" y="214">fil 1A</text>
+    <text x="572" y="295">fil 2A</text><text x="572" y="354">fil 2B</text>
+  </g>
+  <!-- Bobines -->
+  <g fill="none" stroke-width="3">
+    <path d="M560,160 H630 V168 a8,8 0 0 1 0,16 a8,8 0 0 1 0,16 V200 H560" stroke="#ff8800"/>
+    <path d="M560,300 H630 V308 a8,8 0 0 1 0,16 a8,8 0 0 1 0,16 V340 H560" stroke="#00ffff"/>
+  </g>
+  <text x="648" y="185" fill="#ff8800" font-size="13">bobine 1</text>
+  <text x="648" y="325" fill="#00ffff" font-size="13">bobine 2</text>
+
+  <!-- Fils : chacun sort du bornier par le haut -->
+  <g fill="none" stroke-width="3">
+    <polyline points="90,109 90,40 490,40 490,160 560,160" stroke="#ff8800"/>
+    <polyline points="150,109 150,55 470,55 470,200 560,200" stroke="#ff8800"/>
+    <polyline points="210,109 210,70 450,70 450,300 560,300" stroke="#00ffff"/>
+    <polyline points="270,109 270,85 430,85 430,340 560,340" stroke="#00ffff"/>
+  </g>
+
+  <!-- Notes -->
+  <g fill="#c0c0c0" font-size="13">
+    <text x="420" y="410">Les couleurs des fils changent d'un</text>
+    <text x="420" y="427">moteur à l'autre : trouvez les paires</text>
+    <text x="420" y="444">au multimètre, 1 à 3 ohms entre les</text>
+    <text x="420" y="461">deux fils d'une même bobine.</text>
+  </g>
+  <g fill="#ffffff" font-size="13">
+    <text x="20" y="512">Moteur qui tourne à l'envers : inversez les deux fils d'UNE bobine (1A et 1B).</text>
+    <text x="20" y="532">Alimentation : 36 V sur J_PWR_36V ou 12 V sur le jack, commune aux 4 modules.</text>
+  </g>
+  <text x="20" y="552" fill="#ff4040" font-size="13" font-weight="bold">Coupez l'alimentation avant de brancher ou débrancher un moteur.</text>
+</svg>

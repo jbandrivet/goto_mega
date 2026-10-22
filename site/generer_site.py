@@ -501,7 +501,25 @@ MATERIEL = (
 )
 
 # Schéma de branchement, affiché sous les fichiers de la carte concernée
-CABLAGE = {"monture_ext": """<h3>Branchement d'un driver externe</h3>
+CABLAGE = {"monture": """<h3>Câblage d'un moteur</h3>
+<div class="vues"><figure><a href="statique/cablage_moteur_stepstick.svg"><img src="statique/cablage_moteur_stepstick.svg"
+alt="Schéma : bornes 1B et 1A du bornier moteur vers la bobine 1, bornes 2A et 2B vers la bobine 2 ; module StepStick
+avec EN en haut à gauche et VMOT en haut à droite" loading="lazy"></a>
+<figcaption>Cliquez pour agrandir</figcaption></figure></div>
+<ul>
+<li><strong>Bornier de l'axe</strong> (M_AZ, M_ALT, M_DEROT, M_FOCUS) : 1B et 1A pour la bobine 1, 2A et 2B pour
+la bobine 2.</li>
+<li><strong>Trouver les paires</strong> : au multimètre, 1 à 3 ohms entre les deux fils d'une même bobine, rien
+entre deux fils de bobines différentes. Les couleurs des fils ne sont pas les mêmes d'un moteur à l'autre.</li>
+<li><strong>Sens du module</strong> : la broche EN en haut à gauche, en face du repère EN, et VMOT en haut à droite,
+en face de VM. Un module monté à l'envers est détruit à la mise sous tension.</li>
+<li><strong>Ponts SPI</strong> (5 par axe, entre les barrettes) : à fermer seulement pour un TMC5160 réglé en SPI.
+Laissez-les ouverts pour un A4988, un DRV8825 ou un TMC2209, dont ces broches ont d'autres fonctions. Les noms
+des broches sur le schéma sont ceux du TMC5160.</li>
+<li><strong>Moteur qui tourne à l'envers</strong> : inversez les deux fils d'une seule bobine, 1A et 1B.</li>
+</ul>
+<p class="petit">Coupez l'alimentation avant de brancher ou de débrancher un moteur : le module peut griller.</p>""",
+           "monture_ext": """<h3>Branchement d'un driver externe</h3>
 <div class="vues"><figure><a href="statique/cablage_driver_externe.svg"><img src="statique/cablage_driver_externe.svg"
 alt="Schéma : VM et GND de J_VM vers +VDC et GND du driver ; EN, STEP, DIR de J_SIG vers ENA+, PUL+, DIR+ ;
 GND de J_SIG vers ENA-, PUL- et DIR-" loading="lazy"></a>
