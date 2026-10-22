@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 420" font-family="'Courier New', 'Liberation Mono', monospace" font-size="15">
+  <title>Branchement d'un driver externe sur la carte GotoAndrivet</title>
+  <rect width="760" height="420" fill="#000022"/>
+
+  <!-- Carte GotoAndrivet -->
+  <rect x="20" y="40" width="210" height="330" fill="#003300" stroke="#c0c0c0" stroke-width="2"/>
+  <text x="125" y="28" fill="#ffff00" text-anchor="middle" font-weight="bold">Carte GotoAndrivet</text>
+  <text x="34" y="66" fill="#c0c0c0" font-size="13">J_VM (5,08 mm)</text>
+  <text x="34" y="176" fill="#c0c0c0" font-size="13">J_SIG (3,5 mm)</text>
+  <g fill="#ffffff">
+    <text x="196" y="95" text-anchor="end">VM</text>
+    <text x="196" y="130" text-anchor="end">GND</text>
+    <text x="196" y="205" text-anchor="end">EN</text>
+    <text x="196" y="250" text-anchor="end">STEP</text>
+    <text x="196" y="295" text-anchor="end">DIR</text>
+    <text x="196" y="340" text-anchor="end">GND</text>
+  </g>
+  <g fill="#c0c0c0" stroke="#404040" stroke-width="2">
+    <rect x="206" y="80" width="24" height="20"/><rect x="206" y="115" width="24" height="20"/>
+    <rect x="206" y="190" width="24" height="20"/><rect x="206" y="235" width="24" height="20"/>
+    <rect x="206" y="280" width="24" height="20"/><rect x="206" y="325" width="24" height="20"/>
+  </g>
+
+  <!-- Driver -->
+  <rect x="530" y="40" width="210" height="330" fill="#1a1a1a" stroke="#c0c0c0" stroke-width="2"/>
+  <text x="635" y="28" fill="#ffff00" text-anchor="middle" font-weight="bold">Driver (DM542, TB6600...)</text>
+  <g fill="#ffffff">
+    <text x="564" y="95">+VDC</text>
+    <text x="564" y="130">GND</text>
+    <text x="564" y="205">ENA+</text>
+    <text x="564" y="230">ENA-</text>
+    <text x="564" y="265">PUL+</text>
+    <text x="564" y="290">PUL-</text>
+    <text x="564" y="325">DIR+</text>
+    <text x="564" y="350">DIR-</text>
+  </g>
+  <g fill="#c0c0c0" stroke="#404040" stroke-width="2">
+    <rect x="530" y="80" width="24" height="20"/><rect x="530" y="115" width="24" height="20"/>
+    <rect x="530" y="190" width="24" height="20"/><rect x="530" y="215" width="24" height="20"/>
+    <rect x="530" y="250" width="24" height="20"/><rect x="530" y="275" width="24" height="20"/>
+    <rect x="530" y="310" width="24" height="20"/><rect x="530" y="335" width="24" height="20"/>
+  </g>
+  <text x="650" y="95" fill="#c0c0c0" font-size="13">A+ A-</text>
+  <text x="650" y="130" fill="#c0c0c0" font-size="13">B+ B-</text>
+  <text x="650" y="150" fill="#c0c0c0" font-size="13">→ moteur</text>
+
+  <!-- Alimentation : fils épais -->
+  <line x1="230" y1="90" x2="530" y2="90" stroke="#ff4040" stroke-width="6"/>
+  <line x1="230" y1="125" x2="530" y2="125" stroke="#c0c0c0" stroke-width="6"/>
+  <text x="380" y="78" fill="#ff4040" text-anchor="middle" font-size="13">alimentation 12 à 36 V, fil épais</text>
+  <text x="380" y="148" fill="#c0c0c0" text-anchor="middle" font-size="13">retour du courant des moteurs</text>
+
+  <!-- Signaux 5 V -->
+  <line x1="230" y1="200" x2="530" y2="200" stroke="#00ffff" stroke-width="3"/>
+  <!-- STEP et DIR sautent le fil commun des moins (pont = pas de contact) -->
+  <polyline points="230,245 330,245 330,260 470,260" fill="none" stroke="#ffff00" stroke-width="3"/>
+  <path d="M470,260 a10,10 0 0 1 20,0 L530,260" fill="none" stroke="#ffff00" stroke-width="3"/>
+  <polyline points="230,290 360,290 360,320 470,320" fill="none" stroke="#00ff00" stroke-width="3"/>
+  <path d="M470,320 a10,10 0 0 1 20,0 L530,320" fill="none" stroke="#00ff00" stroke-width="3"/>
+
+  <!-- Masse des signaux, commune à PUL-, DIR- et ENA- -->
+  <polyline points="230,335 480,335 480,225 530,225" fill="none" stroke="#c0c0c0" stroke-width="3"/>
+  <line x1="480" y1="285" x2="530" y2="285" stroke="#c0c0c0" stroke-width="3"/>
+  <line x1="480" y1="345" x2="530" y2="345" stroke="#c0c0c0" stroke-width="3"/>
+  <line x1="480" y1="335" x2="480" y2="345" stroke="#c0c0c0" stroke-width="3"/>
+  <g fill="#c0c0c0"><circle cx="480" cy="285" r="5"/><circle cx="480" cy="335" r="5"/></g>
+
+  <g font-size="13" text-anchor="middle">
+    <text x="300" y="192" fill="#00ffff">EN → ENA+</text>
+    <text x="400" y="252" fill="#ffff00">STEP → PUL+</text>
+    <text x="410" y="312" fill="#00ff00">DIR → DIR+</text>
+    <text x="345" y="358" fill="#c0c0c0">GND → ENA-, PUL-, DIR-</text>
+  </g>
+  <text x="380" y="398" fill="#ffffff" text-anchor="middle" font-size="13">Un driver par axe : AZ, ALT, dérotateur, focuseur.</text>
+</svg>

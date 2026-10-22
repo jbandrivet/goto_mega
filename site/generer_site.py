@@ -500,6 +500,26 @@ MATERIEL = (
      ("base", "face_avant"), "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur."),
 )
 
+# Schéma de branchement, affiché sous les fichiers de la carte concernée
+CABLAGE = {"monture_ext": """<h3>Branchement d'un driver externe</h3>
+<div class="vues"><figure><a href="statique/cablage_driver_externe.svg"><img src="statique/cablage_driver_externe.svg"
+alt="Schéma : VM et GND de J_VM vers +VDC et GND du driver ; EN, STEP, DIR de J_SIG vers ENA+, PUL+, DIR+ ;
+GND de J_SIG vers ENA-, PUL- et DIR-" loading="lazy"></a>
+<figcaption>Cliquez pour agrandir</figcaption></figure></div>
+<p>Chaque axe a deux borniers, et donc deux GND. Ils sont reliés sur la carte, mais ne vont pas au même endroit
+sur le driver :</p>
+<ul>
+<li><strong>J_VM</strong> (gros bornier) : VM vers +VDC et GND vers le GND d'alimentation du driver. C'est le
+retour du courant des moteurs, plusieurs ampères : prenez du fil épais.</li>
+<li><strong>J_SIG</strong> (petit bornier) : EN vers ENA+, STEP vers PUL+, DIR vers DIR+, et GND vers ENA-, PUL- et
+DIR- reliés ensemble.</li>
+</ul>
+<p>Les entrées du driver sont des optocoupleurs, isolés de son alimentation : sans le GND de J_SIG, le courant des
+signaux n'a pas de retour et le moteur ne bouge pas. Ce fil ne transporte que quelques milliampères ; séparé du
+gros fil, il garde une référence propre, sans pas perdus ni parasites.</p>
+<p class="petit">Driver alimenté par sa propre alimentation : laissez J_VM vide pour cet axe, mais gardez le GND de
+J_SIG. L'ordre des bornes change d'un modèle de driver à l'autre : fiez-vous aux noms.</p>"""}
+
 
 def page_materiel(depot, sortie, version):
     """Vues, fichiers de fabrication et liste des composants des cartes, et boîtiers à imprimer,
@@ -565,6 +585,7 @@ def page_materiel(depot, sortie, version):
 {fichiers_carte}
 </ul>
 {composants(carte)}
+{CABLAGE.get(carte, "")}
 <h3>Boîtier à imprimer</h3>
 <div class="vues">
 {vue(rep / f"{boitier}_3d.png", "Le boîtier ouvert")}
