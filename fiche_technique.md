@@ -110,7 +110,7 @@ La raquette physique est articulée autour d'une carte **Teensy 4.1**.
 * **GND** $\rightarrow$ Broche **GND**
 
 > [!WARNING]
-> Le Teensy 4.1 **ne tolère pas le 5V** sur ses broches. Or le module PCF8574 alimenté en 5V tire SDA et SCL vers 5V par ses résistances de rappel. Pour protéger le Teensy, intercalez un adaptateur de niveau I2C 3,3V ↔ 5V (type BSS138) entre le Teensy et l'écran. À défaut, dessoudez les résistances de rappel du module.
+> Le Teensy 4.1 **ne tolère pas le 5V** sur ses broches. Or le module PCF8574 alimenté en 5V tire SDA et SCL vers 5V par ses résistances de rappel. Pour protéger le Teensy, intercalez un adaptateur de niveau I2C 3,3V ↔ 5V (type BSS138) entre le Teensy et l'écran. À défaut, dessoudez les résistances de rappel du module. La carte raquette (`pcb/raquette/`) a déjà cet adaptateur (`Q_SDA`, `Q_SCL`) : l'écran et la prise Grove s'y branchent en 5V sans rien modifier.
 
 ### 3. Boutons Poussoirs (Clavier directionnel)
 Les boutons sont câblés en **INPUT_PULLUP** (reliés entre la broche et le GND). Aucun besoin de résistance externe !

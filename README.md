@@ -104,7 +104,7 @@ Câblez votre contrôleur principal en suivant ce schéma (les broches sont iden
 | **Moteur Focuseur** | **Pin 11** | **Pin 11** | `PUL+` (Pulse/Step) |
 | | **Pin 12** | **Pin 12** | `DIR+` (Direction) |
 | | **Pin 13** | **Pin 21** | `ENB+` (Enable) |
-| **Buzzer** | **Pin 49** | **Pin 20** | Borne `+` (actif : direct / passif : via résistance 100 Ω) |
+| **Buzzer** | **Pin 49** | **Pin 20** | Mega : borne `+` en direct (buzzer actif). Teensy : par un transistor (voir § 6) |
 | **Port Série PC** | **Non dispo** | **Pin 25 (RX6)** | `TX` de l'adaptateur USB/Série TTL (Câble long) |
 | | **Non dispo** | **Pin 24 (TX6)** | `RX` de l'adaptateur USB/Série TTL |
 | **Raquette Teensy** | **Pin 15 (RX3)** | **Pin 15 (RX3)** | `TX` de la raquette Teensy |
@@ -175,7 +175,7 @@ Pour monter votre système GotoAndrivet, les composants matériels suivants sont
 * **Boutons Raquette** :
   * 5 boutons poussoirs momentanés (Haut, Bas, Gauche, Droite, Validation).
 * **Alerte Sonore** :
-  * Un **Buzzer actif 5V** ou un **Buzzer passif**. (Si vous utilisez un buzzer actif, câblez-le directement ; si vous utilisez un buzzer passif, ajoutez une résistance de 100 Ω en série avec le signal).
+  * Un **Buzzer actif 5V** ou un **Buzzer passif**. Sur le Mega, un buzzer actif se câble directement. Sur le Teensy, passez par un transistor : une broche ne fournit que quelques mA, et un buzzer passif en tire 80 à 200. Un NPN (PN2222A) avec 1 kΩ sur la base, le buzzer entre le 5V et le collecteur, en série avec 68 Ω, et une diode 1N4148 à ses bornes : c'est le montage des cartes.
 
 *Note concernant la raquette physique : La construction de la raquette matérielle (carte Teensy, écran LCD et boutons) n'est **pas obligatoire**. Si vous utilisez la monture en mode "remote", ou que vous la pilotez exclusivement depuis un PC, un planétarium, ou un boîtier type ASIAIR, l'Arduino Mega suffit à lui seul pour tout gérer via la connexion USB.*
 
@@ -207,13 +207,14 @@ Il existe deux cartes monture, au choix selon les drivers utilisés. Elles ont l
 Sans PCB, câblez vous-même le Mega ou le Teensy en suivant le plan de câblage de la section 4. Dans l'outil de configuration, indiquez votre choix sur la ligne **« Câblage monture »** (PCB StepStick, PCB drivers externes ou câblage manuel). Avec un PCB, l'outil impose le Teensy 4.1, et la section TMC5160 n'est active qu'avec la carte StepStick. Le bouton **« Plan de câblage »** affiche les broches de la carte choisie et les connecteurs du PCB.
 
 ### Commun aux deux cartes
-- **Alimentation** : un seul bus moteur, alimenté soit par le **bornier 36V**, soit par la **prise jack 12V**. Le jack passe par la diode `D_JACK` (SB560), ce qui évite que le 36V du bornier remonte dans le bloc 12V. Toute la carte et tous les drivers reçoivent la tension de l'entrée branchée.
+- **Alimentation** : un seul bus moteur, alimenté soit par le **bornier 36V**, soit par la **prise jack 12V**. Chaque entrée passe par une des deux diodes Schottky de `D_IN` (MBR20100CT, cathode commune) : des fils inversés ou un jack à centre négatif ne passent pas, et le 36V du bornier ne remonte pas dans le bloc 12V. Vient ensuite le fusible `F_IN` (TR5 temporisé 4 A, sur support), commun aux deux entrées. Toute la carte et tous les drivers reçoivent la tension de l'entrée branchée, moins environ 0,5 V.
   - En 36V, n'utilisez pas d'A4988 (35 V max) ni de TMC2208/TMC2209 (29 V max) : pour ces petits drivers, alimentez la carte uniquement par le jack 12V.
 - Le buck LM2596HV (jusqu'à 60 V en entrée) fabrique le 5V à partir de 12V comme de 36V.
 - Des résistances de rappel (`RN_EN`) maintiennent EN à l'état haut tant que le Teensy n'a pas démarré : les drivers restent désactivés à la mise sous tension.
 - Le Teensy 4.1 de la monture n'a pas de port USB Host câblé.
 - Sur le Teensy de la monture, **coupez le pont VUSB-VIN** sous la carte : le Teensy est alimenté par le 5V du PCB (VIN) et reste branché en USB au PC.
-- Port **PC SERIAL** (Serial6, broches 24/25) : les repères RX/TX sont donnés côté Teensy (`3 TX6`, `4 RX6`). Il faut donc les croiser vers l'adaptateur, et ne pas brancher son 5V sur la broche `2 +5V`.
+- Port **PC SERIAL** (Serial6, broches 24/25) : les repères RX/TX sont donnés côté Teensy (`3 TX6`, `4 RX6`). Il faut donc les croiser vers l'adaptateur, et ne pas brancher son 5V sur la broche `2 +5V`. L'adaptateur USB-série doit travailler en **3,3 V** : un adaptateur 5 V enverrait 5 V sur `RX6`, que le Teensy ne supporte pas.
+- Le buzzer est commandé par un transistor (`Q_BUZ`, PN2222A) et alimenté en 5V à travers 68 Ω, avec une diode 1N4148 à ses bornes : un buzzer actif 5V ou un buzzer passif conviennent.
 
 ### Carte StepStick (`pcb/monture/`)
 - Chaque axe a un support au format **StepStick / Pololu** (2 × 8 broches espacées de 12,7 mm), piloté directement par le Teensy, et un bornier moteur à 4 points (bobine 1 : 1B/1A, bobine 2 : 2A/2B).

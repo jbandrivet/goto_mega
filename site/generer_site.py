@@ -488,7 +488,8 @@ MATERIEL = (
     ("monture", "Carte monture : drivers StepStick",
      "150 x 110 mm, deux couches. Un Teensy 4.1 et quatre supports StepStick (azimut, hauteur, dérotateur, "
      "focuseur) pour TMC5160, TMC2209, A4988 ou DRV8825 ; les TMC5160 se règlent en SPI une fois les ponts à "
-     "souder fermés. Alimentation 36 V par le bornier ou 12 V par le jack, convertisseur 5 V sur la carte.",
+     "souder fermés. Alimentation 36 V par le bornier ou 12 V par le jack, protégée contre l'inversion des fils "
+     "et par un fusible, convertisseur 5 V sur la carte.",
      ("base", "couvercle"), "Boîtier de 45 mm de haut, couvercle ajouré au-dessus des drivers."),
     ("monture_ext", "Carte monture : drivers externes",
      "150 x 110 mm, deux couches. Le même Teensy et la même alimentation, avec des borniers vers des drivers "
@@ -496,7 +497,7 @@ MATERIEL = (
      ("base", "couvercle"), "Boîtier de 35 mm de haut."),
     ("raquette", "Carte raquette",
      "105 x 150 mm, deux couches. Un Teensy 4.1, l'afficheur LCD 20 x 4 en I2C, cinq boutons et une prise "
-     "Grove I2C.",
+     "Grove I2C, avec un adaptateur de niveau qui protège le Teensy du 5 V de l'I2C.",
      ("base", "face_avant", "boutons"),
      "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur. Les cinq boutons "
      "s'impriment tête en bas, sans support ; ils sont calés pour des poussoirs 6 x 6 mm de 4,3 mm de haut "
