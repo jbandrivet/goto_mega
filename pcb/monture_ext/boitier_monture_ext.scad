@@ -38,9 +38,12 @@ py0 = wall + clearance;
 pe_d = 12.5;
 pe_z = 13.5;
 
-module presse_etoupe_y(x) {     // paroi du bord haut
-    translate([x, outer_h - wall - 1, pe_z]) rotate([-90, 0, 0]) cylinder(d=pe_d, h=wall + 2, $fn=64);
-}
+// Presse-étoupes des axes : M20 x 1,5 à joint 2 trous (deux câbles de 4 à 6 mm), contre-écrou de 24 mm
+// sur plats (27,7 mm sur angles). Centre à Z = 17,35 : l'écrou (Z 3,5..31,2) passe entre le fond (Z 2,5)
+// et le rebord du couvercle (Z 32,5).
+pe_axe_d = 20.5;
+pe_axe_z = 17.35;
+
 module presse_etoupe_x(y, droite) {   // parois des flancs
     translate([droite ? outer_w - wall - 1 : -1, y, pe_z]) rotate([0, 90, 0]) cylinder(d=pe_d, h=wall + 2, $fn=64);
 }
@@ -77,13 +80,14 @@ module boitier_base() {
         // Repère : Y_scad = 110 - Y_kicad. Les empreintes KiCad ont leur origine sur la pastille 1,
         // pas au centre du composant : toujours centrer une découpe sur le CENTRE du corps.
 
-        // A. 8 presse-étoupes sur le bord haut (Y = max), deux par axe : câble d'alimentation du driver
-        //    (J_VM, 5,08 mm) et câble des signaux (J_SIG, 3,5 mm). Les borniers sont trop serrés
-        //    (14 mm entre J_VM et J_SIG d'un axe) pour un presse-étoupe en face de chacun : les 8 sont
-        //    répartis au pas de 20 mm (minimum pour des écrous de 15 mm sur plats), centrés sur la carte,
-        //    dans l'ordre des borniers (VM AZ, SIG AZ, VM ALT...) ; écart latéral de 16 mm au plus.
-        for (i = [0 : 7])
-            presse_etoupe_y(px0 + pcb_w / 2 + 20 * (i - 3.5));
+        // A. 4 presse-étoupes sur le bord haut (Y = max), un par axe, en face de ses deux borniers :
+        //    le câble d'alimentation du driver (J_VM, 5,08 mm) et celui des signaux (J_SIG, 3,5 mm)
+        //    passent ensemble dans un M20 x 1,5 à joint 2 trous (cx = 27.5 / 59.17 / 90.83 / 122.5,
+        //    EXT_AXIS_X dans build_kicad_pcbs.py).
+        axis_x = [27.5, 59.17, 90.83, 122.5];
+        for (ax = axis_x)
+            translate([px0 + ax, outer_h - wall - 1, pe_axe_z])
+                rotate([-90, 0, 0]) cylinder(d=pe_axe_d, h=wall + 2, $fn=96);
 
         // B. (Trou USB-B supprimé à la demande de l'utilisateur - pas de connecteur USB-B sur le PCB)
 

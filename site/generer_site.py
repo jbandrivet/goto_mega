@@ -492,16 +492,17 @@ MATERIEL = (
      "et par un fusible, convertisseur 5 V sur la carte.",
      ("base", "couvercle"),
      "Boîtier de 202 x 140 x 45 mm, couvercle ajouré au-dessus des drivers. Une chambre de câblage de 22 mm "
-     "entoure la carte côté moteurs et sur les deux flancs : sept trous de 12,5 mm pour des presse-étoupes PG7 "
-     "ou M12 x 1,5 (câble de 3 à 6,5 mm), un par moteur, un pour le 36 V, la raquette, le GPS et le PC. "
+     "entoure la carte côté moteurs et sur les deux flancs : un presse-étoupe par élément : huit trous de 12,5 mm "
+     "pour des PG7 ou M12 x 1,5 (câble de 3 à 6,5 mm), un par moteur, un pour le 36 V, la raquette, le GPS et le PC. "
      "Le jack 12 V et le micro-USB gardent leur ouverture."),
     ("monture_ext", "Carte monture : drivers externes",
      "150 x 110 mm, deux couches. Le même Teensy et la même alimentation, avec des borniers vers des drivers "
      "externes (DM542, DM556, TB6600...) : signaux EN, STEP et DIR en 5 V, et alimentation de chaque driver.",
      ("base", "couvercle"),
-     "Boîtier de 202 x 140 x 35 mm, avec la même chambre de câblage de 22 mm et douze trous de 12,5 mm pour "
-     "des presse-étoupes PG7 ou M12 x 1,5 : deux par axe (alimentation et signaux du driver, au pas de 20 mm), "
-     "un pour le 36 V, la raquette, le GPS et le PC."),
+     "Boîtier de 202 x 140 x 35 mm, avec la même chambre de câblage de 22 mm et un presse-étoupe par élément. "
+     "Pour chaque axe, un trou de 20,5 mm pour un M20 x 1,5 à joint 2 trous : les câbles d'alimentation et de "
+     "signaux du driver y passent ensemble. Pour le 36 V, la raquette, le GPS et le PC, un trou de 12,5 mm "
+     "(PG7 ou M12 x 1,5)."),
     ("raquette", "Carte raquette",
      "105 x 150 mm, deux couches. Un Teensy 4.1, l'afficheur LCD 20 x 4 en I2C, cinq boutons et une prise "
      "Grove I2C, avec un adaptateur de niveau qui protège le Teensy du 5 V de l'I2C.",
