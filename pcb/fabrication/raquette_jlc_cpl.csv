@@ -1,0 +1,14 @@
+Designator,Mid X,Mid Y,Layer,Rotation
+J_GROVE,93.000mm,-100.000mm,Top,0
+J_LCD_I2C,12.000mm,-100.000mm,Top,0
+Q_SCL,23.000mm,-107.000mm,Top,0
+Q_SDA,23.000mm,-100.500mm,Top,0
+R_SCL_3V3,28.000mm,-104.500mm,Top,0
+R_SCL_5V,28.000mm,-107.500mm,Top,0
+R_SDA_3V3,28.000mm,-98.500mm,Top,0
+R_SDA_5V,28.000mm,-101.500mm,Top,0
+SW_DOWN,52.500mm,-135.000mm,Top,0
+SW_ENTER,52.500mm,-120.000mm,Top,0
+SW_LEFT,37.500mm,-120.000mm,Top,0
+SW_RIGHT,67.500mm,-120.000mm,Top,0
+SW_UP,52.500mm,-105.000mm,Top,0

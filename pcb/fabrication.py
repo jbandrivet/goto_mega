@@ -5,6 +5,7 @@ Fichiers de fabrication des trois cartes, à relancer après chaque modification
 Pour chaque carte (monture, monture_ext, raquette), écrit dans pcb/fabrication/ :
 - <carte>_gerber.zip      : Gerber et perçages, à envoyer tel quel au fabricant (JLCPCB, PCBWay...)
 - <carte>_composants.csv  : liste des composants, regroupés par valeur et empreinte
+- <carte>_jlc_bom.csv et <carte>_jlc_cpl.csv : nomenclature et positions pour le montage par JLCPCB
 et pcb/LISTE_ACHATS.md : liste d'achat complète (composants, modules, boîtier, visserie, câbles).
 et, à côté du PCB, ses vues 3D : <carte>_3d.png (dessus) et <carte>_perspective.jpg.
 
@@ -94,6 +95,64 @@ def composants(pcb, nom):
     (SORTIE / f"{nom}_composants.csv").write_text(tampon.getvalue(), encoding="utf-8")
 
 
+# Montage par JLCPCB (option PCB Assembly) : nomenclature et positions à leur format. Les descriptions
+# sont en anglais, pour que JLC trouve les pièces chez LCSC (« Parts Selection : By JLCPCB »). Le Teensy
+# n'est pas chez LCSC : il s'enfiche sur ses barrettes, à souder soi-même ; les fils du câble aussi.
+JLC_SAUF = ("Teensy41", "SolderWire-0.5sqmm_1x04_P4.8mm_D0.9mm_OD2.3mm")
+JLC_PIECES = {
+    "TerminalBlock_Phoenix_MKDS-1,5-2-5.08_1x02_P5.08mm_Horizontal":
+        "Screw terminal block 2P, pitch 5.08 mm (Phoenix MKDS 1,5/2-5,08 or equivalent)",
+    "TerminalBlock_Phoenix_MKDS-1,5-4-5.08_1x04_P5.08mm_Horizontal":
+        "Screw terminal block 4P, pitch 5.08 mm (Phoenix MKDS 1,5/4-5,08 or equivalent)",
+    "TerminalBlock_Phoenix_PT-1,5-4-3.5-H_1x04_P3.50mm_Horizontal":
+        "Screw terminal block 4P, pitch 3.5 mm (Phoenix PT 1,5/4-3,5-H or equivalent)",
+    "PinHeader_1x04_P2.54mm_Vertical": "Male pin header 1x4, pitch 2.54 mm, vertical",
+    "PinSocket_1x08_P2.54mm_Vertical": "Female header 1x8, pitch 2.54 mm, vertical",
+    "SW_PUSH_6mm": "Tactile switch 6x6 mm, height 4.3 mm, THT",
+    "BarrelJack_Horizontal": "DC barrel jack 5.5 x 2.1 mm, horizontal THT",
+    "Buzzer_12x9.5RM7.6": "Buzzer 12 mm, 5 V, pin pitch 7.6 mm",
+    "Fuse_Littelfuse_372_D8.50mm": "TR5 fuse 4 A time-lag (Littelfuse 372)",
+    "R_Array_SIP5": "Resistor network 4 x 10k bussed, SIP-5, common pin 1",
+}
+JLC_TYPES = (("CP_Radial", "Electrolytic capacitor {v}"), ("C_Disc", "Ceramic capacitor {v} 50 V"),
+             ("R_Axial", "Resistor {v} ohm 1/4 W axial"), ("L_Radial", "Radial power inductor {v}"),
+             ("D_DO-35", "Diode {v} DO-35"), ("D_DO-201AD", "Schottky diode {v} DO-201AD"),
+             ("DIP-14", "{v} DIP-14"), ("TO-220", "{v} TO-220"), ("TO-92", "{v} TO-92"),
+             ("SOT-23", "{v} N-MOSFET SOT-23"))
+
+
+def jlc_piece(empreinte, valeur):
+    if empreinte in JLC_PIECES:
+        return JLC_PIECES[empreinte]
+    for debut, modele in JLC_TYPES:
+        if empreinte.startswith(debut):
+            return modele.format(v=valeur.split(" (")[0])
+    return valeur
+
+
+def jlc(pcb, nom):
+    board = pcbnew.LoadBoard(str(pcb))
+    groupes, cpl = defaultdict(list), []
+    for f in board.GetFootprints():
+        empreinte = str(f.GetFPID().GetLibItemName())
+        if f.GetAttributes() & (pcbnew.FP_EXCLUDE_FROM_BOM | pcbnew.FP_BOARD_ONLY) \
+                or f.GetReference().startswith(("H", "JP_")) or empreinte in JLC_SAUF:
+            continue
+        groupes[(jlc_piece(empreinte, f.GetValue()), empreinte)].append(f.GetReference())
+        pos = f.GetPosition()
+        cpl.append((f.GetReference(), f"{pcbnew.ToMM(pos.x):.3f}mm", f"{-pcbnew.ToMM(pos.y):.3f}mm",
+                    "Top" if f.GetLayer() == pcbnew.F_Cu else "Bottom", f"{f.GetOrientationDegrees() % 360:g}"))
+    for fichier, entete, lignes in (
+            (f"{nom}_jlc_bom.csv", ("Comment", "Designator", "Footprint", "LCSC Part #"),
+             [(c, ",".join(sorted(r)), e, "") for (c, e), r in sorted(groupes.items())]),
+            (f"{nom}_jlc_cpl.csv", ("Designator", "Mid X", "Mid Y", "Layer", "Rotation"), sorted(cpl))):
+        tampon = io.StringIO()
+        w = csv.writer(tampon, lineterminator="\n")
+        w.writerow(entete)
+        w.writerows(lignes)
+        (SORTIE / fichier).write_text(tampon.getvalue(), encoding="utf-8")
+
+
 def vues_3d(pcb, nom):
     kicad_cli("pcb", "render", "-w", "1600", "-h", "1200", "--quality", "high",
               "-o", str(pcb.with_name(f"{nom}_3d.png")), str(pcb))
@@ -113,6 +172,7 @@ if __name__ == "__main__":
         pcb = ICI / nom / f"{nom}.kicad_pcb"
         gerbers(pcb, nom)
         composants(pcb, nom)
+        jlc(pcb, nom)
         vues_3d(pcb, nom)
         print(f"[OK] {nom}")
     import liste_achats      # la liste d'achat reprend les listes de composants qu'on vient d'écrire

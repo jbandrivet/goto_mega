@@ -1,0 +1,5 @@
+Comment,Designator,Footprint,LCSC Part #
+BSS138 N-MOSFET SOT-23,"Q_SCL,Q_SDA",SOT-23_Handsoldering,
+"Male pin header 1x4, pitch 2.54 mm, vertical","J_GROVE,J_LCD_I2C",PinHeader_1x04_P2.54mm_Vertical,
+Resistor 10k ohm 1/4 W axial,"R_SCL_3V3,R_SCL_5V,R_SDA_3V3,R_SDA_5V",R_Axial_DIN0204_L3.6mm_D1.6mm_P2.54mm_Vertical,
+"Tactile switch 6x6 mm, height 4.3 mm, THT","SW_DOWN,SW_ENTER,SW_LEFT,SW_RIGHT,SW_UP",SW_PUSH_6mm,
