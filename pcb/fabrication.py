@@ -5,6 +5,7 @@ Fichiers de fabrication des trois cartes, à relancer après chaque modification
 Pour chaque carte (monture, monture_ext, raquette), écrit dans pcb/fabrication/ :
 - <carte>_gerber.zip      : Gerber et perçages, à envoyer tel quel au fabricant (JLCPCB, PCBWay...)
 - <carte>_composants.csv  : liste des composants, regroupés par valeur et empreinte
+et pcb/LISTE_ACHATS.md : liste d'achat complète (composants, modules, boîtier, visserie, câbles).
 et, à côté du PCB, ses vues 3D : <carte>_3d.png (dessus) et <carte>_perspective.jpg.
 
 Il faut KiCad (kicad-cli et le module pcbnew). Le site du projet reprend ces fichiers.
@@ -114,5 +115,8 @@ if __name__ == "__main__":
         composants(pcb, nom)
         vues_3d(pcb, nom)
         print(f"[OK] {nom}")
+    import liste_achats      # la liste d'achat reprend les listes de composants qu'on vient d'écrire
+    liste_achats.ecrire()
+    print("[OK] LISTE_ACHATS.md")
     sys.stdout.flush()
     os._exit(0)      # pcbnew plante parfois à la fermeture de Python
