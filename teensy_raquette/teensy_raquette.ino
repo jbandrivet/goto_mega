@@ -23,6 +23,7 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <EEPROM.h>
+#include <new>
 #include "mini_ephem.h"
 
 enum CatID { CAT_MESSIER=0, CAT_NGC, CAT_IC, CAT_PK, CAT_CALDWELL, CAT_BSC, CAT_SYSSOL, CAT_COUNT };
@@ -1078,7 +1079,10 @@ StarObject getStarFromCatalog(uint16_t index) {
 // ============================================================
 // SECTION 1 : CONFIGURATION
 // ============================================================
-#define LCD_ADDR   0x27
+// Adaptateur I2C de l'écran : 0x27 avec une puce PCF8574T, 0x3F avec une PCF8574AT (Freenove et
+// d'autres livrent l'une ou l'autre). Au démarrage, l'écran prend celle qui répond.
+#define LCD_ADDR      0x27
+#define LCD_ADDR_ALT  0x3F
 #define BTN_UP      6
 #define BTN_DOWN    7
 #define BTN_LEFT    8
@@ -2734,6 +2738,11 @@ void handleButtons(){
 
 // ============================================================
 // SECTION 12 : SETUP
+static bool i2cPresent(uint8_t addr) {
+    Wire.beginTransmission(addr);
+    return Wire.endTransmission() == 0;
+}
+
 // ============================================================
 void setup(){
     loadEEPROM();
@@ -2744,6 +2753,8 @@ void setup(){
     for(int i=0;i<5;i++) pinMode(BTN_PINS[i],INPUT_PULLUP);
 
     Wire.begin();
+    if (!i2cPresent(LCD_ADDR) && i2cPresent(LCD_ADDR_ALT))
+        new (&lcd) LiquidCrystal_I2C(LCD_ADDR_ALT, 20, 4);   // même objet, autre adresse
     lcd.init();
     lcd.backlight();
     initCustomChars();
