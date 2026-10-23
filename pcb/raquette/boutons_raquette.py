@@ -19,9 +19,10 @@ import sys
 import FreeCAD as App
 import Part
 
-# Face avant (boitier_raquette.scad : base_h = 16, top_h = 14, wall = 2.5)
-PLAQUE_BAS = 27.5          # dessous de la face avant
-PLAQUE_HAUT = 30.0         # dessus de la face avant
+# Face avant (boitier_raquette.scad : base_h = 35,5 avec des entretoises d'écran de 15 mm, top_h = 3,5,
+# wall = 2,5). Avec lcd_entretoise = 12 dans le .scad, retirer 3 mm aux deux valeurs et relancer.
+PLAQUE_BAS = 36.5          # dessous de la face avant
+PLAQUE_HAUT = 39.0         # dessus de la face avant
 TROU_D = 10.0              # trous des boutons
 
 # Poussoirs 6 x 6 mm de 4,3 mm de haut, ceux de la carte. Avec des poussoirs plus hauts (5 mm,

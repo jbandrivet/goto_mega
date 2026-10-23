@@ -13,10 +13,18 @@ pcb_h = 150;
 wall = 2.5;
 clearance = 1.5;
 standoff_h = 5.0;
-// Joint à Z = 26,5 : le trou du presse-étoupe tient entier dans la coque arrière.
-// Hauteur totale inchangée (30 mm), plaque de la face avant toujours à Z 27,5..30.
-base_h = 26.5;      // Hauteur coque arrière
 top_h = 3.5;        // Hauteur face avant (plaque 2,5 mm + rebord 1 mm)
+
+// Écran LCD 2004 I2C (Freenove ou équivalent, 98 x 60 mm, trous M3 à 93 x 55 mm) fixé sur 4 entretoises
+// M3 posées sur la carte. Son adaptateur I2C, au dos, descend d'environ 10 à 12 mm sous le circuit
+// de l'écran : les entretoises doivent être plus longues que lui. La hauteur du boîtier en découle,
+// pour que le cadre de l'écran arrive juste sous la fenêtre.
+lcd_entretoise = 15;   // longueur des entretoises (12 si l'adaptateur descend de moins de 11 mm)
+lcd_avant = 12;        // du dessous du circuit de l'écran au-dessus de son cadre métallique
+lcd_jeu = 0.4;         // entre le cadre de l'écran et le dessous de la face avant
+dessus_carte = wall + standoff_h + 1.6;   // Z = 9,1
+// Coque arrière : 35,5 mm avec des entretoises de 15 (boîtier de 39 mm), 32,5 avec 12 (36 mm).
+base_h = dessus_carte + lcd_entretoise + lcd_avant + lcd_jeu - (top_h - wall);
 
 inner_w = pcb_w + 2 * clearance;
 inner_h = pcb_h + 2 * clearance;
@@ -128,7 +136,7 @@ module raquette_face_avant() {
         translate([wall, wall, -1])
             cube([inner_w, inner_h, top_h - wall + 1]);
 
-        // A. Fenêtre de l'Écran LCD 2004 / 1602 avec chanfrein esthétique
+        // A. Fenêtre de l'écran LCD 2004 (zone visible 76 x 25,2 mm)
         // Centrée à Y = 110 (puisque dans KiCad l'écran est à Y=40, et la carte fait 150)
         lcd_y = wall + clearance + 110;
         translate([cx - 38, lcd_y - 13, -1]) {
