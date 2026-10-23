@@ -490,11 +490,18 @@ MATERIEL = (
      "focuseur) pour TMC5160, TMC2209, A4988 ou DRV8825 ; les TMC5160 se règlent en SPI une fois les ponts à "
      "souder fermés. Alimentation 36 V par le bornier ou 12 V par le jack, protégée contre l'inversion des fils "
      "et par un fusible, convertisseur 5 V sur la carte.",
-     ("base", "couvercle"), "Boîtier de 45 mm de haut, couvercle ajouré au-dessus des drivers."),
+     ("base", "couvercle"),
+     "Boîtier de 202 x 140 x 45 mm, couvercle ajouré au-dessus des drivers. Une chambre de câblage de 22 mm "
+     "entoure la carte côté moteurs et sur les deux flancs : sept trous de 12,5 mm pour des presse-étoupes PG7 "
+     "ou M12 x 1,5 (câble de 3 à 6,5 mm), un par moteur, un pour le 36 V, la raquette, le GPS et le PC. "
+     "Le jack 12 V et le micro-USB gardent leur ouverture."),
     ("monture_ext", "Carte monture : drivers externes",
      "150 x 110 mm, deux couches. Le même Teensy et la même alimentation, avec des borniers vers des drivers "
      "externes (DM542, DM556, TB6600...) : signaux EN, STEP et DIR en 5 V, et alimentation de chaque driver.",
-     ("base", "couvercle"), "Boîtier de 35 mm de haut."),
+     ("base", "couvercle"),
+     "Boîtier de 202 x 140 x 35 mm, avec la même chambre de câblage de 22 mm et douze trous de 12,5 mm pour "
+     "des presse-étoupes PG7 ou M12 x 1,5 : deux par axe (alimentation et signaux du driver, au pas de 20 mm), "
+     "un pour le 36 V, la raquette, le GPS et le PC."),
     ("raquette", "Carte raquette",
      "105 x 150 mm, deux couches. Un Teensy 4.1, l'afficheur LCD 20 x 4 en I2C, cinq boutons et une prise "
      "Grove I2C, avec un adaptateur de niveau qui protège le Teensy du 5 V de l'I2C.",
