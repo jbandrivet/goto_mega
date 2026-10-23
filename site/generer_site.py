@@ -378,8 +378,29 @@ def alertes_github(texte):
     return "\n".join(out)
 
 
+# Formules LaTeX des documents (GitHub les affiche, python-markdown non) : quelques commandes en texte.
+SYMBOLES_LATEX = {"rightarrow": "→", "leftarrow": "←", "leftrightarrow": "↔", "times": "×", "cdot": "·",
+                  "approx": "≈", "le": "≤", "ge": "≥", "pm": "±", "degree": "°"}
+
+def latex_en_html(f):
+    f = re.sub(r"\\text\{([^{}]*)\}", r"\1", f)
+    f = re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}",
+               r'<span class="fraction"><span>\1</span><span>\2</span></span>', f)
+    f = re.sub(r"\\([a-zA-Z]+)", lambda m: SYMBOLES_LATEX.get(m.group(1), m.group(0)), f)
+    return f.strip()
+
+def formules(texte):
+    """$$...$$ (bloc centré) et $...$ contenant une commande \\..., hors blocs et extraits de code."""
+    morceaux = re.split(r"(```.*?```|`[^`\n]*`)", texte, flags=re.S)
+    for i in range(0, len(morceaux), 2):
+        m = re.sub(r"\$\$(.+?)\$\$", lambda x: f'\n<div class="formule">{latex_en_html(x.group(1))}</div>\n',
+                   morceaux[i], flags=re.S)
+        morceaux[i] = re.sub(r"\$([^$\n]*\\[a-zA-Z]+[^$\n]*)\$", lambda x: latex_en_html(x.group(1)), m)
+    return "".join(morceaux)
+
+
 def rendre_md(texte):
-    texte = listes_comme_github(alertes_github(texte))
+    texte = formules(listes_comme_github(alertes_github(texte)))
     texte = re.sub(r"\[([^\]]*)\]\(([^)\s]+)\)", lien_local, texte)
     md = markdown.Markdown(extensions=["tables", "fenced_code", "toc", "sane_lists", "md_in_html"],
                            extension_configs={"toc": {"permalink": False}})
