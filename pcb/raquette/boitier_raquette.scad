@@ -13,7 +13,7 @@ pcb_h = 150;
 wall = 2.5;
 clearance = 1.5;
 standoff_h = 5.0;
-// Joint à Z = 26,5 : les trous des presse-étoupes tiennent entiers dans la coque arrière.
+// Joint à Z = 26,5 : le trou du presse-étoupe tient entier dans la coque arrière.
 // Hauteur totale inchangée (30 mm), plaque de la face avant toujours à Z 27,5..30.
 base_h = 26.5;      // Hauteur coque arrière
 top_h = 3.5;        // Hauteur face avant (plaque 2,5 mm + rebord 1 mm)
@@ -26,14 +26,13 @@ outer_h = inner_h + 2 * wall;
 // Centre X de la raquette
 cx = outer_w / 2.0;
 
-// Presse-étoupes PG7 ou M12 x 1,5 (câble de 3 à 6,5 mm), contre-écrou de 15 mm sur plats à
+// Presse-étoupe PG7 ou M12 x 1,5 (câble de 3 à 6,5 mm), contre-écrou de 15 mm sur plats à
 // l'intérieur. Centre à Z = 18,5 : l'écrou (17,3 mm sur angles) passe entre le bord de la carte
 // (Z 9,1) et la face avant (Z 27,5).
 pe_d = 12.5;                                // Trou de passage du filetage
 pe_z = 18.5;                                // Hauteur du centre
-pe_grove = true;                            // Second presse-étoupe, câble de la prise Grove
 pe_cable_x = cx;                            // Câble monture : bas, au centre, face aux pastilles J_DIN
-pe_grove_y = wall + clearance + (150 - 100); // Grove : flanc droit, à la hauteur de J_GROVE (Y KiCad 100)
+                                            // (l'écran et la prise Grove restent câblés à l'intérieur)
 
 // ----------------------------------------------------------------------------
 // 1. COQUE ARRIÈRE (BASE DU BOÎTIER)
@@ -57,11 +56,6 @@ module raquette_base() {
         // Presse-étoupe du câble vers la monture, en bas au centre
         translate([pe_cable_x, -1, pe_z])
             rotate([-90, 0, 0]) cylinder(d=pe_d, h=wall + 2, $fn=64);
-
-        // Presse-étoupe du câble Grove, flanc droit
-        if (pe_grove)
-            translate([outer_w - wall - 1, pe_grove_y, pe_z])
-                rotate([0, 90, 0]) cylinder(d=pe_d, h=wall + 2, $fn=64);
 
         // Trous filetés M3 dans les 4 coins pour la fermeture
         corners = [

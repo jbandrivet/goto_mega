@@ -506,9 +506,9 @@ MATERIEL = (
      "105 x 150 mm, deux couches. Un Teensy 4.1, l'afficheur LCD 20 x 4 en I2C, cinq boutons et une prise "
      "Grove I2C, avec un adaptateur de niveau qui protège le Teensy du 5 V de l'I2C.",
      ("base", "face_avant", "boutons"),
-     "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur. Le fond a deux trous "
-     "de 12,5 mm pour des presse-étoupes PG7 ou M12 x 1,5 (câble de 3 à 6,5 mm) : le câble de la monture en bas, "
-     "celui de la prise Grove sur le côté droit. Les cinq boutons "
+     "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur. Le fond a un trou "
+     "de 12,5 mm en bas pour le presse-étoupe du câble de la monture (PG7 ou M12 x 1,5, câble de 3 à 6,5 mm) ; "
+     "l'écran est câblé à l'intérieur. Les cinq boutons "
      "s'impriment tête en bas, sans support ; ils sont calés pour des poussoirs 6 x 6 mm de 4,3 mm de haut "
      "(pour d'autres poussoirs, changez leur hauteur dans le script FreeCAD et relancez-le)."),
 )
