@@ -724,7 +724,21 @@ Sitemap: {SITE}/sitemap.xml
 
 
 # ── Écriture ──────────────────────────────────────────────────
+def versionner(texte, sortie):
+    """Ajoute à chaque lien vers statique/ ou materiel/ une empreinte du fichier (?v=…). Le navigateur
+    garde ces fichiers en cache (7 jours pour statique/) : un fichier modifié change ainsi d'adresse et
+    il est rechargé tout de suite."""
+    def remplace(m):
+        f = sortie / m.group(2)
+        if not f.is_file():
+            return m.group(0)
+        return f'{m.group(1)}="{m.group(2)}?v={zlib.crc32(f.read_bytes()):08x}"'
+    return re.sub(r'(src|href)="((?:statique|materiel)/[^"?#]+)"', remplace, texte)
+
+
 def ecrire(chemin, texte):
+    if chemin.suffix == ".html":
+        texte = versionner(texte, chemin.parent)
     tmp = chemin.with_name(f".{chemin.name}.tmp")
     tmp.write_text(texte, encoding="utf-8")
     os.replace(tmp, chemin)
