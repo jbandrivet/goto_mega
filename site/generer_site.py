@@ -54,10 +54,11 @@ DOCS = {
     "MANUEL_RAQUETTE.md": ("raquette.html", "Raquette"),
     "fiche_technique.md": ("fiche-technique.html", "Fiche technique"),
     "CONTRIBUTING.md": ("contribuer.html", "Contribuer"),
+    "pcb/LISTE_ACHATS.md": ("liste-achats.html", "Liste d'achat"),
 }
 MENU = (("index.html", "Accueil"), ("telecharger.html", "Télécharger"), ("documentation.html", "Documentation"),
         ("raquette.html", "Raquette"), ("fiche-technique.html", "Fiche technique"),
-        ("materiel.html", "Cartes et boîtiers"),
+        ("materiel.html", "Cartes et boîtiers"), ("liste-achats.html", "Liste d'achat"),
         ("nouveautes.html", "Nouveautés"), ("contribuer.html", "Contribuer"))
 
 LIENS = (("OnStep", "https://onstep.groups.io/g/main/wiki"), ("KStars et Ekos", "https://kstars.kde.org/fr/"),
@@ -661,6 +662,8 @@ boîtier à imprimer en 3D.</p>
 <ul>
 <li><strong>Faire fabriquer une carte</strong> : envoyez le fichier « Gerber et perçages » tel quel au
 fabricant (JLCPCB, PCBWay, Aisler...), en épaisseur 1,6 mm.</li>
+<li><strong>Acheter les pièces</strong> : la <a href="liste-achats.html">liste d'achat</a> donne, carte par
+carte, les composants à souder et tout le reste (Teensy, écran, drivers, presse-étoupes, visserie, câbles).</li>
 <li><strong>Câbler</strong> : les branchements des moteurs, du GPS et de la raquette sont dans la
 <a href="fiche-technique.html">fiche technique</a> et la <a href="documentation.html">documentation</a>.</li>
 <li><strong>Modifier</strong> : les cartes s'ouvrent dans <a href="https://www.kicad.org/">KiCad</a> 10, les
