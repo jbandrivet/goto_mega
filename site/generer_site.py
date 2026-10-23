@@ -626,6 +626,8 @@ def page_materiel(depot, sortie, version):
             fichier(pcb / "fabrication" / f"{carte}_gerber.zip", "Gerber et perçages (.zip), pour le fabricant"),
             projet_kicad(carte),
             fichier(pcb / "fabrication" / f"{carte}_composants.csv", "Liste des composants (.csv)"),
+            fichier(pcb / "fabrication" / f"{carte}_jlc_bom.csv", "Montage par JLCPCB : nomenclature BOM (.csv)"),
+            fichier(pcb / "fabrication" / f"{carte}_jlc_cpl.csv", "Montage par JLCPCB : positions CPL (.csv)"),
             fichier(rep / f"{carte}.glb", "Modèle 3D de la carte (.glb)"))))
         fichiers_boitier = "\n".join(filter(None, [
             *(fichier(rep / f"{boitier}_{p}.stl", f"{p.replace('_', ' ').capitalize()} (.stl)") for p in pieces),
