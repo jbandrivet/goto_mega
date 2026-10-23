@@ -113,7 +113,7 @@ th { background: #000080; color: #fff; font-family: Arial, sans-serif; }
 td { background: #000022; }
 
 /* ── Cartes et boîtiers ── */
-.vues { display: flex; flex-wrap: wrap; gap: 12px; margin: 10px 0; }
+.vues { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; margin: 10px 0; }
 .vues figure { flex: 1 1 280px; max-width: 640px; margin: 0; }
 .vues img { display: block; width: 100%; height: auto; border: 3px ridge #c0c0c0; background: #000; }
 .vues figcaption { font-size: 15px; color: #c0c0c0; text-align: center; margin-top: 4px; }

@@ -283,7 +283,7 @@ def page(titre, actif, contenu, version):
 <header class="entete">
   <p class="scintille" aria-hidden="true"><span>★</span> <span>☆</span> <span>★</span> <span>☆</span> <span>★</span></p>
   <p class="titre"><a href="index.html">GotoAndrivet</a></p>
-  <p class="sous-titre">~ Le contrôleur GoTo libre pour télescopes ~</p>
+  <p class="sous-titre">~&nbsp;Le contrôleur GoTo libre pour télescopes&nbsp;~</p>
   <marquee class="defile" scrollamount="5">★ Bienvenue sur le site de GotoAndrivet ! ★ Dernière nouveauté, le {date} : {html.escape(dernier)} ★ Logiciel libre et gratuit, sous licence GPL v3 ★ Bon ciel à toutes et à tous ! ★</marquee>
 </header>
 <div class="mise-en-page">
@@ -499,7 +499,9 @@ MATERIEL = (
      "105 x 150 mm, deux couches. Un Teensy 4.1, l'afficheur LCD 20 x 4 en I2C, cinq boutons et une prise "
      "Grove I2C, avec un adaptateur de niveau qui protège le Teensy du 5 V de l'I2C.",
      ("base", "face_avant", "boutons"),
-     "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur. Les cinq boutons "
+     "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur. Le fond a deux trous "
+     "de 12,5 mm pour des presse-étoupes PG7 ou M12 x 1,5 (câble de 3 à 6,5 mm) : le câble de la monture en bas, "
+     "celui de la prise Grove sur le côté droit. Les cinq boutons "
      "s'impriment tête en bas, sans support ; ils sont calés pour des poussoirs 6 x 6 mm de 4,3 mm de haut "
      "(pour d'autres poussoirs, changez leur hauteur dans le script FreeCAD et relancez-le)."),
 )
