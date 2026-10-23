@@ -507,7 +507,10 @@ MATERIEL = (
      "105 x 150 mm, deux couches. Un Teensy 4.1, l'afficheur LCD 20 x 4 en I2C, cinq boutons et une prise "
      "Grove I2C, avec un adaptateur de niveau qui protège le Teensy du 5 V de l'I2C.",
      ("base", "face_avant", "boutons"),
-     "Boîtier en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur. Le fond a un trou "
+     "Boîtier de 113 x 158 x 39 mm en deux parties : le fond, et la face avant avec la fenêtre de l'afficheur. "
+     "L'écran LCD 2004 I2C (98 x 60 mm, Freenove ou équivalent, adresse 0x27 ou 0x3F reconnue toute seule) se "
+     "visse sur quatre entretoises M3 de 15 mm, plus longues que l'adaptateur I2C de son dos : son cadre arrive "
+     "juste sous la fenêtre. Le fond a un trou "
      "de 12,5 mm en bas pour le presse-étoupe du câble de la monture (PG7 ou M12 x 1,5, câble de 3 à 6,5 mm) ; "
      "l'écran est câblé à l'intérieur. Les cinq boutons "
      "s'impriment tête en bas, sans support ; ils sont calés pour des poussoirs 6 x 6 mm de 4,3 mm de haut "
