@@ -103,7 +103,9 @@ La raquette physique est articulée autour d'une carte **Teensy 4.1**.
 > [!WARNING]
 > La monture doit fournir assez de courant au Teensy via la pin VIN. Ne pas alimenter le Teensy par son port USB si le câble DIN l'alimente déjà, sauf si le pad `VUSB` sous le Teensy a été physiquement sectionné.
 
-### 2. Écran LCD 20x4 I2C (module PCF8574, adresse `0x27`)
+### 2. Écran LCD 20x4 I2C (module PCF8574, adresse `0x27` ou `0x3F`)
+L'adaptateur I2C de l'écran répond en `0x27` avec une puce PCF8574T, en `0x3F` avec une PCF8574AT (Freenove et d'autres livrent l'une ou l'autre) : la raquette essaie les deux au démarrage.
+
 * **SDA** $\rightarrow$ Broche **Pin 18 (SDA0)** de la Teensy
 * **SCL** $\rightarrow$ Broche **Pin 19 (SCL0)** de la Teensy
 * **VCC** $\rightarrow$ Broche **5V** (VIN)
