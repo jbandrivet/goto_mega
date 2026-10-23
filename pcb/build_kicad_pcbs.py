@@ -149,6 +149,14 @@ def teensy_marks_to_fab(teensy):
                 and item.GetTextHeight() < pcbnew.FromMM(SILK_TEXT_H) - 1:
             item.SetLayer(pcbnew.F_Fab)
 
+def teensy_models_fix(teensy):
+    """Le décalage Y d'un modèle 3D se compte vers le haut, à l'inverse des pastilles. Dans l'empreinte
+    Teensy41, le connecteur 1 x 5 de l'USB Host (pastilles 55-59, Y = +4,57) avait un décalage de
+    +4,57 : la vue 3D le dessinait à Y = -4,57, sur l'Ethernet. Le cuivre n'est pas concerné."""
+    for model in teensy.Models():
+        if "_1x05_" in model.m_Filename and model.m_Offset.y > 0:
+            model.m_Offset.y = -model.m_Offset.y
+
 def connect_pad(fp, pad_num, net):
     for pad in fp.Pads():
         if pad.GetNumber() == str(pad_num):
@@ -328,6 +336,7 @@ def _add_monture_teensy_periph(board, nets):
     teensy.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(75), pcbnew.FromMM(70)))
     board.Add(teensy)
     teensy_marks_to_fab(teensy)
+    teensy_models_fix(teensy)
     add_label(board, "<- MICRO-USB", 36.9, 69)
 
     # Empreinte Teensy41 : pad n (1..24) = rangée broches 0..12/24..32 (pad 1 = GND, pad 2 = broche 0,
@@ -812,6 +821,7 @@ def create_raquette_pcb(output_dir):
     teensy.SetPosition(pcbnew.VECTOR2I(pcbnew.FromMM(lcd_cx), pcbnew.FromMM(85)))
     board.Add(teensy)
     teensy_marks_to_fab(teensy)
+    teensy_models_fix(teensy)
     add_label(board, "<- USB TEENSY 4.1", 1.5, 85, justify=LEFT)
 
     btn_cx = lcd_cx
